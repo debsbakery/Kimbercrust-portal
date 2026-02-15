@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": ".next"
+		},
+		{
+			"path": "app"
+		},
+		{
+			"path": "app/auth/login"
+		}
+	],
+	"settings": {}
+}
