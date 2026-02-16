@@ -1,171 +1,184 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { createClient } from '@/lib/supabase/server'
 import { StatementService } from '@/lib/services/statement-service'
 import { ReminderService } from '@/lib/services/reminder-service'
-import { AgingService } from '@/lib/services/aging-service'
-import { prisma } from '@/lib/prisma'
+import { AgingService } from '@/lib/services/ageing-service'
 import { startOfMonth, endOfMonth } from 'date-fns'
-import { Prisma } from '@prisma/client'
 
 export async function sendStatementAction(customerId: string) {
   try {
-    const service = new StatementService()
-    const startDate = startOfMonth(new Date())
-    const endDate = endOfMonth(new Date())
-    
-    await service.emailStatement(customerId, startDate, endDate)
-    
-    revalidatePath('/ar')
-    revalidatePath(`/ar/customers/${customerId}`)
-    
-    return { success: true, message: 'Statement sent successfully' }
-  } catch (error) {
-    console.error('Send statement error:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to send statement' 
-    }
+    await StatementService.sendStatement(customerId)
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error sending statement:', error)
+    return { success: false, error: error.message }
   }
 }
 
-export async function processRemindersAction() {
+export async function sendAllStatementsAction() {
   try {
-    const service = new ReminderService()
-    const result = await service.processOverdueReminders()
+    const supabase = await createClient()
     
-    revalidatePath('/ar')
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select('id, business_name')
     
-    return { success: true, ...result }
-  } catch (error) {
-    console.error('Process reminders error:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to process reminders' 
+    if (error) throw error
+    
+    let sent = 0
+    for (const customer of customers || []) {
+      try {
+        await StatementService.sendStatement(customer.id)
+        sent++
+      } catch (err) {
+        console.error(`Failed to send statement to ${customer.business_name}:`, err)
+      }
     }
+    
+    return { success: true, sent, total: customers?.length || 0 }
+  } catch (error: any) {
+    console.error('Error sending statements:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function sendPaymentReminderAction(customerId: string) {
+  try {
+    await ReminderService.sendReminder(customerId)
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error sending reminder:', error)
+    return { success: false, error: error.message }
+  }
+}
+
+export async function sendAllRemindersAction() {
+  try {
+    const supabase = await createClient()
+    
+    // Get customers with overdue balances
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select('id, business_name, balance')
+      .gt('balance', 0)
+    
+    if (error) throw error
+    
+    let sent = 0
+    for (const customer of customers || []) {
+      try {
+        await ReminderService.sendReminder(customer.id)
+        sent++
+      } catch (err) {
+        console.error(`Failed to send reminder to ${customer.business_name}:`, err)
+      }
+    }
+    
+    return { success: true, sent, total: customers?.length || 0 }
+  } catch (error: any) {
+    console.error('Error sending reminders:', error)
+    return { success: false, error: error.message }
   }
 }
 
 export async function updateAgingAction() {
   try {
-    const service = new AgingService()
-    const count = await service.updateAllAging()
-    
-    revalidatePath('/ar/aging')
-    
-    return { success: true, count, message: `Updated aging for ${count} customers` }
-  } catch (error) {
-    console.error('Update aging error:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to update aging' 
-    }
+    await AgingService.updateAllAging()
+    return { success: true }
+  } catch (error: any) {
+    console.error('Error updating aging:', error)
+    return { success: false, error: error.message }
   }
 }
 
-export async function recordPaymentAction(data: {
-  customerId: string
-  amount: number
-  description: string
-  paymentDate?: Date
-}) {
+export async function recordPaymentAction(
+  customerId: string,
+  amount: number,
+  paymentMethod: string,
+  reference?: string
+) {
   try {
-    const customer = await prisma.customer.findUnique({
-      where: { id: data.customerId }
-    })
-
-    if (!customer) {
-      return { success: false, error: 'Customer not found' }
-    }
-
-    const newBalance = Number(customer.balance) - data.amount
-
-    await prisma.$transaction(async (tx) => {
-      // Create payment transaction
-      await tx.arTransaction.create({
-        data: {
-          customerId: data.customerId,
-          type: 'payment',
-          amount: new Prisma.Decimal(data.amount),
-          balanceAfter: new Prisma.Decimal(newBalance),
-          paidDate: data.paymentDate || new Date(),
-          description: data.description
-        }
+    const supabase = await createClient()
+    
+    // Get current balance
+    const { data: customer } = await supabase
+      .from('customers')
+      .select('balance')
+      .eq('id', customerId)
+      .single()
+    
+    if (!customer) throw new Error('Customer not found')
+    
+    const currentBalance = parseFloat(customer.balance || '0')
+    const newBalance = currentBalance - amount
+    
+    // Record transaction
+    const { error: txError } = await supabase
+      .from('ar_transactions')
+      .insert({
+        customer_id: customerId,
+        type: 'payment',
+        amount: amount.toString(),
+        balance_after: newBalance.toString(),
+        description: `Payment - ${paymentMethod}${reference ? ` - Ref: ${reference}` : ''}`,
+        paid_date: new Date().toISOString()
       })
-
-      // Update customer balance
-      await tx.customer.update({
-        where: { id: data.customerId },
-        data: { balance: new Prisma.Decimal(newBalance) }
-      })
-
-      // Mark oldest unpaid invoices as paid (FIFO)
-      const unpaidInvoices = await tx.arTransaction.findMany({
-        where: {
-          customerId: data.customerId,
-          type: 'invoice',
-          paidDate: null
-        },
-        orderBy: { dueDate: 'asc' }
-      })
-
-      let remainingPayment = data.amount
-
-      for (const invoice of unpaidInvoices) {
-        if (remainingPayment <= 0) break
-
-        const invoiceAmount = Number(invoice.amount)
-
-        if (remainingPayment >= invoiceAmount) {
-          // Fully pay this invoice
-          await tx.arTransaction.update({
-            where: { id: invoice.id },
-            data: { paidDate: data.paymentDate || new Date() }
-          })
-          remainingPayment -= invoiceAmount
-        } else {
-          break
-        }
-      }
-    })
-
-    revalidatePath('/ar')
-    revalidatePath(`/ar/customers/${data.customerId}`)
-
-    return { success: true, message: 'Payment recorded successfully' }
-  } catch (error) {
-    console.error('Record payment error:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to record payment' 
-    }
+    
+    if (txError) throw txError
+    
+    // Update customer balance
+    const { error: balanceError } = await supabase
+      .from('customers')
+      .update({ balance: newBalance.toString() })
+      .eq('id', customerId)
+    
+    if (balanceError) throw balanceError
+    
+    return { success: true, newBalance }
+  } catch (error: any) {
+    console.error('Error recording payment:', error)
+    return { success: false, error: error.message }
   }
 }
 
-export async function getCustomerBalanceAction(customerId: string) {
+export async function getMonthlyReportAction(month?: Date) {
   try {
-    const customer = await prisma.customer.findUnique({
-      where: { id: customerId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        balance: true,
-        paymentTerms: true,
-        lastStatementDate: true
+    const supabase = await createClient()
+    const targetMonth = month || new Date()
+    const start = startOfMonth(targetMonth)
+    const end = endOfMonth(targetMonth)
+    
+    // Get transactions for the month
+    const { data: transactions, error } = await supabase
+      .from('ar_transactions')
+      .select('*, customers(business_name)')
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    
+    // Calculate totals
+    const invoices = transactions?.filter(t => t.type === 'invoice') || []
+    const payments = transactions?.filter(t => t.type === 'payment') || []
+    
+    const totalInvoiced = invoices.reduce((sum, t) => sum + parseFloat(t.amount || '0'), 0)
+    const totalPaid = payments.reduce((sum, t) => sum + parseFloat(t.amount || '0'), 0)
+    
+    return {
+      success: true,
+      data: {
+        transactions,
+        totalInvoiced,
+        totalPaid,
+        netChange: totalInvoiced - totalPaid,
+        invoiceCount: invoices.length,
+        paymentCount: payments.length
       }
-    })
-
-    if (!customer) {
-      return { success: false, error: 'Customer not found' }
     }
-
-    return { success: true, data: customer }
-  } catch (error) {
-    console.error('Get balance error:', error)
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to get balance' 
-    }
+  } catch (error: any) {
+    console.error('Error generating report:', error)
+    return { success: false, error: error.message }
   }
 }
