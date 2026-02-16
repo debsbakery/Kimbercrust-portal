@@ -1,7 +1,7 @@
-// app/admin/ar/ledger/[customer_id]/page.tsx
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
+import { checkAdmin } from "@/lib/auth";
 import { ArrowLeft, Download } from "lucide-react"
 import {
   Table,
@@ -11,18 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-
-async function checkAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return false
-  const { data: admin } = await supabase
-    .from("admin_users")
-    .select("id")
-    .eq("user_id", user.id)
-    .maybeSingle()
-  return !!admin
-}
 
 async function getLedger(customerId: string) {
   const supabase = await createClient()
@@ -112,18 +100,6 @@ export default async function CustomerLedgerPage({
   const { customer_id } = await params
 
   const data = await getLedger(customer_id)
-
-  if (!data.success) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-50 border border-red-200 text-red-700 p-6 rounded-lg">
-          <h2 className="text-xl font-bold mb-2">Error Loading Ledger</h2>
-          <p>{data.error || 'Unknown error'}</p>
-        </div>
-      </div>
-    )
-  }
-
   const { customer, ledger, summary } = data
 
   return (
