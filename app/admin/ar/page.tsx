@@ -1,8 +1,8 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server"
+import { redirect } from "next/navigation"
+import { formatCurrency } from "@/lib/utils"
 import { checkAdmin } from "@/lib/auth";
-import { ArrowLeft, AlertTriangle, DollarSign } from "lucide-react";
-import Link from "next/link";
+import { ArrowLeft, Download } from "lucide-react"
 import {
   Table,
   TableBody,
@@ -10,262 +10,311 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import ARActions from "./ar-actions";
+} from "@/components/ui/table"
 
-async function getARData() {
-  const supabase = await createClient();
+async function getLedger(customerId: string) {
+  const supabase = await createClient()
 
-  const { data: customers } = await supabase
-    .from("customers")
-    .select(`*, aging:ar_aging(*)`)
-    .order("business_name");
+  const { data: customer } = await supabase
+    .from('customers')
+    .select('id, email, business_name, address, abn, balance')
+    .eq('id', customerId)
+    .single()
 
-  const { data: recentTx } = await supabase
-    .from("ar_transactions")
-    .select(`*, customers(business_name, email)`)
-    .order("created_at", { ascending: false })
-    .limit(20);
+  if (!customer) {
+    throw new Error('Customer not found')
+  }
 
-  const { data: emailLog } = await supabase
-    .from("ar_emails")
-    .select(`*, customers(business_name, email)`)
-    .order("sent_at", { ascending: false })
-    .limit(10);
+  const { data: transactions } = await supabase
+    .from('ar_transactions')
+    .select('*')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: true })
 
-  const totalAR = customers?.reduce((sum, c) => sum + parseFloat(c.balance || "0"), 0) || 0;
-  const totalOverdue = customers?.reduce((sum, c) => {
-    const aging = c.aging?.[0];
-    return sum + parseFloat(aging?.days_1_30 || "0") + parseFloat(aging?.days_31_60 || "0") + 
-           parseFloat(aging?.days_61_90 || "0") + parseFloat(aging?.days_over_90 || "0");
-  }, 0) || 0;
-  const customersOverdue = customers?.filter((c) => {
-    const aging = c.aging?.[0];
-    return parseFloat(aging?.days_1_30 || "0") > 0 || parseFloat(aging?.days_31_60 || "0") > 0 ||
-           parseFloat(aging?.days_61_90 || "0") > 0 || parseFloat(aging?.days_over_90 || "0") > 0;
-  }).length || 0;
+  let runningBalance = 0
+  const ledger = (transactions || []).map((tx) => {
+    const amount = parseFloat(tx.amount)
+    const isDebit = ['invoice', 'charge', 'late_fee'].includes(tx.type)
+    
+    if (isDebit) {
+      runningBalance += amount
+    } else {
+      runningBalance -= amount
+    }
+
+    return {
+      date: tx.created_at,
+      description: tx.description,
+      type: tx.type,
+      invoice_id: tx.invoice_id,
+      debit: isDebit ? amount : 0,
+      credit: !isDebit ? amount : 0,
+      balance: runningBalance,
+      paid_date: tx.paid_date,
+      due_date: tx.due_date,
+      amount_paid: parseFloat(tx.amount_paid || '0'),
+    }
+  })
 
   return {
-    customers: customers || [],
-    recentTx: recentTx || [],
-    emailLog: emailLog || [],
-    stats: { totalAR, totalOverdue, customersOverdue },
-  };
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(amount);
-}
-
-function formatDateSafe(dateString: string | null): string {
-  if (!dateString) return "—";
-  try {
-    return new Date(dateString).toLocaleDateString("en-AU");
-  } catch {
-    return "—";
+    success: true,
+    customer: {
+      id: customer.id,
+      business_name: customer.business_name,
+      email: customer.email,
+      address: customer.address,
+      abn: customer.abn,
+      current_balance: customer.balance,
+    },
+    ledger,
+    summary: {
+      total_charges: ledger.reduce((sum, tx) => sum + tx.debit, 0),
+      total_payments: ledger.reduce((sum, tx) => sum + tx.credit, 0),
+      current_balance: runningBalance,
+    },
   }
 }
 
-export default async function ARDashboardPage() {
-  const isAdmin = await checkAdmin();
-  if (!isAdmin) redirect("/");
+function formatDateSafe(dateStr: string): string {
+  try {
+    const d = new Date(dateStr)
+    const day = d.getDate().toString().padStart(2, "0")
+    const month = (d.getMonth() + 1).toString().padStart(2, "0")
+    const year = d.getFullYear()
+    const hours = d.getHours().toString().padStart(2, "0")
+    const mins = d.getMinutes().toString().padStart(2, "0")
+    return `${day}/${month}/${year} ${hours}:${mins}`
+  } catch {
+    return dateStr
+  }
+}
 
-  const { customers, recentTx, emailLog, stats } = await getARData();
+export default async function CustomerLedgerPage({
+  params,
+}: {
+  params: Promise<{ customer_id: string }>
+}) {
+  const isAdmin = await checkAdmin()
+  if (!isAdmin) redirect("/")
+
+  const { customer_id } = await params
+
+  const data = await getLedger(customer_id)
+  const { customer, ledger, summary } = data
 
   return (
     <div className="container mx-auto px-4 py-8">
+      <a
+        href="/admin/ar"
+        className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
+        style={{ color: "#CE1126" }}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to AR Dashboard
+      </a>
+
       <div className="mb-8">
-        <a href="/admin" className="flex items-center gap-1 text-sm mb-4 hover:opacity-80" style={{ color: "#CE1126" }}>
-          <ArrowLeft className="h-4 w-4" />
-          Back to Admin
-        </a>
-        <div className="flex justify-between items-start flex-wrap gap-4">
+        <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold">Accounts Receivable</h1>
-            <p className="text-gray-600">Manage customer balances, payments, and aging</p>
+            <h1 className="text-3xl font-bold">Customer Ledger</h1>
+            <p className="text-xl mt-2 font-medium">
+              {customer.business_name || customer.email}
+            </p>
+            {customer.address && (
+              <p className="text-sm text-gray-600">{customer.address}</p>
+            )}
+            {customer.abn && (
+              <p className="text-sm text-gray-600">ABN: {customer.abn}</p>
+            )}
           </div>
-          <ARActions customers={customers} />
+
+          <div className="text-right">
+            <p className="text-sm text-gray-600">Current Balance</p>
+            <p
+              className="text-3xl font-bold"
+              style={{
+                color: parseFloat(customer.current_balance) > 0 ? "#CE1126" : "#006A4E",
+              }}
+            >
+              {formatCurrency(parseFloat(customer.current_balance))}
+            </p>
+          </div>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#006A4E" }}>
-          <p className="text-sm text-gray-600">Total Receivable</p>
-          <p className="text-3xl font-bold" style={{ color: "#006A4E" }}>{formatCurrency(stats.totalAR)}</p>
-        </div>
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#CE1126" }}>
-          <p className="text-sm text-gray-600">Total Overdue</p>
-          <p className="text-3xl font-bold" style={{ color: "#CE1126" }}>{formatCurrency(stats.totalOverdue)}</p>
+          <p className="text-sm text-gray-600">Total Charges</p>
+          <p className="text-2xl font-bold" style={{ color: "#CE1126" }}>
+            {formatCurrency(summary.total_charges)}
+          </p>
         </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#006A4E" }}>
+          <p className="text-sm text-gray-600">Total Payments</p>
+          <p className="text-2xl font-bold" style={{ color: "#006A4E" }}>
+            {formatCurrency(summary.total_payments)}
+          </p>
+        </div>
+
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#FFD700" }}>
-          <p className="text-sm text-gray-600">Customers Overdue</p>
-          <p className="text-3xl font-bold">{stats.customersOverdue} / {customers.length}</p>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-md mb-8">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5" style={{ color: "#CE1126" }} />
-            Customer Aging Report
-          </h2>
-        </div>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Customer</TableHead>
-                <TableHead className="text-right">Current</TableHead>
-                <TableHead className="text-right">1-30 Days</TableHead>
-                <TableHead className="text-right">31-60 Days</TableHead>
-                <TableHead className="text-right">61-90 Days</TableHead>
-                <TableHead className="text-right">90+ Days</TableHead>
-                <TableHead className="text-right">Total Balance</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.filter((c) => parseFloat(c.balance || "0") !== 0).length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">No outstanding balances</TableCell>
-                </TableRow>
-              ) : (
-                customers.filter((c) => parseFloat(c.balance || "0") !== 0).map((customer) => {
-                  const aging = customer.aging?.[0];
-                  const over90 = parseFloat(aging?.days_over_90 || "0");
-                  return (
-                    <TableRow key={customer.id} className={over90 > 0 ? "bg-red-50" : ""}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{customer.business_name || "—"}</p>
-                          <p className="text-xs text-gray-500">{customer.email}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">{formatCurrency(parseFloat(aging?.current || "0"))}</TableCell>
-                      <TableCell className="text-right text-yellow-700">{formatCurrency(parseFloat(aging?.days_1_30 || "0"))}</TableCell>
-                      <TableCell className="text-right text-orange-700">{formatCurrency(parseFloat(aging?.days_31_60 || "0"))}</TableCell>
-                      <TableCell className="text-right text-red-600">{formatCurrency(parseFloat(aging?.days_61_90 || "0"))}</TableCell>
-                      <TableCell className="text-right font-bold" style={{ color: over90 > 0 ? "#CE1126" : "inherit" }}>
-                        {formatCurrency(over90)}
-                      </TableCell>
-                      <TableCell className="text-right font-bold">{formatCurrency(parseFloat(customer.balance || "0"))}</TableCell>
-                      <TableCell>
-                        <Link href={`/admin/ar/ledger/${customer.id}`} className="text-sm px-3 py-1.5 rounded-md text-white" style={{ backgroundColor: "#006A4E" }}>
-                          Ledger
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-md mb-8">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <DollarSign className="h-5 w-5" style={{ color: "#006A4E" }} />
-            Recent Transactions
-          </h2>
-        </div>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Due Date</TableHead>
-                <TableHead>Paid</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentTx.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-gray-500">No transactions yet</TableCell>
-                </TableRow>
-              ) : (
-                recentTx.map((tx) => {
-                  const isDebit = ["invoice", "charge", "late_fee"].includes(tx.type);
-                  return (
-                    <TableRow key={tx.id}>
-                      <TableCell className="text-sm">{formatDateSafe(tx.created_at)}</TableCell>
-                      <TableCell className="font-medium">{(tx.customers as any)?.business_name || "—"}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${isDebit ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"}`}>
-                          {tx.type}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-sm">{tx.description || "—"}</TableCell>
-                      <TableCell className={`text-right font-medium ${isDebit ? "text-red-600" : "text-green-600"}`}>
-                        {isDebit ? "" : "-"}{formatCurrency(parseFloat(tx.amount))}
-                      </TableCell>
-                      <TableCell className="text-sm">{formatDateSafe(tx.due_date)}</TableCell>
-                      <TableCell>
-                        {tx.paid_date ? (
-                          <span className="text-green-600 text-sm">✅ {formatDateSafe(tx.paid_date)}</span>
-                        ) : isDebit ? (
-                          <span className="text-yellow-600 text-sm">⏳ Unpaid</span>
-                        ) : (
-                          <span className="text-gray-400 text-sm">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+          <p className="text-sm text-gray-600">Net Balance</p>
+          <p className="text-2xl font-bold">
+            {formatCurrency(summary.current_balance)}
+          </p>
         </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-md">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-bold">📧 Email Log</h2>
+        <div className="p-6 border-b flex justify-between items-center">
+          <h2 className="text-xl font-bold">Transaction History</h2>
+          <a
+            href={`/api/ar/customer-ledger?customer_id=${customer_id}&format=pdf`}
+            className="flex items-center gap-2 px-4 py-2 rounded-md border hover:bg-gray-50"
+            style={{ borderColor: "#006A4E", color: "#006A4E" }}
+          >
+            <Download className="h-4 w-4" />
+            Export PDF
+          </a>
         </div>
+
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
-                <TableHead>Customer</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Subject</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Invoice</TableHead>
+                <TableHead className="text-right">Charges</TableHead>
+                <TableHead className="text-right">Payments</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
+                <TableHead>Payment Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {emailLog.length === 0 ? (
+              {ledger.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">No emails sent yet</TableCell>
+                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    No transactions found
+                  </TableCell>
                 </TableRow>
               ) : (
-                emailLog.map((email) => (
-                  <TableRow key={email.id}>
-                    <TableCell className="text-sm">{formatDateSafe(email.sent_at)}</TableCell>
-                    <TableCell>{(email.customers as any)?.business_name || "—"}</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800">
-                        {email.type}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-sm">{email.subject}</TableCell>
-                    <TableCell>
-                      <span className={`text-sm ${email.status === "sent" ? "text-green-600" : "text-red-600"}`}>
-                        {email.status === "sent" ? "✅ Sent" : "❌ " + email.status}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))
+                ledger.map((tx: any, idx: number) => {
+                  const isPaid = tx.paid_date !== null
+                  const isOverdue = tx.type === 'invoice' && !isPaid && 
+                    tx.due_date && new Date(tx.due_date) < new Date()
+
+                  return (
+                    <TableRow
+                      key={idx}
+                      className={isOverdue ? "bg-red-50" : isPaid && tx.type === 'invoice' ? "bg-green-50" : ""}
+                    >
+                      <TableCell className="text-sm">
+                        {formatDateSafe(tx.date)}
+                      </TableCell>
+
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            tx.debit > 0
+                              ? "bg-red-100 text-red-800"
+                              : "bg-green-100 text-green-800"
+                          }`}
+                        >
+                          {tx.type}
+                        </span>
+                      </TableCell>
+
+                      <TableCell className="text-sm max-w-[300px]">
+                        {tx.description || "—"}
+                      </TableCell>
+
+                      <TableCell className="text-sm font-mono">
+                        {tx.invoice_id ? (
+                          <a
+                            href={`/api/invoice/${tx.invoice_id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline"
+                            style={{ color: "#006A4E" }}
+                          >
+                            {tx.invoice_id.slice(0, 8).toUpperCase()}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="text-right font-medium text-red-600">
+                        {tx.debit > 0 ? formatCurrency(tx.debit) : "—"}
+                      </TableCell>
+
+                      <TableCell className="text-right font-medium text-green-600">
+                        {tx.credit > 0 ? formatCurrency(tx.credit) : "—"}
+                      </TableCell>
+
+                      <TableCell className="text-right font-bold">
+                        {formatCurrency(tx.balance)}
+                      </TableCell>
+
+                      <TableCell className="text-sm">
+                        {tx.type === 'invoice' ? (
+                          (() => {
+                            const amountPaid = tx.amount_paid
+                            const totalAmount = tx.debit
+                            const percentPaid = totalAmount > 0 ? (amountPaid / totalAmount) * 100 : 0
+                            const remaining = totalAmount - amountPaid
+
+                            if (isPaid || percentPaid >= 100) {
+                              return (
+                                <span className="text-green-600 font-medium">
+                                  ✅ Paid {tx.paid_date ? new Date(tx.paid_date).toLocaleDateString("en-AU") : ''}
+                                </span>
+                              )
+                            } else if (amountPaid > 0) {
+                              return (
+                                <div className="text-sm">
+                                  <span className="text-blue-600 font-medium">
+                                    💵 {percentPaid.toFixed(0)}% Paid
+                                  </span>
+                                  <p className="text-xs text-gray-500">
+                                    ${amountPaid.toFixed(2)} of ${totalAmount.toFixed(2)}
+                                  </p>
+                                  <p className="text-xs text-orange-600">
+                                    ${remaining.toFixed(2)} owing
+                                  </p>
+                                </div>
+                              )
+                            } else if (isOverdue) {
+                              return <span className="text-red-600 font-medium">⚠️ OVERDUE</span>
+                            } else {
+                              return <span className="text-yellow-600">⏳ Unpaid</span>
+                            }
+                          })()
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
         </div>
       </div>
+
+      <div className="mt-6 p-4 bg-blue-50 rounded-lg text-sm text-blue-800">
+        <p className="font-semibold mb-2">Reading the Ledger:</p>
+        <ul className="list-disc list-inside space-y-1">
+          <li><strong>Charges</strong> (red) increase the balance — invoices, fees, etc.</li>
+          <li><strong>Payments</strong> (green) decrease the balance — cash, EFT, credits, etc.</li>
+          <li><strong>Balance</strong> shows running total after each transaction</li>
+          <li><strong>Part payments</strong> show percentage paid and amount remaining</li>
+          <li>Transactions are sorted chronologically (oldest first)</li>
+        </ul>
+      </div>
     </div>
-  );
+  )
 }
