@@ -55,45 +55,45 @@ export default function StandingOrdersView({ supabase }: { supabase: SupabaseCli
     loadStandingOrders();
   }, []);
 
- async function loadStandingOrders() {
-  setLoading(true);
-  
-  const { data } = await supabase
-    .from('standing_orders')
-    .select(`
-      *,
-      customers (
-        business_name,
-        email
-      ),
-      standing_order_items (
-        id,
-        product_id,
-        quantity,
-        products (
-          name,
-          price,
-          unit_price
+  async function loadStandingOrders() {
+    setLoading(true);
+    
+    const { data } = await supabase
+      .from('standing_orders')
+      .select(`
+        *,
+        customers (
+          business_name,
+          email
+        ),
+        standing_order_items (
+          id,
+          product_id,
+          quantity,
+          products (
+            name,
+            price,
+            unit_price
+          )
         )
-      )
-    `)
-    .order('created_at', { ascending: false });
+      `)
+      .order('created_at', { ascending: false });
 
-  // Normalize product prices
-  const normalizedData = data?.map(order => ({
-    ...order,
-    standing_order_items: order.standing_order_items.map(item => ({
-      ...item,
-      products: {
-        ...item.products,
-        unit_price: item.products.unit_price || item.products.price || 0
-      }
-    }))
-  }));
-  
-  setStandingOrders(normalizedData || []);
-  setLoading(false);
-}
+    // ✅ FIX: Add explicit type annotations to both map callbacks
+    const normalizedData = data?.map((order: any) => ({
+      ...order,
+      standing_order_items: order.standing_order_items.map((item: any) => ({
+        ...item,
+        products: {
+          ...item.products,
+          unit_price: item.products.unit_price || item.products.price || 0
+        }
+      }))
+    }));
+    
+    setStandingOrders(normalizedData || []);
+    setLoading(false);
+  }
 
   async function toggleActive(orderId: string, currentStatus: boolean) {
     const { error } = await supabase
@@ -221,7 +221,6 @@ export default function StandingOrdersView({ supabase }: { supabase: SupabaseCli
       </div>
 
       {/* Standing Orders List - Grouped by Customer */}
-
       <div className="bg-white rounded-lg shadow">
         {Object.keys(ordersByCustomer).length === 0 ? (
           <div className="text-center py-12">
