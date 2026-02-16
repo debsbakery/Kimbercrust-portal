@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { StatementService } from '@/lib/services/statement-service'
 import { ReminderService } from '@/lib/services/reminder-service'
-import { AgingService } from '@/lib/services/ageing-service'
+import { AgingService } from '@/lib/services/aging-service'
 import { startOfMonth, endOfMonth } from 'date-fns'
 
 export async function sendStatementAction(customerId: string) {
