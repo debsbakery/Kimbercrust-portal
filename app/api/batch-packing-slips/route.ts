@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { createClient } from "@/lib/supabase/server";
 import { generateBatchPackingSlips } from "@/lib/batch-packing-slip";
 import { NextResponse } from "next/server";

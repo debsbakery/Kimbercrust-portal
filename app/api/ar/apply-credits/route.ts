@@ -1,14 +1,11 @@
-// app/api/ar/apply-credits/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+export const dynamic = 'force-dynamic'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient()  // ✅ Move inside function
     const { customer_id } = await request.json()
 
     if (!customer_id) {
@@ -98,7 +95,7 @@ export async function POST(request: NextRequest) {
     console.log(`  ✅ Applied $${totalApplied.toFixed(2)} to ${unpaidInvoices.length} invoices`)
 
     // Update aging
-    await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ar/aging/update`, {
+    await fetch(`${process.env.NEXT_PUBLIC_SITE_URL}/api/ar/aging/update`, {
       method: 'POST',
     })
 

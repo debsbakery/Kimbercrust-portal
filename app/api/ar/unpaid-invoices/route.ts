@@ -1,13 +1,12 @@
+﻿export const dynamic = 'force-dynamic'
+
 // app/api/ar/unpaid-invoices/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient()
   try {
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get('customer_id')
@@ -59,7 +58,7 @@ export async function GET(request: NextRequest) {
       invoices: formattedInvoices,
     })
   } catch (error: any) {
-    console.error('❌ Unpaid invoices fetch error:', error)
+    console.error('âŒ Unpaid invoices fetch error:', error)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

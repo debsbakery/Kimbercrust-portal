@@ -1,13 +1,12 @@
+﻿export const dynamic = 'force-dynamic'
+
 // app/api/ar/record-payment/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient()
   try {
     const { customer_id, amount, description, apply_to_invoice_id } = await request.json()
 
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
     const currentBalance = parseFloat(customer.balance || '0')
     const newBalance = currentBalance - paymentAmount
 
-    console.log(`💵 Recording payment:`)
+    console.log(`ðŸ’µ Recording payment:`)
     console.log(`   Customer: ${customer.business_name || customer.email}`)
     console.log(`   Amount: $${paymentAmount.toFixed(2)}`)
     console.log(`   Current balance: $${currentBalance.toFixed(2)}`)
@@ -61,17 +60,17 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (txError) {
-      console.error('❌ Transaction insert error:', txError)
+      console.error('âŒ Transaction insert error:', txError)
       throw txError
     }
 
-    console.log(`   ✅ Transaction recorded: ${transaction.id}`)
+    console.log(`   âœ… Transaction recorded: ${transaction.id}`)
 
     // Variables to track invoice payment status (outside the if block)
     let invoiceFullyPaid = false
     
     if (apply_to_invoice_id) {
-      console.log(`   📄 Applying payment to invoice: ${apply_to_invoice_id}`)
+      console.log(`   ðŸ“„ Applying payment to invoice: ${apply_to_invoice_id}`)
       
       const { data: invoiceTx } = await supabase
         .from('ar_transactions')
@@ -101,10 +100,10 @@ export async function POST(request: NextRequest) {
           .eq('id', invoiceTx.id)
         
         if (newTotalPaid >= invoiceAmount) {
-          console.log(`      ✅ Invoice FULLY PAID`)
+          console.log(`      âœ… Invoice FULLY PAID`)
           invoiceFullyPaid = true
         } else {
-          console.log(`      📝 Partial payment: ${((newTotalPaid/invoiceAmount)*100).toFixed(1)}% paid`)
+          console.log(`      ðŸ“ Partial payment: ${((newTotalPaid/invoiceAmount)*100).toFixed(1)}% paid`)
           invoiceFullyPaid = false
         }
       }
@@ -116,19 +115,19 @@ export async function POST(request: NextRequest) {
       .eq('id', customer_id)
 
     if (balanceError) {
-      console.error('❌ Balance update error:', balanceError)
+      console.error('âŒ Balance update error:', balanceError)
       throw new Error(`Failed to update customer balance: ${balanceError.message}`)
     }
 
-    console.log(`   ✅ Customer balance updated`)
+    console.log(`   âœ… Customer balance updated`)
 
     try {
       await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ar/aging/update`, {
         method: 'POST',
       })
-      console.log(`   ✅ Aging updated`)
+      console.log(`   âœ… Aging updated`)
     } catch (agingErr) {
-      console.warn(`   ⚠️ Aging update error:`, agingErr)
+      console.warn(`   âš ï¸ Aging update error:`, agingErr)
     }
 
     return NextResponse.json({
@@ -139,7 +138,7 @@ export async function POST(request: NextRequest) {
       invoiceFullyPaid: apply_to_invoice_id ? invoiceFullyPaid : null,
     })
   } catch (error: any) {
-    console.error('❌ Record payment error:', error)
+    console.error('âŒ Record payment error:', error)
     return NextResponse.json(
       { error: error.message || 'Payment recording failed' },
       { status: 500 }

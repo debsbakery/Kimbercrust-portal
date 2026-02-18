@@ -1,15 +1,14 @@
-// app/api/ar/aging/update/route.ts
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+export const dynamic = 'force-dynamic'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST() {
   try {
     console.log('📊 Updating AR aging report...')
+
+    // Use the server client helper
+    const supabase = await createClient()
 
     // Get all customers
     const { data: customers, error: custError } = await supabase
@@ -100,7 +99,7 @@ export async function POST() {
         continue
       }
 
-      // ✅ UPDATE BALANCE BASED ON ALL TRANSACTIONS (not just unpaid invoices)
+      // UPDATE BALANCE BASED ON ALL TRANSACTIONS
       await supabase
         .from('customers')
         .update({ balance: runningBalance.toFixed(2) })

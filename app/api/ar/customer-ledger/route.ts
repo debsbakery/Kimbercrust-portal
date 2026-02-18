@@ -1,17 +1,16 @@
-// app/api/ar/customer-ledger/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+export const dynamic = 'force-dynamic'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import PDFDocument from 'pdfkit'
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient()
+    
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get('customer_id')
-    const format = searchParams.get('format') || 'json' // json or pdf
+    const format = searchParams.get('format')
 
     if (!customerId) {
       return NextResponse.json({ error: 'customer_id required' }, { status: 400 })
@@ -55,24 +54,53 @@ export async function GET(request: NextRequest) {
         debit: isDebit ? amount : 0,
         credit: !isDebit ? amount : 0,
         balance: runningBalance,
-        paid_date: tx.paid_date,
       }
     })
 
     if (format === 'pdf') {
-      // TODO: Generate PDF (use existing invoice PDF logic as template)
-      return NextResponse.json({ error: 'PDF generation not yet implemented' }, { status: 501 })
+      // Generate PDF
+      const doc = new PDFDocument()
+      const chunks: Buffer[] = []
+
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk))  // ✅ Type the chunk
+      
+      return new Promise<NextResponse>((resolve) => {  // ✅ Type the Promise
+        doc.on('end', () => {
+          const pdfBuffer = Buffer.concat(chunks)
+          resolve(new NextResponse(pdfBuffer, {
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Disposition': `attachment; filename="ledger-${customer.business_name || customer.email}.pdf"`,
+            },
+          }))
+        })
+
+        // PDF content
+        doc.fontSize(20).text('Customer Ledger', { align: 'center' })
+        doc.moveDown()
+        doc.fontSize(12).text(`Customer: ${customer.business_name || customer.email}`)
+        doc.text(`Current Balance: $${runningBalance.toFixed(2)}`)
+        doc.moveDown()
+
+        // Transaction table
+        ledger.forEach((tx) => {
+          doc.fontSize(10).text(
+            `${new Date(tx.date).toLocaleDateString()} - ${tx.type} - $${tx.debit || tx.credit} - Balance: $${tx.balance.toFixed(2)}`
+          )
+        })
+
+        doc.end()
+      })
     }
 
+    // Return JSON
     return NextResponse.json({
       success: true,
       customer: {
         id: customer.id,
         business_name: customer.business_name,
         email: customer.email,
-        address: customer.address,
-        abn: customer.abn,
-        current_balance: customer.balance,
+        current_balance: runningBalance,
       },
       ledger,
       summary: {
@@ -82,9 +110,9 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error: any) {
-    console.error('❌ Ledger error:', error)
+    console.error('Customer ledger error:', error)
     return NextResponse.json(
-      { error: error.message },
+      { error: error.message || 'Failed to generate ledger' },
       { status: 500 }
     )
   }

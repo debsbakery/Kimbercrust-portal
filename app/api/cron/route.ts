@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 // /app/api/cron/route.ts
 import { NextResponse } from 'next/server';
 

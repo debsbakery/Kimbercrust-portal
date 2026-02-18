@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server';
 import { triggerStandingOrderGeneration } from '@/lib/cron/ar-scheduler';
 

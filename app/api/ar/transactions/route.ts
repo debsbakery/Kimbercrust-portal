@@ -1,14 +1,13 @@
+﻿export const dynamic = 'force-dynamic'
+
 // app/api/ar/transactions/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 // GET: Fetch transactions (optionally by customer)
 export async function GET(request: NextRequest) {
+  const supabase = await createClient()
   try {
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get('customer_id')
@@ -39,6 +38,7 @@ export async function GET(request: NextRequest) {
 
 // POST: Create a new transaction
 export async function POST(request: NextRequest) {
+  const supabase = await createClient()
   try {
     const body = await request.json()
     const { customer_id, type, amount, description, due_date, invoice_id } = body
@@ -96,13 +96,13 @@ export async function POST(request: NextRequest) {
       .eq('id', customer_id)
 
     console.log(
-      `💰 AR Transaction: ${type} $${txAmount.toFixed(2)} for ${customer_id} ` +
-      `(balance: $${currentBalance.toFixed(2)} → $${newBalance.toFixed(2)})`
+      `ðŸ’° AR Transaction: ${type} $${txAmount.toFixed(2)} for ${customer_id} ` +
+      `(balance: $${currentBalance.toFixed(2)} â†’ $${newBalance.toFixed(2)})`
     )
 
     return NextResponse.json({ success: true, transaction, newBalance })
   } catch (error: any) {
-    console.error('❌ AR transaction error:', error)
+    console.error('âŒ AR transaction error:', error)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
