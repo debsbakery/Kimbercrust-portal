@@ -63,8 +63,7 @@ export default function CatalogPage() {
         const { data, error: fetchError } = await supabase
           .from("products")
           .select("*")
-          .eq("available", true);
-
+.eq("is_available", true)
         if (fetchError) {
           setError(fetchError.message);
           setLoading(false);
