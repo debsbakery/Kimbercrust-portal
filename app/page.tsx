@@ -28,7 +28,7 @@ export default function HomePage() {
             👤 Customer Portal
           </Link>
           <Link
-            href="/admin"
+            href="/auth/login"
             className="px-8 py-4 rounded-lg border-2 font-semibold text-lg shadow-lg hover:shadow-xl transition-shadow w-64"
             style={{ borderColor: "#006A4E", color: "#006A4E" }}
           >
