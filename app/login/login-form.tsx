@@ -1,110 +1,126 @@
-'use client';
+"use client"
 
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Mail, Lock, Loader2 } from 'lucide-react';
 
 export default function LoginForm() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setIsLoading(true);
 
     try {
-      const supabase = createClient();
-
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      // 🔐 Step 1: Sign in with email/password
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (signInError) throw signInError;
+      if (authError) {
+        setError(authError.message);
+        setIsLoading(false);
+        return;
+      }
 
-      console.log('✅ Logged in:', data.user?.email);
-      
-      // Redirect to portal
-      router.push('/portal');
-      router.refresh();
-    } catch (error: any) {
-      console.error('❌ Login error:', error);
-      setError(error.message || 'Invalid email or password');
-    } finally {
-      setLoading(false);
+      // 🔍 Step 2: Get user metadata (role)
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setError('Failed to fetch user data');
+        setIsLoading(false);
+        return;
+      }
+
+      // 📊 Step 3: Check role and redirect accordingly
+      const userRole = user.user_metadata?.role;
+
+      console.log('🔍 Login - User:', user.email);
+      console.log('🔍 Login - Role:', userRole);
+
+      if (userRole === 'admin') {
+        console.log('✅ Redirecting to /admin');
+        router.push('/admin');
+        router.refresh(); // Force route refresh
+      } else {
+        console.log('✅ Redirecting to /portal');
+        router.push('/portal');
+        router.refresh();
+      }
+
+    } catch (err: any) {
+      console.error('❌ Login error:', err);
+      setError(err.message || 'An unexpected error occurred');
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-8">
-      {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-          {error}
-        </div>
-      )}
-
-      <form onSubmit={handleLogin} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-2">Email</label>
-          <div className="relative">
-            <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="your@email.com"
-              required
-            />
+    <div className="bg-white shadow-md rounded-lg p-8">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            {error}
           </div>
-        </div>
+        )}
 
+        {/* Email Field */}
         <div>
-          <label className="block text-sm font-medium mb-2">Password</label>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              placeholder="••••••••"
-              required
-            />
-          </div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            Email Address
+          </label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-600 focus:border-transparent"
+            placeholder="you@company.com"
+            disabled={isLoading}
+          />
         </div>
 
+        {/* Password Field */}
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            Password
+          </label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-600 focus:border-transparent"
+            placeholder="••••••••"
+            disabled={isLoading}
+          />
+        </div>
+
+        {/* Submit Button */}
         <button
           type="submit"
-          disabled={loading}
-          className="w-full py-3 rounded-md text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          style={{ backgroundColor: "#006A4E" }}
+          disabled={isLoading}
+          className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-green-700 hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ backgroundColor: isLoading ? '#9CA3AF' : '#006A4E' }}
         >
-          {loading ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Signing in...
-            </>
-          ) : (
-            'Sign In'
-          )}
+          {isLoading ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
 
-      <div className="mt-6 text-center">
-        <a href="/" className="text-sm text-gray-600 hover:text-gray-900">
-          ← Back to home
-        </a>
-      </div>
-
-      <div className="mt-4 p-3 bg-blue-50 rounded text-sm text-blue-800">
-        <strong>Note:</strong> Use your customer account email and password to log in.
-      </div>
+      {/* Helper Text */}
+      <p className="mt-4 text-center text-sm text-gray-600">
+        Don't have an account? Contact your administrator.
+      </p>
     </div>
   );
 }
