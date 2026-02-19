@@ -14,8 +14,7 @@ export default function HomePage() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Link
-            href="/shop"
+         <Link href="/catalog"
             className="px-8 py-4 rounded-lg text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-shadow w-64"
             style={{ backgroundColor: "#006A4E" }}
           >

@@ -1,3 +1,7 @@
+"use client"
+
+export const dynamic = 'force-dynamic'
+
 import { ShadowOrderManager } from '@/components/order/shadow-order-manager'
 
 export default function ShadowOrderPage() {
