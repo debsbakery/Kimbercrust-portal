@@ -13,9 +13,10 @@ import {
 // Import views
 import OrdersView from './orders-view';
 import StandingOrdersView from './standing-orders-view';
+import ContractPricingPage from './pricing/page';  // ✅ Added
 
 export default function AdminClientView() {
-  const [activeTab, setActiveTab] = useState<'orders' | 'standing-orders'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'standing-orders' | 'pricing'>('orders');  // ✅ Updated type
   const supabase = createClient();
 
   return (
@@ -44,7 +45,14 @@ export default function AdminClientView() {
                 <Package className="h-4 w-4" />
                 Production
               </a>
-
+<a
+  href="/admin/batch-invoice"
+  className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md transition-all"
+  style={{ backgroundColor: '#CE1126' }}
+>
+  <FileText className="h-4 w-4" />
+  Batch Invoice
+</a>
               <a
                 href="/admin/direct-invoice"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md transition-all"
@@ -98,6 +106,19 @@ export default function AdminClientView() {
               <RefreshCw className="h-4 w-4" />
               Standing Orders
             </button>
+
+            {/* ✅ Fixed Pricing Tab */}
+            <button
+              onClick={() => setActiveTab('pricing')}
+              className={`flex items-center gap-2 px-6 py-3 font-semibold text-sm whitespace-nowrap transition-all border-b-2 ${
+                activeTab === 'pricing'
+                  ? 'border-green-600 text-green-700 bg-green-50'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              <DollarSign className="h-4 w-4" />
+              Contract Pricing
+            </button>
           </div>
         </div>
       </div>
@@ -106,6 +127,7 @@ export default function AdminClientView() {
       <div className="container mx-auto px-4 py-6">
         {activeTab === 'orders' && <OrdersView supabase={supabase} />}
         {activeTab === 'standing-orders' && <StandingOrdersView supabase={supabase} />}
+        {activeTab === 'pricing' && <ContractPricingPage />}  {/* ✅ Simplified */}
       </div>
     </div>
   );

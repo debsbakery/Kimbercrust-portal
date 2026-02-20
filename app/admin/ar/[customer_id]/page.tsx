@@ -1,9 +1,10 @@
-export const dynamic = 'force-dynamic' 
-import { createClient } from "@/lib/supabase/server"
+export const dynamic = 'force-dynamic'
+
 import { redirect } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
-import { checkAdmin } from "@/lib/auth";
+import { checkAdmin } from "@/lib/auth"
 import { ArrowLeft, Download } from "lucide-react"
+import Link from "next/link"
 import {
   Table,
   TableBody,
@@ -14,23 +15,64 @@ import {
 } from "@/components/ui/table"
 
 async function getLedger(customerId: string) {
-  const supabase = await createClient()
+  console.log('🔍 Starting getLedger for:', customerId)
+  console.log('🔑 SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
+  console.log('🔑 SERVICE_ROLE_KEY exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY)
+  console.log('🔑 SERVICE_ROLE_KEY length:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0)
 
-  const { data: customer } = await supabase
+  // ✅ Use service role to bypass RLS
+  const { createClient } = await import('@supabase/supabase-js')
+  
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }
+  )
+
+  console.log('✅ Supabase service client created')
+
+  const { data: customer, error: customerError } = await supabase
     .from('customers')
     .select('id, email, business_name, address, abn, balance')
     .eq('id', customerId)
-    .single()
+    .maybeSingle()
+
+  console.log('📊 Query result - customer:', !!customer)
+  console.log('📊 Query result - error:', customerError)
+
+  if (customerError) {
+    console.error('❌ Database error:', JSON.stringify(customerError, null, 2))
+  }
 
   if (!customer) {
-    throw new Error('Customer not found')
+    console.error('❌ No customer found with ID:', customerId)
+    
+    // ✅ Try fetching ALL customers to see if ANY work
+    const { data: allCustomers, error: allError } = await supabase
+      .from('customers')
+      .select('id, business_name')
+      .limit(5)
+    
+    console.log('🔍 Sample of all customers:', allCustomers?.map(c => c.business_name))
+    console.log('🔍 All customers error:', allError)
+    
+    return null
   }
+
+  console.log('✅ Found customer:', customer.business_name || customer.email)
 
   const { data: transactions } = await supabase
     .from('ar_transactions')
     .select('*')
     .eq('customer_id', customerId)
     .order('created_at', { ascending: true })
+
+  console.log(`📊 Transactions found: ${transactions?.length || 0}`)
 
   let runningBalance = 0
   const ledger = (transactions || []).map((tx) => {
@@ -58,7 +100,6 @@ async function getLedger(customerId: string) {
   })
 
   return {
-    success: true,
     customer: {
       id: customer.id,
       business_name: customer.business_name,
@@ -98,21 +139,54 @@ export default async function CustomerLedgerPage({
   const isAdmin = await checkAdmin()
   if (!isAdmin) redirect("/")
 
-  const { customer_id } = await params
+  const resolvedParams = await params
+  const customer_id = resolvedParams.customer_id
+
+  console.log('🔑 URL Customer ID:', customer_id)
 
   const data = await getLedger(customer_id)
+
+  if (!data) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Link
+          href="/admin/ar"
+          className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
+          style={{ color: "#CE1126" }}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to AR Summary
+        </Link>
+        
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-red-800 mb-2">Customer Not Found</h2>
+          <p className="text-red-700">
+            Could not find a customer with ID: <code className="bg-red-100 px-2 py-1 rounded">{customer_id}</code>
+          </p>
+          <Link
+            href="/admin/ar"
+            className="inline-block mt-4 px-4 py-2 rounded text-white hover:opacity-80"
+            style={{ backgroundColor: "#006A4E" }}
+          >
+            Return to AR Summary
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   const { customer, ledger, summary } = data
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <a
+      <Link
         href="/admin/ar"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
         style={{ color: "#CE1126" }}
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to AR Dashboard
-      </a>
+        Back to AR Summary
+      </Link>
 
       <div className="mb-8">
         <div className="flex justify-between items-start">

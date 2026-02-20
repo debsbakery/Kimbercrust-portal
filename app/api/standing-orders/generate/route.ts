@@ -21,12 +21,10 @@ async function createServiceClient() {
 
 export async function POST() {
   try {
-    const supabase = await createServiceClient(); // ✅ Use service client
+    const supabase = await createServiceClient();
     const today = new Date().toISOString().split('T')[0];
     
     console.log(`🔄 Generating standing orders for ${today}...`);
-
-    // ... rest of the function stays the same
 
     // Get all active standing orders that should be generated today
     const { data: standingOrders, error: fetchError } = await supabase
@@ -69,7 +67,7 @@ export async function POST() {
           .eq('customer_id', standingOrder.customer_id)
           .eq('delivery_date', deliveryDateStr)
           .eq('source', 'standing_order')
-          .single();
+          .maybeSingle();
 
         if (existingOrder) {
           console.log(`⏭️ Order already exists for ${standingOrder.customer.business_name} on ${deliveryDateStr}`);
@@ -88,9 +86,9 @@ export async function POST() {
               .or(`effective_to.is.null,effective_to.gte.${deliveryDateStr}`)
               .order('effective_from', { ascending: false })
               .limit(1)
-              .single();
+              .maybeSingle();
 
-            const unitPrice = pricing?.contract_price || item.product.price;
+            const unitPrice = pricing?.contract_price || item.product.price || item.product.unit_price;
             const subtotal = unitPrice * item.quantity;
 
             return {
@@ -99,7 +97,7 @@ export async function POST() {
               quantity: item.quantity,
               unit_price: unitPrice,
               subtotal,
-              gst_applicable: item.product.gst_applicable
+              gst_applicable: item.product.gst_applicable || false
             };
           })
         );
@@ -111,7 +109,7 @@ export async function POST() {
           .reduce((sum, item) => sum + (item.subtotal * 0.1), 0);
         const totalAmount = totalBeforeGST + gstAmount;
 
-        // Create order
+        // ✅ CREATE ORDER with PENDING status
         const { data: newOrder, error: orderError } = await supabase
           .from('orders')
           .insert({
@@ -122,29 +120,52 @@ export async function POST() {
             customer_abn: standingOrder.customer.abn,
             delivery_date: deliveryDateStr,
             total_amount: totalAmount,
-            status: 'confirmed', // Auto-approved
+            status: 'pending',  // ✅ Pending until batch invoiced
             source: 'standing_order',
-            notes: `Auto-generated from ${standingOrder.delivery_day} standing order`
+            notes: `Auto-generated from ${standingOrder.delivery_days || standingOrder.delivery_day} standing order`
           })
           .select()
           .single();
 
-        if (orderError) throw orderError;
+        if (orderError) {
+          console.error(`❌ Error creating order for ${standingOrder.customer.business_name}:`, orderError);
+          errors.push({
+            standing_order_id: standingOrder.id,
+            customer: standingOrder.customer.business_name,
+            error: orderError.message
+          });
+          continue;
+        }
+
+        console.log(`✅ Created order ${newOrder.id} for ${standingOrder.customer.business_name}`);
 
         // Create order items
         const orderItems = itemsWithPricing.map(item => ({
           order_id: newOrder.id,
-          ...item
+          product_id: item.product_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          subtotal: item.subtotal
         }));
 
         const { error: itemsError } = await supabase
           .from('order_items')
           .insert(orderItems);
 
-        if (itemsError) throw itemsError;
+        if (itemsError) {
+          console.error(`❌ Error creating order items:`, itemsError);
+          // Rollback: delete the order
+          await supabase.from('orders').delete().eq('id', newOrder.id);
+          errors.push({
+            standing_order_id: standingOrder.id,
+            customer: standingOrder.customer.business_name,
+            error: itemsError.message
+          });
+          continue;
+        }
 
         // Update standing order's next generation date
-        const nextGenDate = calculateNextGenerationDate(standingOrder.delivery_day);
+        const nextGenDate = calculateNextGenerationDate(standingOrder.delivery_days || standingOrder.delivery_day);
         await supabase
           .from('standing_orders')
           .update({
@@ -154,13 +175,13 @@ export async function POST() {
           .eq('id', standingOrder.id);
 
         ordersCreated++;
-        console.log(`✅ Created order for ${standingOrder.customer.business_name} - Delivery: ${deliveryDateStr}`);
+        console.log(`✅ Order complete for ${standingOrder.customer.business_name} - Delivery: ${deliveryDateStr}`);
 
       } catch (error: any) {
         console.error(`❌ Error creating order for standing order ${standingOrder.id}:`, error);
         errors.push({
           standing_order_id: standingOrder.id,
-          customer: standingOrder.customer.business_name,
+          customer: standingOrder.customer?.business_name || 'Unknown',
           error: error.message
         });
       }
@@ -185,6 +206,13 @@ function calculateNextGenerationDate(deliveryDay: string): string {
   const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const targetDayIndex = days.indexOf(deliveryDay.toLowerCase());
   
+  if (targetDayIndex === -1) {
+    // Invalid day, default to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  }
+  
   const today = new Date();
   const currentDayIndex = today.getDay();
   
@@ -193,6 +221,7 @@ function calculateNextGenerationDate(deliveryDay: string): string {
     daysUntilDelivery += 7;
   }
   
+  // Generate 2 days before delivery
   const daysUntilGeneration = daysUntilDelivery - 2;
   const generationDate = new Date(today);
   generationDate.setDate(today.getDate() + daysUntilGeneration);
