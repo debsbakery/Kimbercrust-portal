@@ -177,6 +177,42 @@ export async function POST() {
         ordersCreated++;
         console.log(`✅ Order complete for ${standingOrder.customer.business_name} - Delivery: ${deliveryDateStr}`);
 
+        // ✅ Send confirmation email for auto-generated standing order
+        try {
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+          
+          await fetch(`${siteUrl}/api/send-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: standingOrder.customer.email,
+              subject: 'Your Standing Order Has Been Placed - Debs Bakery',
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                  <h1 style="color: #006A4E;">Your Standing Order is Confirmed</h1>
+                  <p>Hi ${standingOrder.customer.business_name || standingOrder.customer.email}!</p>
+                  <p>Your weekly standing order has been automatically placed:</p>
+                  <p><strong>Order #${newOrder.id.slice(0, 8).toUpperCase()}</strong></p>
+                  <p><strong>Delivery Date:</strong> ${deliveryDate.toLocaleDateString('en-AU', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}</p>
+                  <p><strong>Total: $${totalAmount.toFixed(2)}</strong></p>
+                  <hr>
+                  <p>Need to make changes? Edit your order before the cutoff time in the <a href="${siteUrl}/portal">Customer Portal</a></p>
+                  <p><small>Want to pause this standing order? <a href="${siteUrl}/portal">Manage Standing Orders</a></small></p>
+                </div>
+              `,
+            }),
+          });
+          
+          console.log(`📧 Standing order confirmation sent to ${standingOrder.customer.email}`);
+        } catch (emailError) {
+          console.error('⚠️ Email failed for standing order (order still created):', emailError);
+        }
+
       } catch (error: any) {
         console.error(`❌ Error creating order for standing order ${standingOrder.id}:`, error);
         errors.push({

@@ -1,13 +1,21 @@
 'use client'
 
 import { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle, Package, ArrowRight } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Package, ArrowRight, LogOut } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const orderId = searchParams.get('id')
+
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -55,25 +63,33 @@ function OrderSuccessContent() {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <Link href="/portal" className="flex-1">
             <button
               className="w-full px-6 py-3 rounded-md text-white font-medium hover:opacity-90 transition flex items-center justify-center gap-2"
               style={{ backgroundColor: '#006A4E' }}
             >
-              View Order History
+              View Orders
               <ArrowRight className="w-4 h-4" />
             </button>
           </Link>
 
-          <Link href="/shop" className="flex-1">
+          <Link href="/catalog" className="flex-1">
             <button
               className="w-full px-6 py-3 rounded-md border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition flex items-center justify-center gap-2 bg-white"
             >
-              Continue Shopping
-              <ArrowRight className="w-4 h-4" />
+              Shop More
+              <ArrowRight className="w-4 w-4" />
             </button>
           </Link>
+
+          <button
+            onClick={handleLogout}
+            className="w-full px-6 py-3 rounded-md border border-red-300 text-red-600 font-medium hover:bg-red-50 transition flex items-center justify-center gap-2 bg-white"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
         </div>
 
         {/* Additional Info */}

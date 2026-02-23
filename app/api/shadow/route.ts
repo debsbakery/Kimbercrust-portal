@@ -94,6 +94,63 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: itemsError.message }, { status: 500 });
     }
 
+    // ✅ Send confirmation emails
+    try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      
+      // Customer confirmation
+      await fetch(`${siteUrl}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: customer.email,
+          subject: 'Order Confirmation - Debs Bakery',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h1 style="color: #006A4E;">Thank you for your order!</h1>
+              <p><strong>Order #${newOrder.id.slice(0, 8).toUpperCase()}</strong></p>
+              <p>Delivery Date: ${new Date(newOrder.delivery_date).toLocaleDateString('en-AU', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}</p>
+              <p><strong>Total: $${newOrder.total_amount.toFixed(2)}</strong></p>
+              <hr>
+              <p>We'll send you another email when your order is out for delivery.</p>
+              <p>View your order anytime in the <a href="${siteUrl}/portal">Customer Portal</a></p>
+            </div>
+          `,
+        }),
+      });
+
+      // Admin notification
+      await fetch(`${siteUrl}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: 'debs_bakery@outlook.com',
+          subject: `New Order from ${customer.business_name || customer.email}`,
+          html: `
+            <div style="font-family: Arial, sans-serif;">
+              <h1>New Order Received</h1>
+              <p><strong>Order #${newOrder.id.slice(0, 8).toUpperCase()}</strong></p>
+              <p><strong>Customer:</strong> ${customer.business_name || 'N/A'}</p>
+              <p><strong>Email:</strong> ${customer.email}</p>
+              <p><strong>Delivery:</strong> ${new Date(newOrder.delivery_date).toLocaleDateString('en-AU')}</p>
+              <p><strong>Total:</strong> $${newOrder.total_amount.toFixed(2)}</p>
+              <hr>
+              <p><a href="${siteUrl}/admin" style="background: #006A4E; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View in Admin Portal</a></p>
+            </div>
+          `,
+        }),
+      });
+      
+      console.log('✅ Confirmation emails sent');
+    } catch (emailError) {
+      console.error('⚠️ Email failed (order still created):', emailError);
+    }
+
     return NextResponse.json({ success: true, order_id: newOrder.id });
   } catch (error: any) {
     console.error('Shadow order error:', error);
