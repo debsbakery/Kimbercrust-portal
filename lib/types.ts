@@ -12,7 +12,7 @@ export interface Product {
   image_url: string | null;
   category: string | null;
   is_available: boolean;
-  gst_applicable: boolean;       // ← ADD THIS
+  gst_applicable: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -29,13 +29,13 @@ export interface Customer {
   contact_name: string | null;
   phone: string | null;
   address: string | null;
-  abn: string | null;             // ← ADD THIS
-  balance: number;                // ← ADD THIS
-  payment_terms: number;          // ← ADD THIS
-  credit_limit: number | null;    // ← ADD THIS
-  route_number: string | null;    // ← ADD THIS
-  drop_number: number | null;     // ← ADD THIS
-  last_statement_date: string | null;  // ← ADD THIS
+  abn: string | null;
+  balance: number;
+  payment_terms: number;
+  credit_limit: number | null;
+  route_number: string | null;
+  drop_number: number | null;
+  last_statement_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -45,14 +45,18 @@ export interface Order {
   customer_id: string | null;
   customer_email: string;
   customer_business_name: string | null;
-  customer_address: string | null;    // ← ADD THIS
-  customer_abn: string | null;        // ← ADD THIS
+  customer_address: string | null;
+  customer_abn: string | null;
   delivery_date: string;
   notes: string | null;
-  status: "pending" | "confirmed" | "preparing" | "delivered" | "cancelled";
+  status: "pending" | "invoiced" | "confirmed" | "preparing" | "delivered" | "cancelled";
   total_amount: number | null;
-  source: string;                     // ← ADD THIS
-  copied_from_order_id: string | null; // ← ADD THIS
+  source: string;
+  invoice_number?: number;
+  po_number?: string;
+  docket_number?: string;
+  copied_from_order_id: string | null;
+  invoiced_at?: string;
   created_at: string;
   updated_at: string;
 }
@@ -65,15 +69,13 @@ export interface OrderItem {
   quantity: number;
   unit_price: number;
   subtotal: number;
-  gst_applicable: boolean;           // ← ADD THIS
+  gst_applicable: boolean;
   created_at: string;
 }
 
 export interface OrderWithItems extends Order {
   order_items: OrderItem[];
 }
-
-// ── NEW TYPES ──────────────────────────────
 
 export interface InvoiceNumber {
   id: number;
@@ -100,7 +102,7 @@ export interface ShadowOrder {
   display_order: number;
   created_at: string;
   updated_at: string;
-  products?: Product;  // joined
+  products?: Product;
 }
 
 export interface ARTransaction {
@@ -133,4 +135,23 @@ export interface Route {
   driver_name: string | null;
   start_time: string | null;
   notes: string | null;
+}
+
+export interface StandingOrder {
+  id: string;
+  customer_id: string;
+  delivery_days: string;
+  active: boolean;
+  next_generation_date: string;
+  last_generated_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StandingOrderItem {
+  id: string;
+  standing_order_id: string;
+  product_id: string;
+  quantity: number;
+  created_at: string;
 }
