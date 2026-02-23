@@ -16,6 +16,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No items provided' }, { status: 400 });
     }
 
+    console.log('📦 Shadow order creation started for user:', user.id);
+
     // Get customer info
     const { data: customer } = await supabase
       .from('customers')
@@ -26,6 +28,12 @@ export async function POST(request: Request) {
     if (!customer) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
+
+    console.log('👤 Customer found:', {
+      id: customer.id,
+      business_name: customer.business_name,
+      email: customer.email
+    });
 
     // Get product details
     const productIds = items.map((item: any) => item.product_id);
@@ -60,6 +68,13 @@ export async function POST(request: Request) {
 
     const total = subtotal + gst;
 
+    console.log('💰 Order totals calculated:', {
+      subtotal,
+      gst,
+      total,
+      itemCount: orderItems.length
+    });
+
     // Create order
     const { data: newOrder, error: orderError } = await supabase
       .from('orders')
@@ -79,8 +94,11 @@ export async function POST(request: Request) {
       .single();
 
     if (orderError) {
+      console.error('❌ Order creation failed:', orderError);
       return NextResponse.json({ error: orderError.message }, { status: 500 });
     }
+
+    console.log('✅ Order created:', newOrder.id);
 
     // Create order items
     const { error: itemsError } = await supabase.from('order_items').insert(
@@ -91,17 +109,24 @@ export async function POST(request: Request) {
     );
 
     if (itemsError) {
+      console.error('❌ Order items creation failed:', itemsError);
       return NextResponse.json({ error: itemsError.message }, { status: 500 });
     }
 
+    console.log('✅ Order items created:', orderItems.length);
+
     // ✅ Send confirmation emails
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://debsbakery-portal.vercel.app';
       
+      console.log('📧 Sending customer confirmation email to:', customer.email);
+
       // Customer confirmation
-      await fetch(`${siteUrl}/api/send-email`, {
+      const customerEmailResponse = await fetch(`${siteUrl}/api/send-email`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           to: customer.email,
           subject: 'Order Confirmation - Debs Bakery',
@@ -124,10 +149,22 @@ export async function POST(request: Request) {
         }),
       });
 
+      const customerEmailResult = await customerEmailResponse.json();
+      
+      if (!customerEmailResponse.ok) {
+        console.error('❌ Customer email failed:', customerEmailResult);
+      } else {
+        console.log('✅ Customer email sent:', customerEmailResult);
+      }
+
+      console.log('📧 Sending admin notification to: debs_bakery@outlook.com');
+
       // Admin notification
-      await fetch(`${siteUrl}/api/send-email`, {
+      const adminEmailResponse = await fetch(`${siteUrl}/api/send-email`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           to: 'debs_bakery@outlook.com',
           subject: `New Order from ${customer.business_name || customer.email}`,
@@ -145,15 +182,31 @@ export async function POST(request: Request) {
           `,
         }),
       });
+
+      const adminEmailResult = await adminEmailResponse.json();
       
-      console.log('✅ Confirmation emails sent');
-    } catch (emailError) {
-      console.error('⚠️ Email failed (order still created):', emailError);
+      if (!adminEmailResponse.ok) {
+        console.error('❌ Admin email failed:', adminEmailResult);
+      } else {
+        console.log('✅ Admin email sent:', adminEmailResult);
+      }
+      
+      console.log('✅ Both confirmation emails processed');
+      
+    } catch (emailError: any) {
+      console.error('⚠️ Email sending failed (order still created):', emailError);
+      console.error('⚠️ Email error details:', emailError.message);
     }
 
-    return NextResponse.json({ success: true, order_id: newOrder.id });
+    return NextResponse.json({ 
+      success: true, 
+      order_id: newOrder.id,
+      message: 'Order created successfully'
+    });
+
   } catch (error: any) {
-    console.error('Shadow order error:', error);
+    console.error('❌ Shadow order error:', error);
+    console.error('❌ Error details:', error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

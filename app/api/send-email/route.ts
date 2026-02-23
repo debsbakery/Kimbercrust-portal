@@ -1,75 +1,71 @@
 export const dynamic = 'force-dynamic'
 
-import { createAdminClient } from "@/lib/supabase/admin";
-import { sendOrderEmails } from "@/lib/email";
-import { NextResponse } from "next/server";
-import { OrderWithItems } from "@/lib/types";
+import { Resend } from 'resend';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function POST(request: Request) {
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export async function POST(request: NextRequest) {
   try {
-    console.log("📧 Email API route called");
+    console.log('📧 Send-email API route called');
     
     const body = await request.json();
-    console.log("📧 Request body:", body);
-    
-    const { orderId } = body;
-
-    if (!orderId) {
-      console.error("🔴 No orderId provided");
-      return NextResponse.json({ error: "Order ID required" }, { status: 400 });
-    }
-
-    console.log("📧 Fetching order:", orderId);
-
-    const supabase = createAdminClient();
-
-    const { data: order, error } = await supabase
-      .from("orders")
-      .select(`
-        *,
-        order_items (*)
-      `)
-      .eq("id", orderId)
-      .single();
-
-    if (error) {
-      console.error("🔴 Supabase error:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    if (!order) {
-      console.error("🔴 Order not found");
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
-
-    console.log("✅ Order found:", order.id);
-    console.log("✅ Customer email:", order.customer_email);
-    console.log("✅ Order items:", order.order_items?.length || 0);
-
-    console.log("📧 Calling sendOrderEmails...");
-
-    const result = await sendOrderEmails({
-      order: order as OrderWithItems,
-      customerEmail: order.customer_email,
+    console.log('📧 Request body received:', {
+      to: body.to,
+      subject: body.subject?.substring(0, 50),
+      hasHtml: !!body.html
     });
 
-    console.log("✅ sendOrderEmails completed");
-    console.log("✅ Result:", result);
+    const { to, subject, html } = body;
+
+    if (!to || !subject || !html) {
+      console.error('🔴 Missing required fields:', { to: !!to, subject: !!subject, html: !!html });
+      return NextResponse.json(
+        { error: 'Missing required fields: to, subject, html' },
+        { status: 400 }
+      );
+    }
+
+    console.log('📧 Attempting to send email via Resend:', {
+      from: 'orders@debsbakery.store',
+      to,
+      subject: subject.substring(0, 50)
+    });
+
+    const { data, error } = await resend.emails.send({
+      from: 'orders@debsbakery.store',
+      to,
+      subject,
+      html,
+    });
+
+    if (error) {
+      console.error('❌ Resend API error:', error);
+      return NextResponse.json({ 
+        error: error.message,
+        details: error 
+      }, { status: 500 });
+    }
+
+    console.log('✅ Email sent successfully:', {
+      to,
+      emailId: data?.id
+    });
 
     return NextResponse.json({ 
       success: true, 
-      result,
-      message: "Emails sent successfully"
+      emailId: data?.id,
+      message: 'Email sent successfully'
     });
-    
+
   } catch (error: any) {
-    console.error("🔴 Email API error:", error);
-    console.error("🔴 Error message:", error.message);
-    console.error("🔴 Error stack:", error.stack);
+    console.error('🔴 Send-email API error:', error);
+    console.error('🔴 Error message:', error.message);
+    console.error('🔴 Error stack:', error.stack);
     
     return NextResponse.json(
       { 
-        error: error.message || "Failed to send emails",
+        error: error.message || 'Failed to send email',
         details: error.toString()
       },
       { status: 500 }
