@@ -14,27 +14,25 @@ export async function GET(
 
     const supabase = await createClient();
 
-    // ✅ Try to fetch order
-    const { data: order, error } = await supabase
+    // ✅ First check if order exists at all
+    const { data: orderCheck, error: checkError } = await supabase
       .from("orders")
-      .select(`
-        *,
-        order_items (*),
-        customers (*)
-      `)
+      .select("id, status, invoice_number")
       .eq("id", orderId)
-      .maybeSingle();  // ✅ Changed from .single() to .maybeSingle()
+      .maybeSingle();
 
-    if (error) {
-      console.error("🔴 Database error:", error);
+    console.log("🔍 Order check result:", orderCheck);
+
+    if (checkError) {
+      console.error("🔴 Database check error:", checkError);
       return NextResponse.json({ 
         error: 'Database error',
-        details: error.message 
+        details: checkError.message 
       }, { status: 500 });
     }
 
-    if (!order) {
-      console.error("🔴 Order not found:", orderId);
+    if (!orderCheck) {
+      console.error("🔴 Order not found in database:", orderId);
       return new NextResponse(
         `
         <!DOCTYPE html>
@@ -56,6 +54,7 @@ export async function GET(
                 border-radius: 5px;
                 word-break: break-all;
                 font-family: monospace;
+                margin: 20px 0;
               }
               a { 
                 display: inline-block;
@@ -86,8 +85,41 @@ export async function GET(
       );
     }
 
-    console.log("✅ Order found, generating PDF...");
+    console.log("✅ Order exists, fetching full details...");
 
+    // ✅ Now get full order with items
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select(`
+        *,
+        order_items (*),
+        customers (
+          business_name,
+          email,
+          address,
+          abn
+        )
+      `)
+      .eq("id", orderId)
+      .single();
+
+    if (error) {
+      console.error("🔴 Error fetching order details:", error);
+      return NextResponse.json({ 
+        error: 'Failed to fetch order details',
+        details: error.message 
+      }, { status: 500 });
+    }
+
+    if (!order) {
+      console.error("🔴 Order details not found");
+      return NextResponse.json({ error: "Order details not found" }, { status: 404 });
+    }
+
+    console.log("✅ Order found with", order.order_items?.length || 0, "items");
+    console.log("✅ Customer:", order.customers);
+
+    // ✅ Generate PDF
     const pdf = await generateInvoice({
       order: order as OrderWithItems,
       bakeryInfo: {
@@ -101,7 +133,6 @@ export async function GET(
 
     console.log("✅ PDF generated");
 
-    // ✅ Use invoice number from order
     const invoiceNumber = order.invoice_number 
       ? String(order.invoice_number).padStart(6, '0')
       : `TEMP-${orderId.slice(0, 8).toUpperCase()}`;
@@ -114,8 +145,9 @@ export async function GET(
         'Content-Disposition': `inline; filename="invoice-${invoiceNumber}.pdf"`,
       },
     });
+
   } catch (error: any) {
-    console.error("🔴 Invoice error:", error);
+    console.error("🔴 Invoice generation error:", error);
     console.error("🔴 Error stack:", error.stack);
     
     return new NextResponse(
@@ -138,22 +170,17 @@ export async function GET(
               padding: 15px; 
               border-radius: 5px;
               margin: 20px 0;
-            }
-            code {
-              background: #f5f5f5;
-              padding: 2px 6px;
-              border-radius: 3px;
+              text-align: left;
               font-family: monospace;
+              font-size: 14px;
             }
           </style>
         </head>
         <body>
           <h1>⚠️ Invoice Generation Failed</h1>
           <p>An error occurred while generating the invoice:</p>
-          <div class="error">
-            <code>${error.message}</code>
-          </div>
-          <p>Please try again later or contact support.</p>
+          <div class="error">${error.message}<br><br>${error.stack?.split('\n').slice(0, 5).join('\n')}</div>
+          <p>Please contact support:</p>
           <p>📧 ${process.env.BAKERY_EMAIL || 'debs_bakery@outlook.com'}</p>
         </body>
       </html>

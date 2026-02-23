@@ -166,7 +166,7 @@ export async function POST(request: NextRequest) {
                   </div>
                   
                   <div style="text-align: center; margin: 30px 0;">
-                    <a href="${siteUrl}/api/invoice/${order.id}" 
+                    <a href="${siteUrl}/api/invoice/${order.id}"target="_blank" rel="noopener" 
                        style="background: #CE1126; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
                       📄 Download Invoice PDF
                     </a>
