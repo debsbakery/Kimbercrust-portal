@@ -12,9 +12,9 @@ interface InvoiceData {
     phone: string;
     address: string;
     abn?: string;
-    bankName?: string;      // ✅ ADD
-    bankBSB?: string;       // ✅ ADD
-    bankAccount?: string;   // ✅ ADD
+    bankName?: string;
+    bankBSB?: string;
+    bankAccount?: string;
   };
 }
 
@@ -82,7 +82,6 @@ export async function generateInvoice(data: InvoiceData): Promise<jsPDF> {
   
   doc.setFont('helvetica', 'normal');
   
-  // ✅ Get invoice number from order
   const invoiceNum = order.invoice_number 
     ? String(order.invoice_number).padStart(6, '0')
     : `TEMP-${order.id.slice(0, 8).toUpperCase()}`;
@@ -113,7 +112,6 @@ export async function generateInvoice(data: InvoiceData): Promise<jsPDF> {
     doc.setFont('helvetica', 'normal');
   }
   
-  // ✅ ADD: Contact name if available
   if ((order as any).customer_contact_name) {
     doc.text(`Attn: ${(order as any).customer_contact_name}`, margin, yPos);
     yPos += 5;
@@ -126,7 +124,6 @@ export async function generateInvoice(data: InvoiceData): Promise<jsPDF> {
   doc.text(customerAddress, margin, yPos);
   yPos += 5;
   
-  // ✅ ADD: Phone if available
   if ((order as any).customer_phone) {
     doc.text(`Phone: ${(order as any).customer_phone}`, margin, yPos);
     yPos += 5;
@@ -138,7 +135,7 @@ export async function generateInvoice(data: InvoiceData): Promise<jsPDF> {
     yPos += 5;
   }
 
-  // ✅ ADD: PO and Docket Numbers
+  // PO and Docket Numbers
   yPos = 110;
   if ((order as any).purchase_order_number || (order as any).docket_number) {
     doc.setFillColor(248, 249, 250);
@@ -173,15 +170,14 @@ export async function generateInvoice(data: InvoiceData): Promise<jsPDF> {
     doc.setTextColor(...textColor);
   }
 
-  // Items table - START HERE
+  // Items table
   yPos = Math.max(yPos + 5, 125);
   
-  // ✅ UPDATED: Include product codes
   const tableData = order.order_items.map(item => {
     const hasGST = item.gst_applicable !== false;
     
     return [
-      (item as any).product_code || 'N/A',  // ✅ PRODUCT CODE
+      (item as any).product_code || 'N/A',
       item.product_name,
       item.quantity.toString(),
       formatCurrency(item.unit_price),
@@ -192,7 +188,7 @@ export async function generateInvoice(data: InvoiceData): Promise<jsPDF> {
 
   autoTable(doc, {
     startY: yPos,
-    head: [['Code', 'Product', 'Qty', 'Unit Price', 'GST', 'Subtotal']],  // ✅ ADD CODE COLUMN
+    head: [['Code', 'Product', 'Qty', 'Unit Price', 'GST', 'Subtotal']],
     body: tableData,
     theme: 'striped',
     headStyles: {
@@ -206,8 +202,8 @@ export async function generateInvoice(data: InvoiceData): Promise<jsPDF> {
       textColor: [0, 0, 0],
     },
     columnStyles: {
-      0: { cellWidth: 20 },   // ✅ CODE
-      1: { cellWidth: 60 },   // Product
+      0: { cellWidth: 20 },
+      1: { cellWidth: 60 },
       2: { cellWidth: 15, halign: 'center' },
       3: { cellWidth: 25, halign: 'right' },
       4: { cellWidth: 15, halign: 'center' },
@@ -247,7 +243,7 @@ export async function generateInvoice(data: InvoiceData): Promise<jsPDF> {
   doc.text('TOTAL (inc GST):', summaryX, finalY + 19);
   doc.text(formatCurrency(total), 210 - margin, finalY + 19, { align: 'right' });
 
-  // ✅ ADD: Bank Payment Details
+  // Bank Payment Details
   doc.setTextColor(...textColor);
   const bankY = finalY + 35;
   
@@ -306,3 +302,4 @@ export async function generateInvoice(data: InvoiceData): Promise<jsPDF> {
   doc.text('Thank you for your business!', 105, footerY + 4, { align: 'center' });
   
   return doc;
+} // ✅ CLOSING BRACE
