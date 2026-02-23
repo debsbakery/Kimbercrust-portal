@@ -121,116 +121,64 @@ export async function POST(request: Request) {
       
       console.log('📧 Preparing to send emails...');
       console.log('📧 Customer email:', customer.email);
-      console.log('📧 Site URL:', siteUrl);
+
+      // Import email helper
+      const { sendEmail } = await import('@/lib/email-sender');
 
       // Customer confirmation
-      const customerEmailPayload = {
-        to: customer.email,
-        subject: 'Order Confirmation - Debs Bakery',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h1 style="color: #006A4E;">Thank you for your order!</h1>
-            <p><strong>Order #${newOrder.id.slice(0, 8).toUpperCase()}</strong></p>
-            <p>Delivery Date: ${new Date(newOrder.delivery_date).toLocaleDateString('en-AU', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}</p>
-            <p><strong>Total: $${newOrder.total_amount.toFixed(2)}</strong></p>
-            <hr>
-            <p>We'll send you another email when your order is out for delivery.</p>
-            <p>View your order anytime in the <a href="${siteUrl}/portal">Customer Portal</a></p>
-          </div>
-        `,
-      };
-
-      console.log('📧 Customer email payload:', {
-        to: customerEmailPayload.to,
-        subject: customerEmailPayload.subject,
-        htmlLength: customerEmailPayload.html.length
-      });
-
-      const customerEmailResponse = await fetch(`${siteUrl}/api/send-email`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(customerEmailPayload),
-      });
-
-      const customerEmailText = await customerEmailResponse.text();
-      console.log('📧 Customer email response (raw):', customerEmailText);
-
-      let customerEmailResult;
       try {
-        customerEmailResult = JSON.parse(customerEmailText);
-      } catch (e) {
-        console.error('❌ Failed to parse customer email response:', e);
-        customerEmailResult = { error: 'Invalid JSON response', raw: customerEmailText };
-      }
-      
-      if (!customerEmailResponse.ok) {
-        console.error('❌ Customer email failed:', customerEmailResult);
-      } else {
-        console.log('✅ Customer email sent:', customerEmailResult);
+        await sendEmail({
+          to: customer.email,
+          subject: 'Order Confirmation - Debs Bakery',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h1 style="color: #006A4E;">Thank you for your order!</h1>
+              <p><strong>Order #${newOrder.id.slice(0, 8).toUpperCase()}</strong></p>
+              <p>Delivery Date: ${new Date(newOrder.delivery_date).toLocaleDateString('en-AU', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}</p>
+              <p><strong>Total: $${newOrder.total_amount.toFixed(2)}</strong></p>
+              <hr>
+              <p>We'll send you another email when your order is out for delivery.</p>
+              <p>View your order anytime in the <a href="${siteUrl}/portal">Customer Portal</a></p>
+            </div>
+          `,
+        });
+        console.log('✅ Customer email sent successfully');
+      } catch (error) {
+        console.error('❌ Customer email failed:', error);
       }
 
       // Admin notification
-      const adminEmailPayload = {
-        to: 'debs_bakery@outlook.com',
-        subject: `New Order from ${customer.business_name || customer.email}`,
-        html: `
-          <div style="font-family: Arial, sans-serif;">
-            <h1>New Order Received</h1>
-            <p><strong>Order #${newOrder.id.slice(0, 8).toUpperCase()}</strong></p>
-            <p><strong>Customer:</strong> ${customer.business_name || 'N/A'}</p>
-            <p><strong>Email:</strong> ${customer.email}</p>
-            <p><strong>Delivery:</strong> ${new Date(newOrder.delivery_date).toLocaleDateString('en-AU')}</p>
-            <p><strong>Total:</strong> $${newOrder.total_amount.toFixed(2)}</p>
-            <hr>
-            <p><a href="${siteUrl}/admin" style="background: #006A4E; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View in Admin Portal</a></p>
-          </div>
-        `,
-      };
-
-      console.log('📧 Admin email payload:', {
-        to: adminEmailPayload.to,
-        subject: adminEmailPayload.subject,
-        htmlLength: adminEmailPayload.html.length
-      });
-
-      const adminEmailResponse = await fetch(`${siteUrl}/api/send-email`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(adminEmailPayload),
-      });
-
-      const adminEmailText = await adminEmailResponse.text();
-      console.log('📧 Admin email response (raw):', adminEmailText);
-
-      let adminEmailResult;
       try {
-        adminEmailResult = JSON.parse(adminEmailText);
-      } catch (e) {
-        console.error('❌ Failed to parse admin email response:', e);
-        adminEmailResult = { error: 'Invalid JSON response', raw: adminEmailText };
-      }
-      
-      if (!adminEmailResponse.ok) {
-        console.error('❌ Admin email failed:', adminEmailResult);
-      } else {
-        console.log('✅ Admin email sent:', adminEmailResult);
+        await sendEmail({
+          to: 'debs_bakery@outlook.com',
+          subject: `New Order from ${customer.business_name || customer.email}`,
+          html: `
+            <div style="font-family: Arial, sans-serif;">
+              <h1>New Order Received</h1>
+              <p><strong>Order #${newOrder.id.slice(0, 8).toUpperCase()}</strong></p>
+              <p><strong>Customer:</strong> ${customer.business_name || 'N/A'}</p>
+              <p><strong>Email:</strong> ${customer.email}</p>
+              <p><strong>Delivery:</strong> ${new Date(newOrder.delivery_date).toLocaleDateString('en-AU')}</p>
+              <p><strong>Total:</strong> $${newOrder.total_amount.toFixed(2)}</p>
+              <hr>
+              <p><a href="${siteUrl}/admin" style="background: #006A4E; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">View in Admin Portal</a></p>
+            </div>
+          `,
+        });
+        console.log('✅ Admin email sent successfully');
+      } catch (error) {
+        console.error('❌ Admin email failed:', error);
       }
       
       console.log('✅ Email sending completed');
       
     } catch (emailError: any) {
       console.error('⚠️ Email sending failed (order still created):', emailError);
-      console.error('⚠️ Email error message:', emailError.message);
-      console.error('⚠️ Email error stack:', emailError.stack);
     }
 
     return NextResponse.json({ 
