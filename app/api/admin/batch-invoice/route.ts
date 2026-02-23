@@ -75,21 +75,16 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`✅ Found ${orders.length} pending orders`)
-  // 🔍 DEBUG: Log full order data
-console.log('🔍 DEBUG - First order complete data:', JSON.stringify(orders[0], null, 2))
-console.log('🔍 DEBUG - Order items:', orders[0].order_items)
-console.log('🔍 DEBUG - Customer data:', orders[0].customers)
-console.log('🔍 DEBUG - Environment check:', {
-  BAKERY_BANK_BSB: process.env.BAKERY_BANK_BSB || 'MISSING',
-  BAKERY_BANK_ACCOUNT: process.env.BAKERY_BANK_ACCOUNT || 'MISSING',
-  BAKERY_BANK_NAME: process.env.BAKERY_BANK_NAME || 'MISSING',
-  BAKERY_ADDRESS: process.env.BAKERY_ADDRESS || 'MISSING'
-})
-    console.log('📋 First order sample:', {
-      id: orders[0].id,
-      customer: (orders[0].customers as any)?.business_name,
-      items: orders[0].order_items?.length,
-      total: orders[0].total_amount
+    
+    // 🔍 DEBUG: Log full order data
+    console.log('🔍 DEBUG - First order complete data:', JSON.stringify(orders[0], null, 2))
+    console.log('🔍 DEBUG - Order items:', orders[0].order_items)
+    console.log('🔍 DEBUG - Customer data:', orders[0].customers)
+    console.log('🔍 DEBUG - Environment check:', {
+      BAKERY_BANK_BSB: process.env.BAKERY_BANK_BSB || 'MISSING',
+      BAKERY_BANK_ACCOUNT: process.env.BAKERY_BANK_ACCOUNT || 'MISSING',
+      BAKERY_BANK_NAME: process.env.BAKERY_BANK_NAME || 'MISSING',
+      BAKERY_ADDRESS: process.env.BAKERY_ADDRESS || 'MISSING'
     })
 
     const arTransactions = orders.map(order => {
@@ -180,17 +175,18 @@ console.log('🔍 DEBUG - Environment check:', {
           const dueDate = new Date(delivery_date)
           dueDate.setDate(dueDate.getDate() + paymentTerms)
           
-         // ✅ CORRECT DATES - Fixed timezone handling
-const todayDate = new Date() // Today (invoice generation date)
-const orderCreatedDate = new Date(order.created_at) // When order was placed
-const deliveryDateObj = new Date(delivery_date + 'T00:00:00') // Delivery date (force local timezone)
+          // ✅ CORRECT DATES - Fixed timezone handling
+          const todayDate = new Date() // Today (invoice generation date)
+          const orderCreatedDate = new Date(order.created_at) // When order was placed
+          const deliveryDateObj = new Date(delivery_date + 'T00:00:00') // Delivery date (force local timezone)
 
-console.log('📅 Date Debug:', {
-  today: todayDate.toLocaleDateString('en-AU'),
-  orderCreated: orderCreatedDate.toLocaleDateString('en-AU'),
-  delivery: deliveryDateObj.toLocaleDateString('en-AU'),
-  delivery_date_raw: delivery_date
-})
+          console.log('📅 Date Debug:', {
+            today: todayDate.toLocaleDateString('en-AU'),
+            orderCreated: orderCreatedDate.toLocaleDateString('en-AU'),
+            delivery: deliveryDateObj.toLocaleDateString('en-AU'),
+            delivery_date_raw: delivery_date
+          })
+          
           // Calculate totals
           const subtotal = (order.order_items as any[]).reduce((sum, item) => sum + (item.subtotal || 0), 0)
           const gstTotal = (order.order_items as any[]).reduce((sum, item) => {
@@ -222,7 +218,7 @@ console.log('📅 Date Debug:', {
           
           const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://debsbakery-portal.vercel.app'
           
-            const emailHtml = `<!DOCTYPE html>
+          const emailHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -292,7 +288,7 @@ console.log('📅 Date Debug:', {
                 month: '2-digit',
                 year: 'numeric'
               })}</p>
-              <p style="margin: 5px 0;"><strong>Delivery Date:</strong> ${deliveryDate.toLocaleDateString('en-AU', {
+              <p style="margin: 5px 0;"><strong>Delivery Date:</strong> ${deliveryDateObj.toLocaleDateString('en-AU', {
                 weekday: 'long',
                 day: '2-digit',
                 month: '2-digit',
@@ -399,6 +395,7 @@ console.log('📅 Date Debug:', {
   </div>
 </body>
 </html>`
+          
           console.log(`📧 Sending to ${customer.email}...`)
           
           await sendEmail({
