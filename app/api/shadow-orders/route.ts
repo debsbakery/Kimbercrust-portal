@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const customerId = searchParams.get('customerId') || user.id;
 
+    console.log('🔍 Fetching shadow orders for customer:', customerId);
+
     // Get shadow orders with product details
     const { data: shadowOrders, error } = await supabase
       .from('shadow_orders')
@@ -27,7 +29,6 @@ export async function GET(request: NextRequest) {
         products (
           id,
           name,
-          code,
           price,
           unit,
           gst_applicable,
@@ -38,7 +39,12 @@ export async function GET(request: NextRequest) {
       .eq('customer_id', customerId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error fetching shadow orders:', error);
+      throw error;
+    }
+
+    console.log('✅ Shadow orders fetched:', shadowOrders?.length || 0);
 
     return NextResponse.json(shadowOrders || []);
   } catch (error: any) {
