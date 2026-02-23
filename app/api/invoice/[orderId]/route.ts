@@ -19,11 +19,12 @@ export async function GET(
 
     const supabase = await createClient();
 
-    // ✅ Single optimized query
+    // ✅ Complete query with all required fields
     const { data: order, error } = await supabase
       .from("orders")
       .select(`
         id,
+        customer_id,
         status,
         invoice_number,
         customer_email,
@@ -33,13 +34,23 @@ export async function GET(
         delivery_date,
         total_amount,
         notes,
+        source,
+        copied_from_order_id,
         created_at,
+        updated_at,
+        invoiced_at,
+        po_number,
+        docket_number,
         order_items (
+          id,
+          order_id,
+          product_id,
           product_name,
           quantity,
           unit_price,
           subtotal,
-          gst_applicable
+          gst_applicable,
+          created_at
         ),
         customers (
           business_name,
@@ -121,7 +132,7 @@ export async function GET(
 
     const pdfStartTime = Date.now();
     
-    // ✅ Generate PDF
+    // ✅ Generate PDF - now with correct type
     const pdf = await generateInvoice({
       order: order as OrderWithItems,
       bakeryInfo: {
@@ -147,7 +158,7 @@ export async function GET(
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `inline; filename="invoice-${invoiceNumber}.pdf"`,
-        'Cache-Control': 'public, max-age=3600', // ✅ Cache for 1 hour
+        'Cache-Control': 'public, max-age=3600',
       },
     });
 
