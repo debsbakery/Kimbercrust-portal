@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendEmail } from '@/lib/email-sender'
 
 export async function POST(request: NextRequest) {
   const supabase = createClient(
@@ -8,7 +9,7 @@ export async function POST(request: NextRequest) {
   )
 
   try {
-    const { delivery_date } = await request.json()
+    const { delivery_date, sendEmails = false } = await request.json()
 
     if (!delivery_date) {
       return NextResponse.json({ 
@@ -46,7 +47,8 @@ export async function POST(request: NextRequest) {
         success: true, 
         message: 'No pending orders to invoice for this date',
         invoiced: 0,
-        total_amount: 0
+        total_amount: 0,
+        emails_sent: 0
       })
     }
 
@@ -101,10 +103,104 @@ export async function POST(request: NextRequest) {
 
     const totalAmount = orders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
 
+    // ✅ Send invoice emails if requested
+    let emailsSent = 0
+    const emailErrors: string[] = []
+    
+    if (sendEmails) {
+      console.log('📧 Sending invoice emails...')
+      
+      for (const order of orders) {
+        try {
+          const customer = order.customers as any
+          
+          if (!customer?.email) {
+            console.warn(`  ⚠️ No email for order ${order.id}`)
+            continue
+          }
+          
+          const invoiceNumber = `INV-${order.id.slice(0, 8).toUpperCase()}`
+          const paymentTerms = customer.payment_terms || 30
+          const dueDate = new Date(delivery_date)
+          dueDate.setDate(dueDate.getDate() + paymentTerms)
+          
+          const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://debsbakery-portal.vercel.app'
+          
+          await sendEmail({
+            to: customer.email,
+            subject: `Invoice ${invoiceNumber} - Debs Bakery`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background-color: #006A4E; color: white; padding: 20px; text-align: center;">
+                  <h1 style="margin: 0;">Deb's Bakery</h1>
+                  <p style="margin: 5px 0 0 0;">Tax Invoice</p>
+                </div>
+                
+                <div style="padding: 30px; background: #f9f9f9;">
+                  <h2 style="color: #006A4E; margin-top: 0;">Invoice ${invoiceNumber}</h2>
+                  
+                  <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>Customer:</strong> ${customer.business_name || 'N/A'}</p>
+                    <p><strong>Delivery Date:</strong> ${new Date(delivery_date).toLocaleDateString('en-AU', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}</p>
+                    <p style="font-size: 1.2em; margin-top: 20px;">
+                      <strong>Total Amount:</strong> 
+                      <span style="color: #CE1126; font-size: 1.3em;">$${order.total_amount.toFixed(2)}</span>
+                    </p>
+                    <p><strong>Payment Due:</strong> ${dueDate.toLocaleDateString('en-AU', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })} (${paymentTerms} days)</p>
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${siteUrl}/api/invoice/${order.id}" 
+                       style="background: #CE1126; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+                      📄 Download Invoice PDF
+                    </a>
+                  </div>
+                  
+                  <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="margin-top: 0;">Payment Options:</h3>
+                    <ul style="line-height: 1.8;">
+                      <li><strong>Bank Transfer:</strong> BSB 123-456, Account 78901234</li>
+                      <li><strong>Cash/Check:</strong> At delivery or in person</li>
+                      <li><strong>Reference:</strong> ${invoiceNumber}</li>
+                    </ul>
+                  </div>
+                  
+                  <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.9em; color: #666; text-align: center;">
+                    <p>Questions? Contact us at ${process.env.BAKERY_EMAIL || 'debs_bakery@outlook.com'}</p>
+                    <p>Phone: ${process.env.BAKERY_PHONE || '(04) 1234-5678'}</p>
+                  </div>
+                </div>
+              </div>
+            `,
+          })
+          
+          emailsSent++
+          console.log(`  ✅ Invoice sent to ${customer.business_name || customer.email}`)
+        } catch (emailError: any) {
+          const custEmail = (order.customers as any)?.email || 'unknown'
+          console.error(`  ⚠️ Failed to email ${custEmail}:`, emailError.message)
+          emailErrors.push(`${custEmail}: ${emailError.message}`)
+        }
+      }
+      
+      console.log(`📧 Sent ${emailsSent}/${orders.length} invoice emails`)
+    }
+
     return NextResponse.json({ 
       success: true, 
       invoiced: orders.length,
       total_amount: totalAmount,
+      emails_sent: emailsSent,
+      email_errors: emailErrors.length > 0 ? emailErrors : undefined,
       date: delivery_date
     })
 
