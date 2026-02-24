@@ -69,7 +69,8 @@ console.log('Customers:', customers?.length, 'Filtered:', filteredCustomers.leng
   const customerInvoices = Array.isArray(invoices)
     ? invoices.filter((inv) => inv?.customer_id === formData.customer_id)
     : [];
-
+// ✅ ADD THIS
+console.log('All invoices:', invoices?.length, 'Customer invoices:', customerInvoices.length, 'Customer ID:', formData.customer_id);
   // ✅ ULTRA SAFE calculations
   const currentBalance = (selectedCustomer && typeof selectedCustomer.balance === 'number') 
     ? selectedCustomer.balance 
