@@ -12,7 +12,8 @@ interface ProductFormProps {
     description?: string;
     category?: string;
     image_url?: string;
-    code?: string; // ✅ Added
+    code?: string;
+    gst_applicable?: boolean; // ✅ Added
   };
   isEditing?: boolean;
 }
@@ -25,7 +26,8 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
     description: product?.description || '',
     category: product?.category || '',
     image_url: product?.image_url || '',
-    code: product?.code || '', // ✅ Added
+    code: product?.code || '',
+    gst_applicable: product?.gst_applicable ?? false, // ✅ Added with default false
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>(product?.image_url || '');
@@ -113,7 +115,8 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
           ...formData,
           price: parseFloat(formData.price),
           image_url: imageUrl,
-          code: formData.code || null, // ✅ Include code
+          code: formData.code || null,
+          gst_applicable: formData.gst_applicable, // ✅ Include GST
         }),
       });
 
@@ -160,7 +163,7 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
         />
       </div>
 
-      {/* ✅ Product Code - NEW FIELD */}
+      {/* Product Code */}
       <div>
         <label className="block text-sm font-medium mb-2">
           Product Code
@@ -203,7 +206,7 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
         </div>
       </div>
 
-      {/* ✅ Special Notice for Code 900 */}
+      {/* Special Notice for Code 900 */}
       {formData.code === '900' && (
         <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-md">
           <div className="flex items-start gap-3">
@@ -291,6 +294,38 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
             required
           />
         </div>
+      </div>
+
+      {/* GST Applicable */}
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          GST Applicable
+        </label>
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="gst_applicable"
+              checked={formData.gst_applicable === true}
+              onChange={() => setFormData({ ...formData, gst_applicable: true })}
+              className="w-4 h-4 text-green-600 focus:ring-green-500"
+            />
+            <span className="text-sm">Yes (GST applies)</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="gst_applicable"
+              checked={formData.gst_applicable === false}
+              onChange={() => setFormData({ ...formData, gst_applicable: false })}
+              className="w-4 h-4 text-green-600 focus:ring-green-500"
+            />
+            <span className="text-sm">No (GST-free)</span>
+          </label>
+        </div>
+        <p className="text-xs text-gray-500 mt-1">
+          Most bakery products are GST-free. Select "Yes" for non-food items.
+        </p>
       </div>
 
       {/* Category */}
