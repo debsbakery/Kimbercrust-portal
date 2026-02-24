@@ -4,7 +4,7 @@ import { generateInvoice } from '@/lib/invoice'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // ✅ CHANGED: params is now a Promise
 ) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,7 +12,7 @@ export async function GET(
   )
 
   try {
-    const orderId = params.id
+    const { id: orderId } = await params // ✅ CHANGED: await params
     const { searchParams } = new URL(request.url)
     const download = searchParams.get('download') === 'true'
 
@@ -84,14 +84,14 @@ export async function GET(
       delivery_date: order.delivery_date,
       created_at: order.created_at,
       notes: order.notes,
-      purchase_order_number: order.purchase_order_number, // ✅ ADD PO
-      docket_number: order.docket_number, // ✅ ADD DOCKET
+      purchase_order_number: order.purchase_order_number,
+      docket_number: order.docket_number,
       total_amount: order.total_amount,
       payment_terms: customer?.payment_terms || 30,
       order_items: (order.order_items || []).map((item: any) => ({
         id: item.id,
         product_id: item.products?.id,
-        product_code: item.products?.product_code, // ✅ PRODUCT CODE
+        product_code: item.products?.product_code,
         product_name: item.products?.name || item.product_name,
         product_description: item.products?.description,
         quantity: item.quantity,
