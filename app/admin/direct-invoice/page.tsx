@@ -222,6 +222,21 @@ export default function DirectInvoicePage() {
       }
 
       console.log('✅ AR transaction created')
+// ✅ UPDATE CUSTOMER BALANCE
+const currentBalance = customer.balance || 0;
+const newBalance = currentBalance + totalAmount;
+
+const { error: balanceError } = await supabase
+  .from('customers')
+  .update({ balance: newBalance })
+  .eq('id', formData.customerId);
+
+if (balanceError) {
+  console.error('Balance update error:', balanceError);
+  throw new Error(`Failed to update customer balance: ${balanceError.message}`);
+}
+
+console.log(`✅ Customer balance updated: $${currentBalance.toFixed(2)} → $${newBalance.toFixed(2)}`);
 
       // ✅ Success!
       alert(`✅ Invoice Created Successfully!\n\nOrder ID: ${newOrder.id.slice(0, 8)}\nTotal: ${formatCurrency(totalAmount)}\nDue Date: ${dueDate.toLocaleDateString('en-AU')}\n${formData.purchaseOrderNumber ? `PO#: ${formData.purchaseOrderNumber}\n` : ''}${formData.docketNumber ? `Docket#: ${formData.docketNumber}` : ''}`)
