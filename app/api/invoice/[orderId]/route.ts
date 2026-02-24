@@ -1,218 +1,159 @@
-import { createClient } from "@/lib/supabase/server";
-import { generateInvoice } from "@/lib/invoice";
-import { NextRequest, NextResponse } from "next/server";
-import { OrderWithItems } from "@/lib/types";
-
-export const maxDuration = 60;
-export const dynamic = 'force-dynamic';
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { generateInvoice } from '@/lib/invoice'
 
 export async function GET(
   request: NextRequest,
-  context: { params: Promise<{ orderId: string }> }
+  { params }: { params: Promise<{ orderId: string }> } // ✅ Note: orderId not id
 ) {
-  const startTime = Date.now();
-  
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
   try {
-    const { orderId } = await context.params;
-    
-    console.log("📄 Generating invoice for order:", orderId);
+    const { orderId } = await params // ✅ await params
+    const { searchParams } = new URL(request.url)
+    const download = searchParams.get('download') === 'true'
 
-    const supabase = await createClient();
+    console.log('📄 Generating invoice for order:', orderId)
 
-    // ✅ Complete query with all required fields
-    const { data: order, error } = await supabase
-      .from("orders")
+    // ✅ FETCH COMPLETE ORDER DATA with products and customer
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
       .select(`
-        id,
-        customer_id,
-        status,
-        invoice_number,
-        customer_email,
-        customer_business_name,
-        customer_address,
-        customer_abn,
-        delivery_date,
-        total_amount,
-        notes,
-        source,
-        copied_from_order_id,
-        created_at,
-        updated_at,
-        invoiced_at,
-        po_number,
-        docket_number,
+        *,
+        customers (
+          id,
+          business_name,
+          contact_name,
+          email,
+          phone,
+          address,
+          abn,
+          payment_terms
+        ),
         order_items (
           id,
-          order_id,
-          product_id,
-          product_name,
           quantity,
           unit_price,
           subtotal,
           gst_applicable,
-          created_at
-        ),
-        customers (
-          business_name,
-          email,
-          address,
-          abn
+          products (
+            id,
+            product_code,
+            name,
+            description
+          )
         )
       `)
-      .eq("id", orderId)
-      .maybeSingle();
+      .eq('id', orderId)
+      .single()
 
-    console.log(`⏱️ Query: ${Date.now() - startTime}ms`);
-
-    if (error) {
-      console.error("🔴 Database error:", error);
-      return NextResponse.json({ 
-        error: 'Database error',
-        details: error.message 
-      }, { status: 500 });
+    if (orderError) {
+      console.error('❌ Error fetching order:', orderError)
+      throw orderError
     }
 
     if (!order) {
-      console.error("🔴 Order not found:", orderId);
-      return new NextResponse(
-        `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Invoice Not Found</title>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <style>
-              body { 
-                font-family: Arial, sans-serif; 
-                max-width: 600px; 
-                margin: 100px auto; 
-                text-align: center;
-                padding: 20px;
-              }
-              h1 { color: #CE1126; }
-              .order-id { 
-                background: #f5f5f5; 
-                padding: 10px; 
-                border-radius: 5px;
-                word-break: break-all;
-                font-family: monospace;
-                margin: 20px 0;
-              }
-              a { 
-                display: inline-block;
-                margin-top: 20px;
-                padding: 10px 20px;
-                background: #006A4E;
-                color: white;
-                text-decoration: none;
-                border-radius: 5px;
-              }
-            </style>
-          </head>
-          <body>
-            <h1>❌ Invoice Not Found</h1>
-            <p>The order you're trying to view doesn't exist or has been deleted.</p>
-            <div class="order-id">Order ID: ${orderId}</div>
-            <p>If you believe this is an error, please contact us:</p>
-            <p>📧 ${process.env.BAKERY_EMAIL || 'debs_bakery@outlook.com'}<br>
-            📞 ${process.env.BAKERY_PHONE || '(04) 1234-5678'}</p>
-            <a href="/portal">Return to Portal</a>
-          </body>
-        </html>
-        `,
-        {
-          status: 404,
-          headers: { 'Content-Type': 'text/html' }
-        }
-      );
+      return NextResponse.json(
+        { error: 'Order not found' },
+        { status: 404 }
+      )
     }
 
-    console.log("✅ Order found with", order.order_items?.length || 0, "items");
+    console.log('✅ Order fetched:', {
+      id: order.id,
+      items: order.order_items?.length || 0,
+      customer: (order.customers as any)?.business_name
+    })
 
-    const pdfStartTime = Date.now();
+    // ✅ TRANSFORM DATA for PDF generator
+    const customer = order.customers as any
     
-    // ✅ Generate PDF
+    const orderWithItems = {
+      id: order.id,
+      invoice_number: order.invoice_number,
+      order_number: order.order_number || order.id.slice(0, 8).toUpperCase(),
+      customer_email: order.customer_email,
+      customer_business_name: customer?.business_name || order.customer_business_name,
+      customer_contact_name: customer?.contact_name,
+      customer_address: customer?.address || order.customer_address,
+      customer_phone: customer?.phone,
+      customer_abn: customer?.abn || order.customer_abn,
+      delivery_date: order.delivery_date,
+      created_at: order.created_at,
+      notes: order.notes,
+      purchase_order_number: order.purchase_order_number,
+      docket_number: order.docket_number,
+      total_amount: order.total_amount,
+      payment_terms: customer?.payment_terms || 30,
+      order_items: (order.order_items || []).map((item: any) => ({
+        id: item.id,
+        product_id: item.products?.id,
+        product_code: item.products?.product_code,
+        product_name: item.products?.name || item.product_name,
+        product_description: item.products?.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        subtotal: item.subtotal,
+        gst_applicable: item.gst_applicable !== false
+      }))
+    }
+
+    console.log('📦 Transformed order data:', {
+      items: orderWithItems.order_items.length,
+      firstItem: orderWithItems.order_items[0],
+      poNumber: orderWithItems.purchase_order_number,
+      docketNumber: orderWithItems.docket_number
+    })
+
+    // ✅ BAKERY INFO from environment
+    const bakeryInfo = {
+      name: process.env.BAKERY_NAME || "Deb's Bakery",
+      email: process.env.BAKERY_EMAIL || 'debs_bakery@outlook.com',
+      phone: process.env.BAKERY_PHONE || '(07) 4632 9475',
+      address: process.env.BAKERY_ADDRESS || '20 Mann St, Toowoomba QLD 4350',
+      abn: process.env.BAKERY_ABN || '81 067 719 439',
+      bankName: process.env.BAKERY_BANK_NAME || 'Bank Name',
+      bankBSB: process.env.BAKERY_BANK_BSB || 'BSB: XXX-XXX',
+      bankAccount: process.env.BAKERY_BANK_ACCOUNT || 'Account: XXXXXXXXXX'
+    }
+
+    console.log('🏦 Using bakery info:', bakeryInfo)
+
+    // ✅ GENERATE PDF
     const pdf = await generateInvoice({
-      order: order as OrderWithItems,
-      bakeryInfo: {
-        name: process.env.BAKERY_NAME || "Deb's Bakery",
-        email: process.env.BAKERY_EMAIL || "debs_bakery@outlook.com",
-        phone: process.env.BAKERY_PHONE || "(04) 1234-5678",
-        address: process.env.BAKERY_ADDRESS || "Melbourne, Australia",
-        abn: process.env.BAKERY_ABN,
-      },
-    });
+      order: orderWithItems as any,
+      bakeryInfo
+    })
 
-    console.log(`⏱️ PDF generation: ${Date.now() - pdfStartTime}ms`);
+    const pdfBuffer = Buffer.from(pdf.output('arraybuffer'))
 
-    const invoiceNumber = order.invoice_number 
+    const invoiceNum = order.invoice_number 
       ? String(order.invoice_number).padStart(6, '0')
-      : `TEMP-${orderId.slice(0, 8).toUpperCase()}`;
+      : `TEMP-${order.id.slice(0, 8).toUpperCase()}`
 
-    const pdfBuffer = Buffer.from(pdf.output('arraybuffer'));
-    
-    console.log(`⏱️ Total time: ${Date.now() - startTime}ms`);
-    
-    // ✅ Support download parameter
-    const url = new URL(request.url);
-    const shouldDownload = url.searchParams.get('download') === 'true';
-    
+    const filename = `invoice-${invoiceNum}.pdf`
+
+    // ✅ RETURN PDF
     return new NextResponse(pdfBuffer, {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': shouldDownload
-          ? `attachment; filename="invoice-${invoiceNumber}.pdf"`
-          : `inline; filename="invoice-${invoiceNumber}.pdf"`,
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
+        'Content-Disposition': download 
+          ? `attachment; filename="${filename}"` 
+          : `inline; filename="${filename}"`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
 
   } catch (error: any) {
-    console.error("🔴 Invoice error:", error);
-    console.error(`⏱️ Failed after: ${Date.now() - startTime}ms`);
-    
-    return new NextResponse(
-      `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Invoice Generation Error</title>
-          <meta charset="utf-8">
-          <style>
-            body { 
-              font-family: Arial, sans-serif; 
-              max-width: 600px; 
-              margin: 100px auto; 
-              padding: 20px;
-            }
-            h1 { color: #CE1126; }
-            .error { 
-              background: #fee; 
-              border: 1px solid #fcc;
-              padding: 15px; 
-              border-radius: 5px;
-              margin: 20px 0;
-              text-align: left;
-              font-family: monospace;
-              font-size: 12px;
-              overflow-x: auto;
-            }
-          </style>
-        </head>
-        <body>
-          <h1>⚠️ Invoice Generation Failed</h1>
-          <p>An error occurred while generating the invoice:</p>
-          <div class="error">${error.message}</div>
-          <p>Please contact support:</p>
-          <p>📧 ${process.env.BAKERY_EMAIL || 'debs_bakery@outlook.com'}</p>
-        </body>
-      </html>
-      `,
-      {
-        status: 500,
-        headers: { 'Content-Type': 'text/html' }
-      }
-    );
+    console.error('❌ Invoice generation error:', error)
+    return NextResponse.json(
+      { error: 'Failed to generate invoice', details: error.message },
+      { status: 500 }
+    )
   }
 }
