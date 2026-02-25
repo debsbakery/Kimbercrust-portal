@@ -122,14 +122,14 @@ export async function POST(request: NextRequest) {
 
     // Record AR transaction
     await supabase.from('ar_transactions').insert({
-      customer_id,
-      type:        'credit_memo',
-      invoice_id:  memo.id,
-      amount:      total_amount,
-      description: `Credit Memo ${creditNumber} - ${
-        credit_type === 'stale_return' ? 'Stale Return' : 'Product Credit'
-      }`,
-    })
+  customer_id,
+  type:        'credit',           // ← was 'credit_memo'
+  invoice_id:  memo.id,
+  amount:      Math.abs(total_amount),  // ← always positive
+  description: `Credit Memo ${creditNumber} - ${
+    credit_type === 'stale_return' ? 'Stale Return' : 'Product Credit'
+  }`,
+})
 
     return NextResponse.json({ data: memo }, { status: 201 })
 
