@@ -1,4 +1,4 @@
-import PDFDocument from 'pdfkit'
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 
 interface InvoiceData {
   id: string
@@ -8,8 +8,7 @@ interface InvoiceData {
   customer: {
     id: string
     business_name?: string
-    contact_name?: string
-    email?: string
+    contact_name?: stringemail?: string
     address?: string
   }
   order_items: Array<{
@@ -23,145 +22,133 @@ interface InvoiceData {
 }
 
 export async function generateInvoicePDF(order: InvoiceData): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    try {
-      // ✅ FIX: explicitly declare font in constructor
-      const doc = new PDFDocument({ 
-        size: 'A4', 
-        margin: 50,
-        font: 'Helvetica'  // ← THIS is the key fix
-      })
-      const chunks: Buffer[] = []
+  const pdfDoc = await PDFDocument.create()
+  const font     = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
-      doc.on('data', (chunk) => chunks.push(chunk))
-      doc.on('end', () => resolve(Buffer.concat(chunks)))
-      doc.on('error', reject)
+  let page = pdfDoc.addPage([595, 842])
+  const { width, height } = page.getSize()
 
-      const formatCurrency = (amount: number | string) => {
-        return `$${parseFloat(amount.toString()).toFixed(2)}`
-      }
+  const formatCurrency = (amount: number | string) =>
+    `$${parseFloat(amount.toString()).toFixed(2)}`
 
-      const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr)
-        const day = date.getDate().toString().padStart(2, '0')
-        const month = (date.getMonth() + 1).toString().padStart(2, '0')
-        const year = date.getFullYear()
-        return `${day}/${month}/${year}`
-      }
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr)
+    return `${d.getDate().toString().padStart(2,'0')}/${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getFullYear()}`
+  }
 
-      // Header
-      doc.fontSize(24)
-         .fillColor('#006A4E')
-         .font('Helvetica-Bold')           // ✅ built-in
-         .text("Deb's Bakery", 50, 50)
-      
-      doc.fontSize(10)
-         .fillColor('#333')
-         .font('Helvetica')               // ✅ built-in
-         .text('TAX INVOICE', 50, 80)
+  const drawText = (
+    text: string,
+    x: number,
+    y: number,
+    opts: { size?: number; bold?: boolean; color?: [number, number, number] } = {}
+  ) => {
+    page.drawText(String(text), {
+      x,
+      y,
+      size: opts.size ?? 10,
+      font: opts.bold ? fontBold : font,
+      color: opts.color ? rgb(...opts.color) : rgb(0.2, 0.2, 0.2),
+    })
+  }
 
-      // Invoice details (top right)
-      doc.fontSize(10)
-         .text(`Invoice #: ${order.order_number || order.id.slice(0, 8)}`, 350, 50)
-         .text(`Date: ${formatDate(order.delivery_date)}`, 350, 65)
+  const drawLine = (x1: number, y1: number, x2: number, y2: number) => {
+    page.drawLine({
+      start: { x: x1, y: y1 },
+      end:   { x: x2, y: y2 },
+      thickness: 0.5,
+      color: rgb(0.7, 0.7, 0.7),
+    })
+  }
 
-      // Customer details
-      doc.fontSize(12)
-         .font('Helvetica-Bold')           // ✅ built-in
-         .text('Bill To:', 50, 120)
-      
-      doc.fontSize(10)
-         .font('Helvetica')               // ✅ built-in
-         .text(order.customer.business_name || order.customer.contact_name || order.customer.email || 'Customer', 50, 140)
-      
-      if (order.customer.address) {
-        doc.text(order.customer.address, 50, 155)
-      }
-      if (order.customer.email) {
-        doc.text(order.customer.email, 50, order.customer.address ? 170 : 155)
-      }
+  let y = height - 50
 
-      doc.moveTo(50, 200).lineTo(550, 200).stroke()
+  // ── Header ──────────────────────────────────────────────
+  drawText("Deb's Bakery", 50, y, { size: 24, bold: true, color: [0, 0.416, 0.306] })
+  y -= 20
+  drawText('TAX INVOICE', 50, y, { size: 10, color: [0.2, 0.2, 0.2] })
 
-      // Table Header
-      let yPos = 220
-      doc.fontSize(10)
-         .font('Helvetica-Bold')           // ✅ built-in
-         .text('Item', 50, yPos)
-         .text('Code', 280, yPos)
-         .text('Qty', 380, yPos)
-         .text('Price', 440, yPos)
-         .text('Total', 500, yPos, { align: 'right', width: 50 })
+  // Invoice details top-right
+  drawText(`Invoice #: ${order.order_number || order.id.slice(0, 8)}`, 350, height - 50, { size: 10 })
+  drawText(`Date: ${formatDate(order.delivery_date)}`,                  350, height - 65, { size: 10 })
 
-      doc.moveTo(50, yPos + 15).lineTo(550, yPos + 15).stroke()
+  // ── Customer ─────────────────────────────────────────────
+  y -= 40
+  drawText('Bill To:', 50, y, { size: 12, bold: true })
+  y -= 18
+  drawText(
+    order.customer.business_name || order.customer.contact_name || order.customer.email || 'Customer',
+    50, y, { size: 10 }
+  )
+  if (order.customer.address) { y -= 15; drawText(order.customer.address, 50, y, { size: 10 }) }
+  if (order.customer.email)   { y -= 15; drawText(order.customer.email,   50, y, { size: 10 }) }
 
-      yPos += 25
+  y -= 20
+  drawLine(50, y, width - 50, y)
+  y -= 20
 
-      // Order Items
-      doc.font('Helvetica')               // ✅ built-in
-      let subtotal = 0
+  // ── Table header ─────────────────────────────────────────
+  drawText('Item',  50,  y, { size: 10, bold: true })
+  drawText('Code',  280, y, { size: 10, bold: true })
+  drawText('Qty',   370, y, { size: 10, bold: true })
+  drawText('Price', 420, y, { size: 10, bold: true })
+  drawText('Total', 490, y, { size: 10, bold: true })
+  y -= 14
+  drawLine(50, y, width - 50, y)
+  y -= 16
 
-      for (const item of order.order_items) {
-        if (yPos > 700) {
-          doc.addPage()
-          yPos = 50
-        }
+  // ── Line items ───────────────────────────────────────────
+  let subtotal = 0
 
-        const lineTotal = item.quantity * item.price
-        subtotal += lineTotal
-
-        doc.fontSize(9)
-           .text(item.product.name, 50, yPos, { width: 220 })
-           .text(item.product.product_code || '-', 280, yPos)
-           .text(item.quantity.toString(), 380, yPos)
-           .text(formatCurrency(item.price), 440, yPos)
-           .text(formatCurrency(lineTotal), 500, yPos, { align: 'right', width: 50 })
-
-        yPos += 20
-      }
-
-      // Totals
-      yPos += 10
-      doc.moveTo(350, yPos).lineTo(550, yPos).stroke()
-      yPos += 15
-
-      const gstRate = 0.1
-      const gstAmount = subtotal * gstRate
-      const total = subtotal + gstAmount
-
-      doc.fontSize(10)
-         .font('Helvetica')               // ✅ built-in
-         .text('Subtotal:', 400, yPos)
-         .text(formatCurrency(subtotal), 500, yPos, { align: 'right', width: 50 })
-
-      yPos += 20
-      doc.text('GST (10%):', 400, yPos)
-         .text(formatCurrency(gstAmount), 500, yPos, { align: 'right', width: 50 })
-
-      yPos += 5
-      doc.moveTo(350, yPos).lineTo(550, yPos).stroke()
-      yPos += 15
-
-      doc.fontSize(12)
-         .font('Helvetica-Bold')           // ✅ built-in
-         .text('Total:', 400, yPos)
-         .text(formatCurrency(total), 500, yPos, { align: 'right', width: 50 })
-
-      // Footer
-      yPos += 50
-      doc.fontSize(9)
-         .font('Helvetica')               // ✅ built-in
-         .fillColor('#666')
-         .text('Payment Terms: Due on receipt', 50, yPos)
-         .text('Thank you for your business!', 50, yPos + 15)
-
-      doc.fontSize(8)
-         .text("Deb's Bakery | ABN: [Your ABN]", 50, 750, { align: 'center' })
-
-      doc.end()
-
-    } catch (error) {
-      reject(error)
+  for (const item of order.order_items) {
+    if (y < 100) {
+      page = pdfDoc.addPage([595, 842])
+      y = height - 50
     }
-  })
+
+    const lineTotal = item.quantity * item.price
+    subtotal += lineTotal
+
+    // Truncate long product names
+    const name = item.product.name.length > 35
+      ? item.product.name.slice(0, 33) + '..'
+      : item.product.name
+
+    drawText(name,50,  y, { size: 9 })
+    drawText(item.product.product_code || '-', 280, y, { size: 9 })
+    drawText(item.quantity.toString(),          370, y, { size: 9 })
+    drawText(formatCurrency(item.price),        420, y, { size: 9 })
+    drawText(formatCurrency(lineTotal),         490, y, { size: 9 })
+    y -= 18
+  }
+
+  // ── Totals ───────────────────────────────────────────────
+  y -= 8
+  drawLine(350, y, width - 50, y)
+  y -= 18
+
+  const gstAmount = subtotal * 0.1
+  const total     = subtotal + gstAmount
+
+  drawText('Subtotal:',  400, y, { size: 10 })
+  drawText(formatCurrency(subtotal),  490, y, { size: 10 })
+  y -= 18
+
+  drawText('GST (10%):', 400, y, { size: 10 })
+  drawText(formatCurrency(gstAmount), 490, y, { size: 10 })
+  y -= 10
+
+  drawLine(350, y, width - 50, y)
+  y -= 18
+
+  drawText('Total:', 400, y, { size: 12, bold: true })
+  drawText(formatCurrency(total), 490, y, { size: 12, bold: true, color: [0, 0.416, 0.306] })
+
+  // ── Footer ───────────────────────────────────────────────
+  drawText('Payment Terms: Due on receipt', 50, 60, { size: 9, color: [0.4, 0.4, 0.4] })
+  drawText('Thank you for your business!',  50, 45, { size: 9, color: [0.4, 0.4, 0.4] })
+  drawText("Deb's Bakery | ABN: [Your ABN]", width / 2 - 80, 30, { size: 8, color: [0.5, 0.5, 0.5] })
+
+  const pdfBytes = await pdfDoc.save()
+  return Buffer.from(pdfBytes)
 }
