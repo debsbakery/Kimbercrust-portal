@@ -34,6 +34,7 @@ interface LineItem {
   isCredit: boolean
   creditPercent: number
   creditType: 'product_credit' | 'stale_return'
+   isCustom: boolean   // ← add this
 }
 
 const CREDIT_PERCENTS = [100, 75, 50, 25]
@@ -74,24 +75,30 @@ export default function DirectInvoicePage() {
       productId: '', productName: '', productCode: '',
       quantity: 1, unitPrice: 0, gstApplicable: true,
       isCredit, creditPercent: 100, creditType: 'product_credit',
+ isCustom: false,   // ← add this
     }])
   }
 
   function updateLineItem(id: string, field: string, value: any) {
     setLineItems(prev => prev.map(item => {
       if (item.id !== id) return item
-      if (field === 'productId') {
-        const p = products.find(p => p.id === value)
-        if (!p) return item
-        return {
-          ...item,
-          productId: p.id,
-          productName: p.name,
-          productCode: p.product_number || '',
-          unitPrice: p.unit_price || p.price || 0,
-          gstApplicable: p.gst_applicable ?? true,
-        }
-      }
+    if (field === 'productId') {
+  const p = products.find(p => p.id === value)
+  if (!p) return item
+
+  // Product 900 = custom line, manual everything
+  const is900 = p.product_code === 900 || p.code === '900'
+
+  return {
+    ...item,
+    productId:     p.id,
+    productName:   is900 ? '' : p.name,        // blank name for custom entry
+    productCode:   p.product_number || '',
+    unitPrice:     is900 ? 0 : (p.unit_price || p.price || 0),
+    gstApplicable: is900 ? false : (p.gst_applicable ?? true),
+    isCustom:      is900,
+  }
+}
       return { ...item, [field]: value }
     }))
   }
@@ -220,22 +227,25 @@ export default function DirectInvoicePage() {
         const creditTotal    = creditSubtotal + creditGst
         const allStale       = creditItems.every(i => i.creditType === 'stale_return')
 
-        const { data: memo } = await supabase
-          .from('credit_memos')
-          .insert({
-            customer_id: formData.customerId,
-            reference_order_id: newOrder.id,
-            credit_type: allStale ? 'stale_return' : 'product_credit',
-            credit_number: `CM-${Date.now().toString().slice(-6)}`,
-            credit_date: formData.deliveryDate,
-            status: 'issued',
-            notes: formData.notes || null,reason: 'Included in direct invoice',
-            subtotal: creditSubtotal,
-            gst_amount: creditGst,
-            total_amount: creditTotal,
-            amount: Math.abs(creditTotal),
-          })
-          .select().single()
+       const { data: memo } = await supabase
+  .from('credit_memos')
+  .insert({
+    customer_id:        formData.customerId,
+    reference_order_id: newOrder.id,
+    credit_type:        allStale ? 'stale_return' : 'product_credit',
+    credit_number:      `CM-${Date.now().toString().slice(-6)}`,
+    credit_date:        formData.deliveryDate,
+    status:             'issued',
+    notes:              formData.notes || null,
+    reason:             'Included in direct invoice',
+    applied_amount:     0,                // ← was missing
+    subtotal:           creditSubtotal,
+    gst_amount:         creditGst,
+    total_amount:       creditTotal,
+    amount:             Math.abs(creditTotal),
+  })
+  .select()
+  .single()
 
         if (memo) {
           await supabase.from('credit_memo_items').insert(
@@ -427,20 +437,29 @@ export default function DirectInvoicePage() {
                   </div>
 
                   <div className="col-span-3">
-                    <select
-                      value={item.productId}
-                      onChange={e => updateLineItem(item.id, 'productId', e.target.value)}
-                      className="w-full border rounded px-2 py-1 text-sm bg-white"
-                    >
-                      <option value="">Select...</option>
-                      {products.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.product_number} - {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
+  <select
+    value={item.productId}
+    onChange={e => updateLineItem(item.id, 'productId', e.target.value)}
+    className="w-full border rounded px-2 py-1 text-sm bg-white"
+  >
+    <option value="">Select...</option>
+    {products.map(p => (
+      <option key={p.id} value={p.id}>
+        {p.product_number} - {p.name}
+      </option>
+    ))}
+  </select>
+  {/* Custom description field for product 900 */}
+  {item.isCustom && (
+    <input
+      type="text"
+      placeholder="Enter description..."
+      value={item.productName}
+      onChange={e => updateLineItem(item.id, 'productName', e.target.value)}
+      className="w-full border rounded px-2 py-1 text-sm mt-1"
+    />
+  )}
+</div>
                   <div className="col-span-1">
                     <input
                       type="number" min="0.1" step="0.1"

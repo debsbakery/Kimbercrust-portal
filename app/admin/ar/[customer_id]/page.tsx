@@ -1,14 +1,13 @@
 export const dynamic = 'force-dynamic'
-import CreateCreditMemo from '@/components/credit-memos/CreateCreditMemo'
+
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { formatCurrency } from "@/lib/utils"
 import { checkAdmin } from "@/lib/auth"
-import { ArrowLeft, DollarSign, FileText } from "lucide-react"
+import { ArrowLeft, DollarSign, FileText, MinusCircle } from "lucide-react"
 import Link from "next/link"
-import StatementActions from "@/components/ar/StatementActions" // 🆕 Import new component
+import StatementActions from "@/components/ar/StatementActions"
 
-// ✅ Australian date format helper
 function formatAusDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
   try {
@@ -25,7 +24,6 @@ function formatAusDate(dateStr: string | null | undefined): string {
 async function getCustomerLedger(customerId: string) {
   const supabase = await createClient()
 
-  // Get customer
   const { data: customer } = await supabase
     .from('customers')
     .select('*')
@@ -34,31 +32,27 @@ async function getCustomerLedger(customerId: string) {
 
   if (!customer) return null
 
-  // ✅ Get invoices from orders table
-  const { data: invoices } = await supabase
-    .from('orders')
-    .select('*')
-    .eq('customer_id', customerId)
-    .order('delivery_date', { ascending: false })
+  const [
+    { data: invoices },
+    { data: payments },
+    { data: creditMemos },
+  ] = await Promise.all([
+    supabase.from('orders').select('*').eq('customer_id', customerId).order('delivery_date', { ascending: true }),
+    supabase.from('payments').select('*').eq('customer_id', customerId).order('payment_date', { ascending: true }),
+    supabase.from('credit_memos').select('*').eq('customer_id', customerId).order('credit_date', { ascending: true }),
+  ])
 
-  // ✅ Get payments from payments table
-  const { data: payments } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('customer_id', customerId)
-    .order('payment_date', { ascending: false })
-
-  console.log(`✅ Ledger data for ${customer.business_name}:`, {
-    invoices: invoices?.length || 0,
-    payments: payments?.length || 0
-  })
-
-  // ✅ Calculate actual balance
   const calculatedBalance = (invoices || []).reduce((sum, inv) => {
     return sum + (inv.total_amount - (inv.amount_paid || 0))
   }, 0)
 
-  return { customer, invoices: invoices || [], payments: payments || [], calculatedBalance }
+  return {
+    customer,
+    invoices:    invoices    || [],
+    payments:    payments    || [],
+    creditMemos: creditMemos || [],
+    calculatedBalance,
+  }
 }
 
 export default async function CustomerLedgerPage({
@@ -78,47 +72,60 @@ export default async function CustomerLedgerPage({
         <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
           <p className="text-red-700 font-semibold text-lg">Customer not found</p>
           <Link href="/admin/ar" className="inline-block mt-4 text-red-600 hover:underline">
-            ← Back to AR
+            Back to AR
           </Link>
         </div>
       </div>
     )
   }
 
-  const { customer, invoices, payments, calculatedBalance } = ledgerData
+  const { customer, invoices, payments, creditMemos, calculatedBalance } = ledgerData
 
-  // ✅ Combine invoices and payments into one ledger
+  // Build combined ledger entries
   const ledgerEntries = [
     ...invoices.map((inv: any) => ({
-      date: inv.delivery_date,
-      type: 'invoice',
-      description: `Invoice - ${new Date(inv.delivery_date).toLocaleDateString()}`,
-      invoiceId: inv.id,
-      debit: inv.total_amount,
-      credit: 0,
-      balance: 0,
+      date:        inv.delivery_date,
+      type:        'invoice',
+      description: `Invoice - ${formatAusDate(inv.delivery_date)}${inv.invoice_number ? ` #${inv.invoice_number}` : ''}`,
+      debit:       parseFloat(inv.total_amount || '0'),
+      credit:      0,
+      balance:     0,
     })),
     ...payments.map((pay: any) => ({
-      date: pay.payment_date,
-      type: 'payment',
-      description: `Payment - ${pay.payment_method} ${pay.reference_number || ''}`,
-      paymentId: pay.id,
-      debit: 0,
-      credit: pay.amount,
-      balance: 0,
+      date:        pay.payment_date,
+      type:        'payment',
+      description: `Payment - ${pay.payment_method}${pay.reference_number ? ` (${pay.reference_number})` : ''}`,
+      debit:       0,
+      credit:      parseFloat(pay.amount || '0'),
+      balance:     0,
     })),
-  ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    ...creditMemos.map((cm: any) => ({
+      date:        cm.credit_date || cm.created_at,
+      type:        'credit',
+      description: `Credit ${cm.credit_number} - ${cm.credit_type === 'stale_return' ? 'Stale Return' : 'Product Credit'}`,
+      debit:       0,
+      credit:      Math.abs(parseFloat(cm.total_amount || cm.amount || '0')),
+      balance:     0,
+    })),].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-  // ✅ Calculate running balance
+  // Running balance
   let runningBalance = 0
-  ledgerEntries.forEach((entry) => {
+  ledgerEntries.forEach(entry => {
     runningBalance += entry.debit - entry.credit
     entry.balance = runningBalance
   })
 
+  const totalInvoiced = invoices.reduce((s: number, inv: any) => s + parseFloat(inv.total_amount || '0'), 0)
+  const totalPaid     = payments.reduce((s: number, pay: any) => s + parseFloat(pay.amount || '0'), 0)
+  const totalCredits  = creditMemos.reduce((s: number, cm: any) => s + Math.abs(parseFloat(cm.total_amount || cm.amount || '0')), 0)
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <Link href="/admin/ar" className="flex items-center gap-1 text-sm mb-4 hover:opacity-80" style={{ color: "#CE1126" }}>
+      <Link
+        href="/admin/ar"
+        className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
+        style={{ color: "#CE1126" }}
+      >
         <ArrowLeft className="h-4 w-4" /> Back to AR
       </Link>
 
@@ -132,22 +139,22 @@ export default async function CustomerLedgerPage({
             <p className="text-gray-600">{customer.email}</p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-600">Calculated Balance</p>
+            <p className="text-sm text-gray-600">Current Balance</p>
             <p className="text-3xl font-bold" style={{ color: runningBalance > 0 ? "#CE1126" : "#006A4E" }}>
               {formatCurrency(Math.abs(runningBalance))}
             </p>
             {Math.abs(customer.balance - calculatedBalance) > 0.01 && (
               <div className="mt-2 p-2 bg-orange-50 rounded border border-orange-200">
                 <p className="text-xs text-orange-700 mb-1">
-                  ⚠️ Stored balance ({formatCurrency(customer.balance)}) differs from calculated ({formatCurrency(calculatedBalance)})
+                  Stored balance ({formatCurrency(customer.balance)}) differs from calculated ({formatCurrency(calculatedBalance)})
                 </p>
-                <form action={`/api/admin/ar/sync-balance`} method="POST" className="inline">
+                <form action="/api/admin/ar/sync-balance" method="POST" className="inline">
                   <input type="hidden" name="customer_id" value={customer.id} />
                   <button
                     type="submit"
                     className="text-xs px-2 py-1 bg-orange-600 text-white rounded hover:bg-orange-700"
                   >
-                    Sync Balance Now
+                    Sync Balance
                   </button>
                 </form>
               </div>
@@ -156,38 +163,38 @@ export default async function CustomerLedgerPage({
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-3 gap-4 mt-4">
+        <div className="grid grid-cols-4 gap-4 mt-4">
           <div className="p-3 bg-red-50 rounded border border-red-200">
             <p className="text-xs text-red-600">Total Invoiced</p>
-            <p className="text-lg font-bold text-red-800">
-              {formatCurrency(invoices.reduce((sum, inv) => sum + inv.total_amount, 0))}
-            </p>
+            <p className="text-lg font-bold text-red-800">{formatCurrency(totalInvoiced)}</p>
           </div>
           <div className="p-3 bg-green-50 rounded border border-green-200">
             <p className="text-xs text-green-600">Total Paid</p>
-            <p className="text-lg font-bold text-green-800">
-              {formatCurrency(payments.reduce((sum, pay) => sum + pay.amount, 0))}
-            </p>
+            <p className="text-lg font-bold text-green-800">{formatCurrency(totalPaid)}</p>
+          </div>
+          <div className="p-3 bg-orange-50 rounded border border-orange-200">
+            <p className="text-xs text-orange-600">Total Credits</p>
+            <p className="text-lg font-bold text-orange-800">{formatCurrency(totalCredits)}</p>
           </div>
           <div className="p-3 bg-blue-50 rounded border border-blue-200">
             <p className="text-xs text-blue-600">Balance Due</p>
-            <p className="text-lg font-bold text-blue-800">
-              {formatCurrency(calculatedBalance)}
-            </p>
+            <p className="text-lg font-bold text-blue-800">{formatCurrency(runningBalance)}</p>
           </div>
         </div>
       </div>
 
-      {/* 🆕 Statement Actions Component */}
+      {/* Statement Actions */}
       <div className="mb-6">
         <StatementActions customer={customer} />
       </div>
-<CreateCreditMemo customerId={customer.id} />
+
       {/* Ledger Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
         <div className="p-6 border-b">
           <h2 className="text-xl font-bold">Transaction Ledger</h2>
-          <p className="text-sm text-gray-600">{invoices.length} invoices, {payments.length} payments</p>
+          <p className="text-sm text-gray-600">
+            {invoices.length} invoices · {payments.length} payments · {creditMemos.length} credits
+          </p>
         </div>
 
         <div className="overflow-x-auto">
@@ -198,7 +205,7 @@ export default async function CustomerLedgerPage({
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Charges</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Payments</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Credits/Payments</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Balance</th>
               </tr>
             </thead>
@@ -211,26 +218,32 @@ export default async function CustomerLedgerPage({
                 </tr>
               ) : (
                 ledgerEntries.map((entry, index) => (
-                  <tr key={index} className={entry.type === 'payment' ? 'bg-green-50' : ''}>
-                    <td className="px-4 py-3 text-sm">
-                      {formatAusDate(entry.date)}
-                    </td>
+                  <tr
+                    key={index}
+                    className={
+                      entry.type === 'payment' ? 'bg-green-50' :
+                      entry.type === 'credit'  ? 'bg-orange-50' : ''
+                    }
+                  >
+                    <td className="px-4 py-3 text-sm">{formatAusDate(entry.date)}</td>
                     <td className="px-4 py-3">
-                      {entry.type === 'invoice' ? (
+                      {entry.type === 'invoice' && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-medium">
-                          <FileText className="h-3 w-3" />
-                          Invoice
+                          <FileText className="h-3 w-3" /> Invoice
                         </span>
-                      ) : (
+                      )}
+                      {entry.type === 'payment' && (
                         <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-                          <DollarSign className="h-3 w-3" />
-                          Payment
+                          <DollarSign className="h-3 w-3" /> Payment
+                        </span>
+                      )}
+                      {entry.type === 'credit' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium">
+                          <MinusCircle className="h-3 w-3" /> Credit
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {entry.description}
-                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{entry.description}</td>
                     <td className="px-4 py-3 text-right text-sm font-medium text-red-600">
                       {entry.debit > 0 ? formatCurrency(entry.debit) : '—'}
                     </td>
@@ -248,10 +261,10 @@ export default async function CustomerLedgerPage({
               <tr>
                 <td colSpan={3} className="px-4 py-3 text-right font-bold">Totals:</td>
                 <td className="px-4 py-3 text-right font-bold text-red-600">
-                  {formatCurrency(invoices.reduce((sum, inv) => sum + inv.total_amount, 0))}
+                  {formatCurrency(totalInvoiced)}
                 </td>
                 <td className="px-4 py-3 text-right font-bold text-green-600">
-                  {formatCurrency(payments.reduce((sum, pay) => sum + pay.amount, 0))}
+                  {formatCurrency(totalPaid + totalCredits)}
                 </td>
                 <td className="px-4 py-3 text-right font-bold text-lg">
                   {formatCurrency(runningBalance)}
