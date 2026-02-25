@@ -18,35 +18,19 @@ interface StatementActionsProps {
 }
 
 export default function StatementActions({ customer }: StatementActionsProps) {
-  const [dateRange, setDateRange] = useState({
-    from: addMonths(new Date(), -1),
-    to: new Date(),
-  })
+ const [dateRange, setDateRange] = useState(() => ({
+  from: addMonths(new Date(), -1),
+  to: new Date(),
+}))
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSending, setIsSending] = useState(false)
 
-  const presets = [
-    {
-      label: 'Last Month',
-      from: addMonths(new Date(), -1),
-      to: new Date(),
-    },
-    {
-      label: 'Last 3 Months',
-      from: addMonths(new Date(), -3),
-      to: new Date(),
-    },
-    {
-      label: 'YTD',
-      from: new Date(new Date().getFullYear(), 0, 1),
-      to: new Date(),
-    },
-    {
-      label: 'All Time',
-      from: new Date(2020, 0, 1),
-      to: new Date(),
-    },
-  ]
+  const presets = useMemo(() => [
+  { label: 'Last Month',   from: addMonths(new Date(), -1), to: new Date() },
+  { label: 'Last 3 Months',from: addMonths(new Date(), -3), to: new Date() },
+  { label: 'YTD',          from: new Date(new Date().getFullYear(), 0, 1), to: new Date() },
+  { label: 'All Time',     from: new Date(2020, 0, 1), to: new Date() },
+], [])
 
   const handlePrintStatement = async () => {
     setIsGenerating(true)
