@@ -21,6 +21,8 @@ interface Product {
   price: number
   unit_price: number
   gst_applicable: boolean
+  product_code: number
+  code: string
 }
 
 interface LineItem {
@@ -34,24 +36,24 @@ interface LineItem {
   isCredit: boolean
   creditPercent: number
   creditType: 'product_credit' | 'stale_return'
-   isCustom: boolean   // ← add this
+  isCustom: boolean
 }
 
 const CREDIT_PERCENTS = [100, 75, 50, 25]
 
 export default function DirectInvoicePage() {
   const [customers, setCustomers]= useState<Customer[]>([])
-  const [products, setProducts]             = useState<Product[]>([])
-  const [lineItems, setLineItems]           = useState<LineItem[]>([])
-  const [loading, setLoading]               = useState(false)
-  const [error, setError]                   = useState<string | null>(null)
+  const [products, setProducts]                 = useState<Product[]>([])
+  const [lineItems, setLineItems]               = useState<LineItem[]>([])
+  const [loading, setLoading]                   = useState(false)
+  const [error, setError]                       = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [formData, setFormData] = useState({
-    customerId: '',
-    deliveryDate: new Date().toISOString().split('T')[0],
+    customerId:          '',
+    deliveryDate:        new Date().toISOString().split('T')[0],
     purchaseOrderNumber: '',
-    docketNumber: '',
-    notes: '',
+    docketNumber:        '',
+    notes:               '',
   })
 
   const supabase = createClient()
@@ -71,34 +73,37 @@ export default function DirectInvoicePage() {
 
   function addLineItem(isCredit = false) {
     setLineItems(prev => [...prev, {
-      id: Math.random().toString(36).slice(2),
-      productId: '', productName: '', productCode: '',
-      quantity: 1, unitPrice: 0, gstApplicable: true,
-      isCredit, creditPercent: 100, creditType: 'product_credit',
- isCustom: false,   // ← add this
+      id:Math.random().toString(36).slice(2),
+      productId:     '',
+      productName:   '',
+      productCode:   '',
+      quantity:      1,
+      unitPrice:     0,
+      gstApplicable: true,
+      isCredit,
+      creditPercent: 100,
+      creditType:    'product_credit',
+      isCustom:      false,
     }])
   }
 
   function updateLineItem(id: string, field: string, value: any) {
     setLineItems(prev => prev.map(item => {
       if (item.id !== id) return item
-    if (field === 'productId') {
-  const p = products.find(p => p.id === value)
-  if (!p) return item
-
-  // Product 900 = custom line, manual everything
-  const is900 = p.product_code === 900 || p.code === '900'
-
-  return {
-    ...item,
-    productId:     p.id,
-    productName:   is900 ? '' : p.name,        // blank name for custom entry
-    productCode:   p.product_number || '',
-    unitPrice:     is900 ? 0 : (p.unit_price || p.price || 0),
-    gstApplicable: is900 ? false : (p.gst_applicable ?? true),
-    isCustom:      is900,
-  }
-}
+      if (field === 'productId') {
+        const p = products.find(p => p.id === value)
+        if (!p) return item
+        const is900 = p.product_code === 900 || p.code === '900'
+        return {
+          ...item,
+          productId:     p.id,
+          productName:   is900 ? '' : p.name,
+          productCode:   p.product_number || '',
+          unitPrice:     is900 ? 0 : (p.unit_price || p.price || 0),
+          gstApplicable: is900 ? false : (p.gst_applicable ?? true),
+          isCustom:      is900,
+        }
+      }
       return { ...item, [field]: value }
     }))
   }
@@ -114,7 +119,7 @@ export default function DirectInvoicePage() {
 
   function lineGst(item: LineItem): number {
     const base = item.quantity * item.unitPrice * (item.isCredit ? item.creditPercent / 100 : 1)
-    const gst = item.gstApplicable ? base * 0.1 : 0
+    const gst  = item.gstApplicable ? base * 0.1 : 0
     return item.isCredit ? -gst : gst
   }
 
@@ -132,11 +137,11 @@ export default function DirectInvoicePage() {
 
   function resetForm() {
     setFormData({
-      customerId: '',
-      deliveryDate: new Date().toISOString().split('T')[0],
+      customerId:          '',
+      deliveryDate:        new Date().toISOString().split('T')[0],
       purchaseOrderNumber: '',
-      docketNumber: '',
-      notes: '',
+      docketNumber:        '',
+      notes:               '',
     })
     setLineItems([])
     setSelectedCustomer(null)
@@ -150,10 +155,11 @@ export default function DirectInvoicePage() {
 
     try {
       if (!formData.customerId) throw new Error('Please select a customer')
-      if (!lineItems.length) throw new Error('Please add at least one line item')
-      if (lineItems.some(i => !i.productId || i.quantity <= 0)) {
+      if (!lineItems.length)    throw new Error('Please add at least one line item')
+      if (lineItems.some(i => !i.productId || i.quantity <= 0))
         throw new Error('Please complete all line items')
-      }
+      if (lineItems.some(i => i.isCustom && !i.productName.trim()))
+        throw new Error('Please enter a description for custom (900) line items')
 
       const customer = selectedCustomer!
 
@@ -161,18 +167,18 @@ export default function DirectInvoicePage() {
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert({
-          customer_id: formData.customerId,
-          customer_email: customer.email,
+          customer_id:formData.customerId,
+          customer_email:         customer.email,
           customer_business_name: customer.business_name,
-          customer_address: customer.address,
-          customer_abn: customer.abn,
-          delivery_date: formData.deliveryDate,
-          total_amount: grandTotal,
-          status: 'invoiced',
-          source: 'direct_invoice',
-          notes: formData.notes || null,
-          purchase_order_number: formData.purchaseOrderNumber || null,
-          docket_number: formData.docketNumber || null,
+          customer_address:       customer.address,
+          customer_abn:           customer.abn,
+          delivery_date:          formData.deliveryDate,
+          total_amount:           grandTotal,
+          status:                 'invoiced',
+          source:                 'direct_invoice',
+          notes:                  formData.notes || null,
+          purchase_order_number:  formData.purchaseOrderNumber || null,
+          docket_number:          formData.docketNumber || null,
         })
         .select()
         .single()
@@ -180,17 +186,18 @@ export default function DirectInvoicePage() {
       if (orderError) throw new Error(`Order creation failed: ${orderError.message}`)
 
       // Create order items
-      const orderItems = lineItems.map(item => ({
-        order_id: newOrder.id,
-        product_id: item.productId,
-        product_name: item.productName,
-        quantity: item.isCredit ? -item.quantity : item.quantity,
-        unit_price: item.unitPrice,
-        subtotal: lineSubtotal(item),
-        gst_applicable: item.gstApplicable,
-      }))
+      const { error: itemsError } = await supabase.from('order_items').insert(
+        lineItems.map(item => ({
+          order_id:       newOrder.id,
+          product_id:     item.productId,
+          product_name:   item.productName,
+          quantity:       item.isCredit ? -item.quantity : item.quantity,
+          unit_price:     item.unitPrice,
+          subtotal:       lineSubtotal(item),
+          gst_applicable: item.gstApplicable,
+        }))
+      )
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
       if (itemsError) {
         await supabase.from('orders').delete().eq('id', newOrder.id)
         throw new Error(`Order items failed: ${itemsError.message}`)
@@ -198,18 +205,18 @@ export default function DirectInvoicePage() {
 
       // AR transaction
       const paymentTerms = customer.payment_terms || 30
-      const dueDate = new Date(formData.deliveryDate)
+      const dueDate      = new Date(formData.deliveryDate)
       dueDate.setDate(dueDate.getDate() + paymentTerms)
 
-  const { error: arError } = await supabase.from('ar_transactions').insert({
-  customer_id:  formData.customerId,
-  type:         grandTotal < 0 ? 'credit' : 'invoice',  // ← 'credit' not 'credit_memo'
-  amount:       Math.abs(grandTotal),                    // ← always positive
-  amount_paid:  0,
-  invoice_id:   newOrder.id,
-  description:  `${grandTotal < 0 ? 'Credit invoice' : 'Direct invoice'} - ${customer.business_name}`,
-  due_date:     dueDate.toISOString().split('T')[0],
-})
+      const { error: arError } = await supabase.from('ar_transactions').insert({
+        customer_id:  formData.customerId,
+        type:         grandTotal < 0 ? 'credit' : 'invoice',
+        amount:       Math.abs(grandTotal),
+        amount_paid:  0,
+        invoice_id:   newOrder.id,
+        description:  `${grandTotal < 0 ? 'Credit invoice' : 'Direct invoice'} - ${customer.business_name}`,
+        due_date:     dueDate.toISOString().split('T')[0],
+      })
 
       if (arError) throw new Error(`AR transaction failed: ${arError.message}`)
 
@@ -221,49 +228,46 @@ export default function DirectInvoicePage() {
 
       // Record credit memo if credit lines exist
       if (hasCredits) {
-        const creditItems = lineItems.filter(i => i.isCredit)
+        const creditItems    = lineItems.filter(i => i.isCredit)
         const creditSubtotal = creditItems.reduce((s, i) => s + lineSubtotal(i), 0)
         const creditGst      = creditItems.reduce((s, i) => s + lineGst(i), 0)
         const creditTotal    = creditSubtotal + creditGst
         const allStale       = creditItems.every(i => i.creditType === 'stale_return')
 
-       const { data: memo } = await supabase
-  .from('credit_memos')
-  .insert({
-    customer_id:        formData.customerId,
-    reference_order_id: newOrder.id,
-    credit_type:        allStale ? 'stale_return' : 'product_credit',
-    credit_number:      `CM-${Date.now().toString().slice(-6)}`,
-    credit_date:        formData.deliveryDate,
-    status:             'issued',
-    notes:              formData.notes || null,
-    reason:             'Included in direct invoice',
-    applied_amount:     0,                // ← was missing
-    subtotal:           creditSubtotal,
-    gst_amount:         creditGst,
-    total_amount:       creditTotal,
-    amount:             Math.abs(creditTotal),
-  })
-  .select()
-  .single()
+        const { data: memo } = await supabase
+          .from('credit_memos')
+          .insert({
+            customer_id:        formData.customerId,
+            reference_order_id: newOrder.id,
+            credit_type:        allStale ? 'stale_return' : 'product_credit',
+            credit_number:      `CM-${Date.now().toString().slice(-6)}`,
+            credit_date:        formData.deliveryDate,
+            status:             'issued',
+            notes:              formData.notes || null,
+            reason:             'Included in direct invoice',
+            applied_amount:     0,
+            subtotal:           creditSubtotal,
+            gst_amount:         creditGst,
+            total_amount:       creditTotal,amount:             Math.abs(creditTotal),
+          })
+          .select()
+          .single()
 
         if (memo) {
           await supabase.from('credit_memo_items').insert(
             creditItems.map(i => ({
-              credit_memo_id: memo.id,
-              product_id: i.productId,
-              product_name: i.productName,
-              product_code: i.productCode,
+              credit_memo_id:     memo.id,
+              product_id:         i.productId,
+              product_name:       i.productName,
+              product_code:       i.productCode,
               custom_description: i.productName,
-              quantity: i.quantity,
-              unit_price: i.unitPrice,
-              total: lineSubtotal(i),
-              credit_percent: i.creditPercent,
-              line_total: lineTotal(i),
-              gst_applicable: i.gstApplicable,
-              gst_amount: lineGst(i),
-              credit_type: i.creditType,
-            }))
+              quantity:           i.quantity,
+              unit_price:         i.unitPrice,
+              total:              lineSubtotal(i),
+              credit_percent:     i.creditPercent,
+              line_total:         lineTotal(i),
+              gst_applicable:     i.gstApplicable,gst_amount:         lineGst(i),
+              credit_type:        i.creditType,}))
           )
         }
       }
@@ -317,8 +321,7 @@ export default function DirectInvoicePage() {
               <select
                 value={formData.customerId}
                 onChange={e => handleCustomerChange(e.target.value)}
-               required
-className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500"
+                requiredclassName="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500"
               >
                 <option value="">-- Select Customer --</option>
                 {customers.map(c => (
@@ -406,9 +409,7 @@ className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500"
           </div>
 
           {lineItems.length === 0 ? (
-            <p className="text-gray-400 text-center py-8">
-              Add charge or credit lines above
-            </p>
+            <p className="text-gray-400 text-center py-8">Add charge or credit lines above</p>
           ) : (
             <div className="space-y-2">
               <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-500 px-1 pb-1 border-b">
@@ -438,35 +439,36 @@ className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500"
                   </div>
 
                   <div className="col-span-3">
-  <select
-    value={item.productId}
-    onChange={e => updateLineItem(item.id, 'productId', e.target.value)}
-    className="w-full border rounded px-2 py-1 text-sm bg-white"
-  >
-    <option value="">Select...</option>
-    {products.map(p => (
-      <option key={p.id} value={p.id}>
-        {p.product_number} - {p.name}
-      </option>
-    ))}
-  </select>
-  {/* Custom description field for product 900 */}
-  {item.isCustom && (
-    <input
-      type="text"
-      placeholder="Enter description..."
-      value={item.productName}
-      onChange={e => updateLineItem(item.id, 'productName', e.target.value)}
-      className="w-full border rounded px-2 py-1 text-sm mt-1"
-    />
-  )}
-</div>
+                    <select
+                      value={item.productId}
+                      onChange={e => updateLineItem(item.id, 'productId', e.target.value)}
+                      className="w-full border rounded px-2 py-1 text-sm bg-white"
+                    >
+                      <option value="">Select...</option>
+                      {products.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.product_number} - {p.name}
+                        </option>
+                      ))}
+                    </select>
+                    {item.isCustom && (
+                      <input
+                        type="text"
+                        placeholder="Enter description..."
+                        value={item.productName}
+                        onChange={e => updateLineItem(item.id, 'productName', e.target.value)}
+                        className="w-full border rounded px-2 py-1 text-sm mt-1"
+                      />
+                    )}
+                  </div>
+
                   <div className="col-span-1">
                     <input
                       type="number" min="0.1" step="0.1"
                       value={item.quantity}
                       onChange={e => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                      className="w-full border rounded px-2 py-1 text-sm"/>
+                      className="w-full border rounded px-2 py-1 text-sm"
+                    />
                   </div>
 
                   <div className="col-span-2">
@@ -519,7 +521,8 @@ className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500"
                   }`}>
                     {item.isCredit
                       ? `(${fmt(Math.abs(lineTotal(item)))})`
-                      : fmt(lineTotal(item))}
+                      : fmt(lineTotal(item))
+                    }
                   </div>
 
                   <div className="col-span-1 flex justify-center">
