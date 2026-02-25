@@ -12,7 +12,12 @@ interface StatementData {
 export async function generateStatementPDF(data: StatementData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ size: 'A4', margin: 50 })
+      // ✅ FIX: explicitly declare font in constructor
+      const doc = new PDFDocument({ 
+        size: 'A4', 
+        margin: 50,
+        font: 'Helvetica'  // ← THIS is the key fix
+      })
       const chunks: Buffer[] = []
 
       doc.on('data', (chunk) => chunks.push(chunk))
@@ -21,7 +26,6 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
 
       const { customer, orders, payments, openingBalance, startDate, endDate } = data
 
-      // Helper functions
       const formatCurrency = (amount: number | string) => {
         return `$${parseFloat(amount.toString()).toFixed(2)}`
       }
@@ -37,10 +41,12 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
       // Header
       doc.fontSize(24)
          .fillColor('#006A4E')
+         .font('Helvetica-Bold')           // ✅ built-in, no file needed
          .text("Deb's Bakery", 50, 50)
       
       doc.fontSize(10)
          .fillColor('#333')
+         .font('Helvetica')                // ✅ built-in
          .text('Account Statement', 50, 80)
 
       // Customer Info
@@ -65,7 +71,7 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
       // Opening Balance
       let yPos = 195
       doc.fontSize(11)
-         .font('Helvetica-Bold')
+         .font('Helvetica-Bold')           // ✅ built-in
          .text('Opening Balance:', 50, yPos)
          .text(formatCurrency(openingBalance), 450, yPos, { align: 'right', width: 100 })
 
@@ -73,7 +79,7 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
 
       // Table Header
       doc.fontSize(10)
-         .font('Helvetica-Bold')
+         .font('Helvetica-Bold')           // ✅ built-in
          .text('Date', 50, yPos)
          .text('Description', 120, yPos)
          .text('Charges', 380, yPos, { align: 'right', width: 80 })
@@ -83,7 +89,7 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
 
       yPos += 25
 
-      // Combine transactions
+      // Combine and sort transactions
       const transactions = [
         ...orders.map(order => ({
           date: order.delivery_date,
@@ -101,8 +107,7 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
 
       let runningBalance = openingBalance
 
-      // Transactions
-      doc.font('Helvetica')
+      doc.font('Helvetica')                // ✅ built-in
 
       for (const transaction of transactions) {
         if (yPos > 700) {
@@ -125,7 +130,7 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
         yPos += 18
       }
 
-      // Totals
+      // Totals section
       yPos += 10
       doc.moveTo(50, yPos).lineTo(550, yPos).stroke()
       yPos += 15
@@ -134,7 +139,7 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
       const totalPayments = payments.reduce((sum, payment) => sum + parseFloat(payment.amount || '0'), 0)
 
       doc.fontSize(10)
-         .font('Helvetica-Bold')
+         .font('Helvetica-Bold')           // ✅ built-in
          .text('Total Charges:', 250, yPos)
          .text(formatCurrency(totalCharges), 380, yPos, { align: 'right', width: 80 })
 
@@ -148,19 +153,21 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
 
       doc.fontSize(12)
          .fillColor('#CE1126')
+         .font('Helvetica-Bold')           // ✅ built-in
          .text('Closing Balance:', 250, yPos)
          .text(formatCurrency(runningBalance), 380, yPos, { align: 'right', width: 170 })
 
-      // Terms
+      // Payment terms
       yPos += 35
       doc.fontSize(9)
+         .font('Helvetica')               // ✅ built-in
          .fillColor('#666')
          .text(`Payment Terms: ${customer.payment_terms || 'Due on receipt'}`, 50, yPos)
 
       if (runningBalance > 0) {
         yPos += 20
         doc.fillColor('#CE1126')
-           .text('⚠ This account is overdue. Please arrange payment at your earliest convenience.', 50, yPos, {
+           .text('This account is overdue. Please arrange payment at your earliest convenience.', 50, yPos, {
              width: 500,
            })
       }

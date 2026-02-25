@@ -17,9 +17,14 @@ interface PackingSlipData {
 }
 
 export async function generateBatchPackingSlips(orders: PackingSlipData[]): Promise<Buffer> {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {   // ✅ removed async (unnecessary)
     try {
-      const doc = new PDFDocument({ size: 'A4', margin: 50 })
+      // ✅ FIX: explicitly declare font in constructor
+      const doc = new PDFDocument({ 
+        size: 'A4', 
+        margin: 50,
+        font: 'Helvetica'  // ← THIS is the key fix
+      })
       const chunks: Buffer[] = []
 
       doc.on('data', (chunk) => chunks.push(chunk))
@@ -40,17 +45,20 @@ export async function generateBatchPackingSlips(orders: PackingSlipData[]): Prom
 
         const order = orders[i]
 
-        // Header with bakery info
+        // Header
         doc.fontSize(24)
            .fillColor('#006A4E')
+           .font('Helvetica-Bold')         // ✅ built-in
            .text("Deb's Bakery", 50, 50)
         
         doc.fontSize(10)
            .fillColor('#333')
+           .font('Helvetica')             // ✅ built-in
            .text('(04) 1234-5678', 50, 80)
 
         doc.fontSize(20)
            .fillColor('#CE1126')
+           .font('Helvetica-Bold')         // ✅ built-in
            .text('PACKING SLIP', { align: 'center' })
         
         doc.moveDown()
@@ -58,6 +66,7 @@ export async function generateBatchPackingSlips(orders: PackingSlipData[]): Prom
         // Customer Details
         doc.fontSize(12)
            .fillColor('#333')
+           .font('Helvetica')             // ✅ built-in
            .text(`Customer: ${order.customer.business_name || order.customer.contact_name}`, 50, 140)
            .text(`Delivery Date: ${formatDate(order.delivery_date)}`, 50, 158)
            .text(`Order #: ${order.id.slice(0, 8)}`, 50, 176)
@@ -67,7 +76,7 @@ export async function generateBatchPackingSlips(orders: PackingSlipData[]): Prom
         // Table Header
         const tableTop = doc.y
         doc.fontSize(10)
-           .font('Helvetica-Bold')
+           .font('Helvetica-Bold')         // ✅ built-in
            .text('Item', 50, tableTop)
            .text('Qty', 400, tableTop)
            .text('Code', 480, tableTop)
@@ -76,7 +85,7 @@ export async function generateBatchPackingSlips(orders: PackingSlipData[]): Prom
         doc.moveDown()
 
         // Items
-        doc.font('Helvetica')
+        doc.font('Helvetica')             // ✅ built-in
         order.order_items.forEach((item) => {
           const y = doc.y
           doc.text(item.product.name, 50, y, { width: 330 })
@@ -89,6 +98,7 @@ export async function generateBatchPackingSlips(orders: PackingSlipData[]): Prom
         doc.moveDown(2)
         doc.fontSize(10)
            .fillColor('#666')
+           .font('Helvetica')             // ✅ built-in
            .text('Thank you for your order!', { align: 'center' })
       }
 

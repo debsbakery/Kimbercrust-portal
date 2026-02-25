@@ -25,14 +25,18 @@ interface InvoiceData {
 export async function generateInvoicePDF(order: InvoiceData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ size: 'A4', margin: 50 })
+      // ✅ FIX: explicitly declare font in constructor
+      const doc = new PDFDocument({ 
+        size: 'A4', 
+        margin: 50,
+        font: 'Helvetica'  // ← THIS is the key fix
+      })
       const chunks: Buffer[] = []
 
       doc.on('data', (chunk) => chunks.push(chunk))
       doc.on('end', () => resolve(Buffer.concat(chunks)))
       doc.on('error', reject)
 
-      // Helper functions
       const formatCurrency = (amount: number | string) => {
         return `$${parseFloat(amount.toString()).toFixed(2)}`
       }
@@ -48,24 +52,26 @@ export async function generateInvoicePDF(order: InvoiceData): Promise<Buffer> {
       // Header
       doc.fontSize(24)
          .fillColor('#006A4E')
+         .font('Helvetica-Bold')           // ✅ built-in
          .text("Deb's Bakery", 50, 50)
       
       doc.fontSize(10)
          .fillColor('#333')
+         .font('Helvetica')               // ✅ built-in
          .text('TAX INVOICE', 50, 80)
 
-      // Invoice Details
+      // Invoice details (top right)
       doc.fontSize(10)
          .text(`Invoice #: ${order.order_number || order.id.slice(0, 8)}`, 350, 50)
          .text(`Date: ${formatDate(order.delivery_date)}`, 350, 65)
 
-      // Customer Details
+      // Customer details
       doc.fontSize(12)
-         .font('Helvetica-Bold')
+         .font('Helvetica-Bold')           // ✅ built-in
          .text('Bill To:', 50, 120)
       
       doc.fontSize(10)
-         .font('Helvetica')
+         .font('Helvetica')               // ✅ built-in
          .text(order.customer.business_name || order.customer.contact_name || order.customer.email || 'Customer', 50, 140)
       
       if (order.customer.address) {
@@ -75,13 +81,12 @@ export async function generateInvoicePDF(order: InvoiceData): Promise<Buffer> {
         doc.text(order.customer.email, 50, order.customer.address ? 170 : 155)
       }
 
-      // Line separator
       doc.moveTo(50, 200).lineTo(550, 200).stroke()
 
       // Table Header
       let yPos = 220
       doc.fontSize(10)
-         .font('Helvetica-Bold')
+         .font('Helvetica-Bold')           // ✅ built-in
          .text('Item', 50, yPos)
          .text('Code', 280, yPos)
          .text('Qty', 380, yPos)
@@ -93,7 +98,7 @@ export async function generateInvoicePDF(order: InvoiceData): Promise<Buffer> {
       yPos += 25
 
       // Order Items
-      doc.font('Helvetica')
+      doc.font('Helvetica')               // ✅ built-in
       let subtotal = 0
 
       for (const item of order.order_items) {
@@ -120,12 +125,12 @@ export async function generateInvoicePDF(order: InvoiceData): Promise<Buffer> {
       doc.moveTo(350, yPos).lineTo(550, yPos).stroke()
       yPos += 15
 
-      const gstRate = 0.1 // 10% GST
+      const gstRate = 0.1
       const gstAmount = subtotal * gstRate
       const total = subtotal + gstAmount
 
       doc.fontSize(10)
-         .font('Helvetica')
+         .font('Helvetica')               // ✅ built-in
          .text('Subtotal:', 400, yPos)
          .text(formatCurrency(subtotal), 500, yPos, { align: 'right', width: 50 })
 
@@ -138,19 +143,18 @@ export async function generateInvoicePDF(order: InvoiceData): Promise<Buffer> {
       yPos += 15
 
       doc.fontSize(12)
-         .font('Helvetica-Bold')
+         .font('Helvetica-Bold')           // ✅ built-in
          .text('Total:', 400, yPos)
          .text(formatCurrency(total), 500, yPos, { align: 'right', width: 50 })
 
       // Footer
       yPos += 50
       doc.fontSize(9)
-         .font('Helvetica')
+         .font('Helvetica')               // ✅ built-in
          .fillColor('#666')
          .text('Payment Terms: Due on receipt', 50, yPos)
          .text('Thank you for your business!', 50, yPos + 15)
 
-      // ABN/Business details (if applicable)
       doc.fontSize(8)
          .text("Deb's Bakery | ABN: [Your ABN]", 50, 750, { align: 'center' })
 
