@@ -201,15 +201,15 @@ export default function DirectInvoicePage() {
       const dueDate = new Date(formData.deliveryDate)
       dueDate.setDate(dueDate.getDate() + paymentTerms)
 
-      const { error: arError } = await supabase.from('ar_transactions').insert({
-        customer_id: formData.customerId,
-        type: grandTotal < 0 ? 'credit_memo' : 'invoice',
-        amount: grandTotal,
-        amount_paid: 0,
-        invoice_id: newOrder.id,
-        description: `${grandTotal < 0 ? 'Credit invoice' : 'Direct invoice'} - ${customer.business_name}`,
-        due_date: dueDate.toISOString().split('T')[0],
-      })
+     const { error: arError } = await supabase.from('ar_transactions').insert({
+  customer_id:  formData.customerId,
+  type:         grandTotal < 0 ? 'credit_memo' : 'invoice',
+  amount:       Math.abs(grandTotal),   // ← always positive
+  amount_paid:  0,
+  invoice_id:   newOrder.id,
+  description:  `${grandTotal < 0 ? 'Credit invoice' : 'Direct invoice'} - ${customer.business_name}`,
+  due_date:     dueDate.toISOString().split('T')[0],
+})
 
       if (arError) throw new Error(`AR transaction failed: ${arError.message}`)
 
