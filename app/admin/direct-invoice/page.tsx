@@ -247,7 +247,7 @@ if (hasCredits) {
         credit_date:        formData.deliveryDate,
         status:             'issued',
         notes:              formData.notes || null,
-        reason:             'Included in direct invoice',
+        reason: 'Direct invoice',  // 15 chars — fits in varchar(20)
         applied_amount:     0,
         subtotal:           creditSubtotal,
         gst_amount:         creditGst,
