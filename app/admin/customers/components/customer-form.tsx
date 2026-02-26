@@ -251,3 +251,27 @@ export default function CustomerForm({ customer, isEditing = false }: Props) {
           placeholder="Leave at back door, call on arrival, etc."
         />
       </div>
+            {/* Actions */}
+      <div className="flex gap-3 pt-4 border-t">
+        <button
+          id="customer-submit-btn"
+          type="submit"
+          disabled={loading}
+          className="flex-1 py-3 rounded-md text-white font-semibold hover:opacity-90 disabled:opacity-50"
+          style={{ backgroundColor: '#006A4E' }}
+        >
+          {loading ? '💾 Saving...' : isEditing ? '✅ Update Customer' : '✨ Add Customer'}
+        </button>
+        <button
+          type="button"
+          onClick={() => router.back()}
+          disabled={loading}
+          className="px-6 py-3 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      </div>
+
+    </form>
+  )
+}
