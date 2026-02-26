@@ -11,6 +11,7 @@ export interface SelectOption {
 }
 
 // ── Category grouping helper ──────────────────────────────────────────────────
+// ✅ Already correct from earlier — double check it reads:
 const CATEGORIES = [
   { label: '🎂 Cakes', min: 1000, max: 1999 },
   { label: '🍞 Bread', min: 2000, max: 2750 },
