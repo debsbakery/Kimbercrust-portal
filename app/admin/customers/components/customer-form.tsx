@@ -101,44 +101,45 @@ export default function CustomerForm({ customer, isEditing = false }: Props) {
         </div>
       )}
 
-      {/* Shared email warning */}
-      {duplicateWarning && (
-        <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
-          <p className="text-amber-800 font-semibold text-sm">
-            ⚠️ Email already used by &ldquo;{duplicateWarning}&rdquo;
-          </p>
-          <p className="text-amber-700 text-xs mt-1">
-            This is fine if they share a billing email address. Confirm to proceed.
-          </p>
-          <div className="flex gap-2 mt-3">
-            <button
-              type="button"
-              onClick={() => {
-                setAllowDuplicate(true)
-                setDuplicateWarning(null)
-                // Re-submit automatically
-                setTimeout(() => {
-                  document.getElementById('customer-submit-btn')?.click()
-                }, 100)
-              }}
-              className="px-4 py-2 bg-amber-600 text-white text-sm rounded-md hover:bg-amber-700"
-            >
-              Yes, share this email
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setDuplicateWarning(null)
-                setAllowDuplicate(false)
-              }}
-              className="px-4 py-2 border border-amber-400 text-amber-700 text-sm rounded-md hover:bg-amber-50"
-            >
-              Cancel — use different email
-            </button>
-          </div>
-        </div>
-      )}
-
+     {duplicateWarning && (
+  <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
+    <p className="text-amber-800 font-semibold text-sm">
+      ⚠️ Email already used by &ldquo;{duplicateWarning}&rdquo;
+    </p>
+    <p className="text-amber-700 text-xs mt-1">
+      This is fine for invoicing — both customers will receive emails at this address.
+    </p>
+    <p className="text-amber-700 text-xs mt-1 font-semibold">
+      ⚠️ Note: Shared email customers cannot use the online portal separately.
+      Portal login will only show one account.
+    </p>
+    <div className="flex gap-2 mt-3">
+      <button
+        type="button"
+        onClick={() => {
+          setAllowDuplicate(true)
+          setDuplicateWarning(null)
+          setTimeout(() => {
+            document.getElementById('customer-submit-btn')?.click()
+          }, 100)
+        }}
+        className="px-4 py-2 bg-amber-600 text-white text-sm rounded-md hover:bg-amber-700"
+      >
+        Yes, email only — no portal access needed
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setDuplicateWarning(null)
+          setAllowDuplicate(false)
+        }}
+        className="px-4 py-2 border border-amber-400 text-amber-700 text-sm rounded-md hover:bg-amber-50"
+      >
+        Cancel — use different email
+      </button>
+    </div>
+  </div>
+)}
       {/* Business Name */}
       <div>
         <label className={labelClass}>
