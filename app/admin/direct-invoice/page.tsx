@@ -135,7 +135,10 @@ function SearchableSelect({
               <X className="h-3 w-3" />
             </span>
           )}
-          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown className={[
+            'h-4 w-4 text-gray-400 transition-transform duration-150',
+            open ? 'rotate-180' : '',
+          ].join(' ')} />
         </span>
       </button>
 
@@ -214,17 +217,9 @@ export default function DirectInvoicePage() {
   const supabase = createClient()
 
   useEffect(() => {
-    supabase
-      .from('customers')
-      .select('*')
-      .order('business_name')
+    supabase.from('customers').select('*').order('business_name')
       .then(({ data }) => { if (data) setCustomers(data) })
-
-    supabase
-      .from('products')
-      .select('*')
-      .eq('is_available', true)
-      .order('code')
+    supabase.from('products').select('*').eq('is_available', true).order('code')
       .then(({ data }) => { if (data) setProducts(data) })
   }, [])
 
@@ -242,7 +237,7 @@ export default function DirectInvoicePage() {
       label:    is900 ? 'Manual Adjustment' : p.name,
       badge:    displayCode,
       sublabel: is900
-        ? 'Enter custom amount · No GST'
+        ? 'Enter custom amount - No GST'
         : `$${(p.unit_price || p.price || 0).toFixed(2)} | ${p.gst_applicable ? 'GST' : 'No GST'}`,
     }
   })
@@ -274,7 +269,7 @@ export default function DirectInvoicePage() {
       if (item.id !== id) return item
       if (field === 'productId') {
         if (!value) return { ...item, productId: '', productName: '', productCode: '', unitPrice: 0, isCustom: false }
-        const p   = products.find(p => p.id === value)
+        const p     = products.find(p => p.id === value)
         if (!p) return item
         const is900 = p.code === '900' || p.product_code === 900
         return {
@@ -335,19 +330,15 @@ export default function DirectInvoicePage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-
     try {
-      if (!formData.customerId)
-        throw new Error('Please select a customer')
-      if (!lineItems.length)
-        throw new Error('Please add at least one line item')
+      if (!formData.customerId) throw new Error('Please select a customer')
+      if (!lineItems.length) throw new Error('Please add at least one line item')
       if (lineItems.some(i => !i.productId || i.quantity <= 0))
         throw new Error('Please complete all line items')
       if (lineItems.some(i => i.isCustom && !i.productName.trim()))
         throw new Error('Please enter a description for Manual Adjustment (900) lines')
 
       const customer = selectedCustomer!
-
       const sortedItems = [
         ...lineItems.filter(i => i.productCode === '900'),
         ...lineItems.filter(i => i.productCode !== '900'),
@@ -374,19 +365,17 @@ export default function DirectInvoicePage() {
 
       if (orderError) throw new Error(`Order creation failed: ${orderError.message}`)
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(
-          sortedItems.map(item => ({
-            order_id:       newOrder.id,
-            product_id:     item.productId,
-            product_name:   item.productName,
-            quantity:       item.isCredit ? -item.quantity : item.quantity,
-            unit_price:     item.unitPrice,
-            subtotal:       lineSubtotal(item),
-            gst_applicable: item.gstApplicable,
-          }))
-        )
+      const { error: itemsError } = await supabase.from('order_items').insert(
+        sortedItems.map(item => ({
+          order_id:       newOrder.id,
+          product_id:     item.productId,
+          product_name:   item.productName,
+          quantity:       item.isCredit ? -item.quantity : item.quantity,
+          unit_price:     item.unitPrice,
+          subtotal:       lineSubtotal(item),
+          gst_applicable: item.gstApplicable,
+        }))
+      )
 
       if (itemsError) {
         await supabase.from('orders').delete().eq('id', newOrder.id)
@@ -469,33 +458,20 @@ export default function DirectInvoicePage() {
       }
 
       alert(
-        `✅ Invoice Created!\n\n` +
-        `Order: ${newOrder.id.slice(0, 8)}\n` +
-        `Subtotal: ${fmt(subtotal)}\n` +
-        `GST: ${fmt(gstTotal)}\n` +
-        `Total: ${fmt(grandTotal)}\n` +
-        (formData.purchaseOrderNumber ? `PO#: ${formData.purchaseOrderNumber}\n` : '') +
-        (formData.docketNumber        ? `Docket#: ${formData.docketNumber}`       : '')
+        `Invoice Created!\n\nOrder: ${newOrder.id.slice(0, 8)}\nSubtotal: ${fmt(subtotal)}\nGST: ${fmt(gstTotal)}\nTotal: ${fmt(grandTotal)}`
       )
-
       resetForm()
     } catch (err: any) {
       setError(err.message)
     } finally {
       setLoading(false)
     }
-  }
-
+  }  
   return (
     <div className="p-8 max-w-5xl mx-auto">
-      <a
-        href="/admin"
-        className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: '#CE1126' }}
-      >
+      <a href="/admin" className="flex items-center gap-1 text-sm mb-4 hover:opacity-80" style={{ color: '#CE1126' }}>
         <ArrowLeft className="h-4 w-4" /> Back to Admin Dashboard
       </a>
-
       <div className="mb-8">
         <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: '#006A4E' }}>
           <FileText className="h-8 w-8" />
@@ -503,23 +479,17 @@ export default function DirectInvoicePage() {
         </h1>
         <p className="text-gray-600 mt-1">Create invoices with optional credit lines</p>
       </div>
-
       {error && (
         <div className="mb-6 p-4 bg-red-50 text-red-800 border border-red-200 rounded-lg">
-          ⚠️ {error}
+          {error}
         </div>
       )}
-
       <form onSubmit={handleSubmit} className="space-y-6">
-
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-bold mb-4">Customer Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-2">
-                Customer <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-sm font-medium mb-2">Customer <span className="text-red-500">*</span></label>
               <SearchableSelect
                 options={customerOptions}
                 value={formData.customerId}
@@ -528,59 +498,36 @@ export default function DirectInvoicePage() {
               />
               {selectedCustomer && (
                 <p className="text-sm text-gray-500 mt-1.5">
-                  Balance:{' '}
-                  <span className={selectedCustomer.balance > 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}>
-                    {fmt(selectedCustomer.balance || 0)}
-                  </span>
-                  {' '}· Terms: {selectedCustomer.payment_terms || 30} days
+                  Balance: <span className={selectedCustomer.balance > 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}>{fmt(selectedCustomer.balance || 0)}</span>
+                  {' '} Terms: {selectedCustomer.payment_terms || 30} days
                 </p>
               )}
             </div>
-
             <div>
               <label className="block text-sm font-medium mb-2">Delivery Date *</label>
-              <input
-                type="date"
-                value={formData.deliveryDate}
-                required
+              <input type="date" value={formData.deliveryDate} required
                 onChange={e => setFormData(f => ({ ...f, deliveryDate: e.target.value }))}
-                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500"
-              />
+                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500" />
             </div>
-
             <div>
               <label className="block text-sm font-medium mb-2">Purchase Order Number</label>
-              <input
-                type="text"
-                value={formData.purchaseOrderNumber}
-                placeholder="PO-2024-1234"
+              <input type="text" value={formData.purchaseOrderNumber} placeholder="PO-2024-1234"
                 onChange={e => setFormData(f => ({ ...f, purchaseOrderNumber: e.target.value }))}
-                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500"
-              />
+                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500" />
             </div>
-
             <div>
               <label className="block text-sm font-medium mb-2">Docket Number</label>
-              <input
-                type="text"
-                value={formData.docketNumber}
-                placeholder="DOC-5678"
+              <input type="text" value={formData.docketNumber} placeholder="DOC-5678"
                 onChange={e => setFormData(f => ({ ...f, docketNumber: e.target.value }))}
-                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500"
-              />
+                className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500" />
             </div>
-
             <div className="md:col-span-2">
               <label className="block text-sm font-medium mb-2">Notes</label>
-              <textarea
-                value={formData.notes}
-                rows={2}
+              <textarea value={formData.notes} rows={2}
                 onChange={e => setFormData(f => ({ ...f, notes: e.target.value }))}
                 className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-green-500"
-                placeholder="Optional notes..."
-              />
+                placeholder="Optional notes..." />
             </div>
-
           </div>
         </div>
 
@@ -588,19 +535,13 @@ export default function DirectInvoicePage() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-bold">Line Items</h2>
             <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => addLineItem(false)}
+              <button type="button" onClick={() => addLineItem(false)}
                 className="flex items-center gap-2 px-4 py-2 rounded text-white text-sm hover:opacity-90"
-                style={{ backgroundColor: '#006A4E' }}
-              >
+                style={{ backgroundColor: '#006A4E' }}>
                 <Plus className="h-4 w-4" /> Add Charge
               </button>
-              <button
-                type="button"
-                onClick={() => addLineItem(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded text-white text-sm bg-orange-600 hover:bg-orange-700"
-              >
+              <button type="button" onClick={() => addLineItem(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded text-white text-sm bg-orange-600 hover:bg-orange-700">
                 <MinusCircle className="h-4 w-4" /> Add Credit
               </button>
             </div>
@@ -610,7 +551,6 @@ export default function DirectInvoicePage() {
             <p className="text-gray-400 text-center py-8">Add charge or credit lines above</p>
           ) : (
             <div className="space-y-2">
-
               <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-500 px-1 pb-1 border-b">
                 <span className="col-span-1">Type</span>
                 <span className="col-span-4">Product</span>
@@ -623,22 +563,12 @@ export default function DirectInvoicePage() {
               </div>
 
               {lineItems.map(item => (
-                <div
-                  key={item.id}
-                  className={[
-                    'grid grid-cols-12 gap-2 items-start p-2 rounded',
-                    item.isCredit ? 'bg-orange-50 border border-orange-100' : 'bg-gray-50',
-                  ].join(' ')}
-                >
+                <div key={item.id} className={['grid grid-cols-12 gap-2 items-start p-2 rounded', item.isCredit ? 'bg-orange-50 border border-orange-100' : 'bg-gray-50'].join(' ')}>
                   <div className="col-span-1 pt-2">
-                    <span className={[
-                      'text-xs px-1.5 py-0.5 rounded font-medium',
-                      item.isCredit ? 'bg-orange-200 text-orange-800' : 'bg-green-100 text-green-800',
-                    ].join(' ')}>
+                    <span className={['text-xs px-1.5 py-0.5 rounded font-medium', item.isCredit ? 'bg-orange-200 text-orange-800' : 'bg-green-100 text-green-800'].join(' ')}>
                       {item.isCredit ? 'CR' : 'DR'}
                     </span>
                   </div>
-
                   <div className="col-span-4">
                     <SearchableSelect
                       options={productOptions}
@@ -647,94 +577,75 @@ export default function DirectInvoicePage() {
                       placeholder="Select product..."
                     />
                     {item.isCustom && (
-                      <input
-                        type="text"
-                        placeholder="Enter description for this adjustment..."
+                      <input type="text" placeholder="Enter description..."
                         value={item.productName}
                         onChange={e => updateLineItem(item.id, 'productName', e.target.value)}
-                        className="w-full border rounded px-2 py-1 text-sm mt-1 border-orange-300 focus:outline-none focus:ring-1 focus:ring-orange-400"
-                      />
+                        className="w-full border rounded px-2 py-1 text-sm mt-1 border-orange-300 focus:outline-none" />
                     )}
                   </div>
-
                   <div className="col-span-1">
-                    <input
-                      type="number"
-                      min="0.1"
-                      step="0.1"
-                      value={item.quantity}
+                    <input type="number" min="0.1" step="0.1" value={item.quantity}
                       onChange={e => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                      className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none"
-                    />
+                      className="w-full border rounded px-2 py-1.5 text-sm" />
                   </div>
-
                   <div className="col-span-2">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={item.unitPrice}
+                    <input type="number" min="0" step="0.01" value={item.unitPrice}
                       onChange={e => updateLineItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none"
-                    />
+                      className="w-full border rounded px-2 py-1.5 text-sm" />
                   </div>
-
                   <div className="col-span-1">
                     {item.isCredit ? (
-                      <select
-                        value={item.creditPercent}
+                      <select value={item.creditPercent}
                         onChange={e => updateLineItem(item.id, 'creditPercent', parseFloat(e.target.value))}
-                        className="w-full border rounded px-1 py-1.5 text-sm bg-white focus:outline-none"
-                      >
-                        {CREDIT_PERCENTS.map(p => (
-                          <option key={p} value={p}>{p}%</option>
-                        ))}
+                        className="w-full border rounded px-1 py-1.5 text-sm bg-white">
+                        {CREDIT_PERCENTS.map(p => <option key={p} value={p}>{p}%</option>)}
                       </select>
-                    ) : (
-                      <span className="text-gray-300 text-xs pl-2">—</span>
-                    )}
+                    ) : <span className="text-gray-300 text-xs pl-2">—</span>}
                   </div>
-
                   <div className="col-span-1 flex justify-center pt-2">
                     {item.isCredit ? (
-                      <input
-                        type="checkbox"
-                        title="Mark as stale return"
+                      <input type="checkbox" title="Mark as stale return"
                         checked={item.creditType === 'stale_return'}
-                        onChange={e => updateLineItem(
-                          item.id,
-                          'creditType',
-                          e.target.checked ? 'stale_return' : 'product_credit'
-                        )}
-                      />
-                    ) : (
-                      <span className="text-gray-300 text-xs">—</span>
-                    )}
+                        onChange={e => updateLineItem(item.id, 'creditType', e.target.checked ? 'stale_return' : 'product_credit')} />
+                    ) : <span className="text-gray-300 text-xs">—</span>}
                   </div>
-
-                  <div className={[
-                    'col-span-1 text-sm font-medium text-right pt-2',
-                    item.isCredit ? 'text-orange-600' : 'text-gray-800',
-                  ].join(' ')}>
-                    {item.isCredit
-                      ? `(${fmt(Math.abs(lineTotal(item)))})`
-                      : fmt(lineTotal(item))
-                    }
+                  <div className={['col-span-1 text-sm font-medium text-right pt-2', item.isCredit ? 'text-orange-600' : 'text-gray-800'].join(' ')}>
+                    {item.isCredit ? `(${fmt(Math.abs(lineTotal(item)))})` : fmt(lineTotal(item))}
                   </div>
-
                   <div className="col-span-1 flex justify-center pt-1.5">
-                    <button
-                      type="button"
-                      onClick={() => removeLineItem(item.id)}
-                      className="text-gray-400 hover:text-red-500 transition-colors"
-                    >
+                    <button type="button" onClick={() => removeLineItem(item.id)} className="text-gray-400 hover:text-red-500">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
-
                 </div>
               ))}
 
               <div className="border-t-2 pt-4 mt-2 space-y-1 text-right">
-                <div className="text-sm text-gray-600">
-                  Subtotal: <span className="font-medium ml-2">{fmt(subtotal)}</span>
+                <div className="text-sm text-gray-600">Subtotal: <span className="font-medium ml-2">{fmt(subtotal)}</span></div>
+                <div className="text-sm text-gray-600">GST (10%): <span className="font-medium ml-2">{fmt(gstTotal)}</span></div>
+                <div className="text-xl font-bold" style={{ color: grandTotal < 0 ? '#CE1126' : '#006A4E' }}>
+                  Total: {grandTotal < 0 ? `(${fmt(Math.abs(grandTotal))})` : fmt(grandTotal)}
+                </div>
+                {hasCredits && (
+                  <p className="text-xs text-orange-600">Includes credit lines — a credit memo will also be recorded</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 pb-8">
+          <button type="button" onClick={resetForm} className="px-6 py-3 border rounded-md hover:bg-gray-50">
+            Clear
+          </button>
+          <button type="submit" disabled={loading || !lineItems.length}
+            className="flex items-center gap-2 px-6 py-3 rounded text-white font-semibold hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: '#CE1126' }}>
+            <DollarSign className="h-5 w-5" />
+            {loading ? 'Creating...' : 'Create Invoice'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
