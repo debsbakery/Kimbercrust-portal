@@ -743,4 +743,59 @@ export default function DirectInvoicePage() {
                   <div className="col-span-1 flex justify-center pt-1.5">
                     <button
                       type="button"
-                      onClick={() => removeLineItem
+                                      onClick={() => removeLineItem(item.id)}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                </div>
+              ))}
+
+              {/* Totals */}
+              <div className="border-t-2 pt-4 mt-2 space-y-1 text-right">
+                <div className="text-sm text-gray-600">
+                  Subtotal: <span className="font-medium ml-2">{fmt(subtotal)}</span>
+                </div>
+                <div className="text-sm text-gray-600">
+                  GST (10%): <span className="font-medium ml-2">{fmt(gstTotal)}</span>
+                </div>
+                <div className="text-xl font-bold" style={{ color: grandTotal < 0 ? '#CE1126' : '#006A4E' }}>
+                  Total: {grandTotal < 0 ? `(${fmt(Math.abs(grandTotal))})` : fmt(grandTotal)}
+                </div>
+                {hasCredits && (
+                  <p className="text-xs text-orange-600">
+                    Includes credit lines - a credit memo will also be recorded
+                  </p>
+                )}
+              </div>
+
+            </div>
+          )}
+        </div>
+
+        {/* Submit */}
+        <div className="flex justify-end gap-3 pb-8">
+          <button
+            type="button"
+            onClick={resetForm}
+            className="px-6 py-3 border rounded-md hover:bg-gray-50"
+          >
+            Clear
+          </button>
+          <button
+            type="submit"
+            disabled={loading || !lineItems.length}
+            className="flex items-center gap-2 px-6 py-3 rounded text-white font-semibold hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: '#CE1126' }}
+          >
+            <DollarSign className="h-5 w-5" />
+            {loading ? 'Creating...' : 'Create Invoice'}
+          </button>
+        </div>
+
+      </form>
+    </div>
+  )
+}
