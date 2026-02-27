@@ -47,39 +47,46 @@ export default function BulkCodesPage() {
   };
 
   const saveCode = async (productId: string) => {
-    const code = codes[productId]?.trim();
-    if (!code) return;
+  const code = codes[productId]?.trim();
+  if (!code) return;
 
-    setSaving((prev) => ({ ...prev, [productId]: true }));
-    setErrors((prev) => ({ ...prev, [productId]: '' }));
+  setSaving((prev) => ({ ...prev, [productId]: true }));
+  setErrors((prev) => ({ ...prev, [productId]: '' }));
 
-    try {
-      const res = await fetch(`/api/products/${productId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
-      });
+  // Find the full product so we can send name + price too
+  const product = products.find((p) => p.id === productId);
+  if (!product) return;
 
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
+  try {
+    const res = await fetch(`/api/products/${productId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: product.name,        // send existing name
+        price: product.price,      // send existing price
+        category: product.category,
+        code: code,                // only thing we're actually changing
+      }),
+    });
 
-      setSaved((prev) => ({ ...prev, [productId]: true }));
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
 
-      // Update local product list
-      setProducts((prev) =>
-        prev.map((p) => (p.id === productId ? { ...p, code } : p))
-      );
+    setSaved((prev) => ({ ...prev, [productId]: true }));
 
-      // Clear saved tick after 2 seconds
-      setTimeout(() => {
-        setSaved((prev) => ({ ...prev, [productId]: false }));
-      }, 2000);
-    } catch (err: any) {
-      setErrors((prev) => ({ ...prev, [productId]: err.message }));
-    } finally {
-      setSaving((prev) => ({ ...prev, [productId]: false }));
-    }
-  };
+    setProducts((prev) =>
+      prev.map((p) => (p.id === productId ? { ...p, code } : p))
+    );
+
+    setTimeout(() => {
+      setSaved((prev) => ({ ...prev, [productId]: false }));
+    }, 2000);
+  } catch (err: any) {
+    setErrors((prev) => ({ ...prev, [productId]: err.message }));
+  } finally {
+    setSaving((prev) => ({ ...prev, [productId]: false }));
+  }
+};
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLInputElement>,
