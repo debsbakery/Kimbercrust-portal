@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 import { redirect } from "next/navigation";
-import { createServiceClient } from "@/lib/supabase/server"import { checkAdmin } from "@/lib/auth";
+import { createServiceClient } from "@/lib/supabase/server"
+import { checkAdmin } from "@/lib/auth";
 import { ArrowLeft, Calendar, Plus } from "lucide-react";
 import Link from "next/link";
 import {
