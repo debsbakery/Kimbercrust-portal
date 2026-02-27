@@ -97,7 +97,14 @@ export default function AdminClientView() {
                 style={{ backgroundColor: '#006A4E' }}>
                 <ChefHat className="h-4 w-4" />Production
               </a>
-
+<a
+  href="/admin/orders/create"
+  className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
+  style={{ backgroundColor: '#006A4E' }}
+>
+  <ClipboardList className="h-4 w-4" />
+  New Order
+</a>
               {/* ── Customers ── */}
               <a href="/admin/customers"
                 className={linkBtn('#006A4E')}
