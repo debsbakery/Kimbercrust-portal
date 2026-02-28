@@ -1,66 +1,48 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useState } from 'react'
 import {
   Clock, Users, BarChart3, Package, RefreshCw, Truck,
   DollarSign, FileText, ShoppingCart, ChefHat, Receipt,
-  Copy, Play, ClipboardList, FileMinus,
-} from 'lucide-react';
+  Copy, Play, ClipboardList,
+} from 'lucide-react'
 
-import OrdersView from './orders-view';
-import StandingOrdersView from './standing-orders-view';
-import ContractPricingPage from './pricing/page';
-import ProductsView from './products-view';
+import OrdersView from './orders-view'
+import ContractPricingPage from './pricing/page'
+import ProductsView from './products-view'
 
-type Tab = 'orders' | 'standing-orders' | 'pricing' | 'products';
+type Tab = 'orders' | 'standing-orders' | 'pricing' | 'products'
 
 export default function AdminClientView() {
-  const [activeTab, setActiveTab] = useState<Tab>('orders');
-  const supabase = createClient();
-  const [testingStandingOrders, setTestingStandingOrders] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('orders')
+  const [testingStandingOrders, setTestingStandingOrders] = useState(false)
 
   async function testStandingOrderGeneration() {
-    if (!confirm('⚠️ This will generate standing orders for the upcoming week.\n\nContinue?')) return;
-    setTestingStandingOrders(true);
+    if (!confirm('This will generate standing orders for the upcoming week. Continue?')) return
+    setTestingStandingOrders(true)
     try {
       const response = await fetch('/api/standing-orders/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-      });
-      const data = await response.json();
+      })
+      const data = await response.json()
       if (data.success) {
-        let message = `✅ SUCCESS!\n\n${data.ordersCreated} orders created\n\n`;
-        if (data.orders?.length > 0) {
-          message += 'Orders:\n';
-          data.orders.forEach((order: any) => {
-            message += `• ${order.customer} - ${order.deliveryDay} (${order.deliveryDate}) - $${order.total.toFixed(2)}\n`;
-          });
-        }
-        if (data.errors?.length > 0) {
-          message += `\n⚠️ ${data.errors.length} error(s) - check console`;
-          console.error('Errors:', data.errors);
-        }
-        alert(message);
-        if (data.ordersCreated > 0) window.location.reload();
+        alert(`Success! ${data.ordersCreated} orders created`)
+        if (data.ordersCreated > 0) window.location.reload()
       } else {
-        throw new Error(data.error || 'Generation failed');
+        throw new Error(data.error || 'Generation failed')
       }
     } catch (error: any) {
-      alert(`❌ Error: ${error.message}`);
+      alert(`Error: ${error.message}`)
     } finally {
-      setTestingStandingOrders(false);
+      setTestingStandingOrders(false)
     }
   }
-
-  // Nav button style helpers
-  const linkBtn = (color: string) =>
-    `flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md transition-all text-sm font-medium`
 
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* ── Sticky Header ─────────────────────────────────────────── */}
+      {/* Sticky Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="container mx-auto px-4">
 
@@ -68,93 +50,86 @@ export default function AdminClientView() {
           <div className="flex justify-between items-start py-4 gap-4">
             <div className="shrink-0">
               <h1 className="text-2xl font-bold" style={{ color: '#006A4E' }}>
-                🍞 Admin Dashboard
+                Admin Dashboard
               </h1>
               <p className="text-sm text-gray-500 mt-0.5">
                 Deb's Bakery — wholesale operations
               </p>
             </div>
 
-            {/* Action buttons — scrollable on mobile */}
+            {/* Action buttons */}
             <div className="flex gap-2 flex-wrap justify-end">
 
-              {/* ── Orders & Invoices ── */}
               <a href="/admin/batch-invoice"
-                className={linkBtn('#CE1126')}
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#CE1126' }}>
                 <FileText className="h-4 w-4" />Batch Invoice
               </a>
 
               <a href="/admin/direct-invoice"
-                className={linkBtn('#CE1126')}
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#CE1126' }}>
                 <Receipt className="h-4 w-4" />Direct Invoice
               </a>
 
-              {/* ── Production ── */}
               <a href="/admin/production"
-                className={linkBtn('#006A4E')}
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#006A4E' }}>
                 <ChefHat className="h-4 w-4" />Production
               </a>
-<a
-  href="/admin/orders/create"
-  className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
-  style={{ backgroundColor: '#006A4E' }}
->
-  <ClipboardList className="h-4 w-4" />
-  New Order
-</a>
-              {/* ── Customers ── */}
+
+              <a href="/admin/orders/create"
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
+                style={{ backgroundColor: '#006A4E' }}>
+                <ClipboardList className="h-4 w-4" />New Order
+              </a>
+
               <a href="/admin/customers"
-                className={linkBtn('#006A4E')}
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#0284c7' }}>
                 <Users className="h-4 w-4" />Customers
               </a>
 
               <a href="/admin/customers/pending"
-                className={linkBtn('#ea580c')}
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#ea580c' }}>
                 <Clock className="h-4 w-4" />Pending
               </a>
 
               <a href="/admin/customers/repeat-order-search"
-                className={linkBtn('#7c3aed')}
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#7c3aed' }}>
                 <Copy className="h-4 w-4" />Repeat Order
               </a>
 
-              {/* ── Finance ── */}
               <a href="/admin/ar"
-                className={linkBtn('#1f2937')}
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#1f2937' }}>
                 <DollarSign className="h-4 w-4" />AR Dashboard
               </a>
 
               <a href="/admin/payments/record"
-                className={linkBtn('#16a34a')}
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#16a34a' }}>
                 <DollarSign className="h-4 w-4" />Record Payment
               </a>
 
               <a href="/admin/gst-report"
-                className={linkBtn('#7c3aed')}
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#7c3aed' }}>
                 <BarChart3 className="h-4 w-4" />GST Report
               </a>
 
-              {/* ── Logistics ── */}
               <a href="/admin/routes"
-                className={linkBtn('#CE1126')}
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#CE1126' }}>
                 <Truck className="h-4 w-4" />Routes
               </a>
 
-              {/* ── Standing Orders Test ── */}
               <button
                 onClick={testStandingOrderGeneration}
                 disabled={testingStandingOrders}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {testingStandingOrders
                   ? <><RefreshCw className="h-4 w-4 animate-spin" />Generating...</>
@@ -165,7 +140,7 @@ export default function AdminClientView() {
             </div>
           </div>
 
-          {/* ── Tab Navigation ─────────────────────────────────────── */}
+          {/* Tab Navigation */}
           <div className="flex gap-0 overflow-x-auto">
             {([
               { id: 'orders',          icon: <Package className="h-4 w-4" />,      label: 'Orders' },
@@ -190,14 +165,64 @@ export default function AdminClientView() {
         </div>
       </div>
 
-      {/* ── Tab Content ───────────────────────────────────────────── */}
+      {/* Tab Content */}
       <div className="container mx-auto px-4 py-6">
-        {activeTab === 'orders'          && <OrdersView supabase={supabase} />}
-        {activeTab === 'standing-orders' && <StandingOrdersView supabase={supabase} />}
-        {activeTab === 'products'        && <ProductsView />}
-        {activeTab === 'pricing'         && <ContractPricingPage />}
+
+        {activeTab === 'orders' && (
+          <OrdersView supabase={null as any} />
+        )}
+
+        {/* Standing orders — redirect to dedicated server-rendered page */}
+        {activeTab === 'standing-orders' && (
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold">Standing Orders</h2>
+                <p className="text-gray-500 mt-1">
+                  Manage recurring weekly orders for all customers
+                </p>
+              </div>
+              <a
+                href="/admin/standing-orders"
+                className="flex items-center gap-2 px-6 py-3 rounded-lg text-white font-semibold hover:opacity-90"
+                style={{ backgroundColor: '#006A4E' }}
+              >
+                <RefreshCw className="h-5 w-5" />
+                Open Standing Orders
+              </a>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                <p className="text-sm text-green-700 font-medium">Full standing orders management</p>
+                <p className="text-xs text-green-600 mt-1">View all customers, all days, expected vs actual</p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                <p className="text-sm text-blue-700 font-medium">Create multi-day orders</p>
+                <p className="text-xs text-blue-600 mt-1">Set Mon-Fri in one entry with contract pricing</p>
+              </div>
+              <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                <p className="text-sm text-yellow-700 font-medium">Pause or delete orders</p>
+                <p className="text-xs text-yellow-600 mt-1">Pause for holidays, delete permanently</p>
+              </div>
+            </div>
+            <div className="text-center">
+              <a
+                href="/admin/standing-orders"
+                className="inline-flex items-center gap-2 px-8 py-4 rounded-lg text-white font-semibold hover:opacity-90 text-lg"
+                style={{ backgroundColor: '#006A4E' }}
+              >
+                <RefreshCw className="h-6 w-6" />
+                Go to Standing Orders
+              </a>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'products' && <ProductsView />}
+        {activeTab === 'pricing'  && <ContractPricingPage />}
+
       </div>
 
     </div>
-  );
+  )
 }
