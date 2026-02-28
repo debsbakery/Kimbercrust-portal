@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Minus, X, ArrowLeft, Save } from 'lucide-react'
 import { SearchableSelect, SelectOption } from '@/components/ui/searchable-select'
@@ -15,13 +15,43 @@ export default function AdminOrderEditView({ order, products }: any) {
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(order.purchase_order_number || '')
   const [docketNumber,        setDocketNumber]        = useState(order.docket_number || '')
 
-  // ── Build product options for SearchableSelect ─────────────────────────────
-  // badge = product_number (numeric) so grouping works: Cakes/Bread/Rolls/Pies/Other
+  // ✅ NEW: Contract pricing cache
+  const [contractPrices, setContractPrices] = useState<Record<string, number>>({})
+
+  // ✅ NEW: Load contract pricing for this customer
+  useEffect(() => {
+    if (!order.customer_id) return
+
+    fetch(`/api/customers/${order.customer_id}/pricing`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.pricing) {
+          const map: Record<string, number> = {}
+          data.pricing.forEach((p: any) => {
+            map[p.product_id] = p.price
+          })
+          setContractPrices(map)
+          console.log('Loaded contract pricing:', Object.keys(map).length, 'products')
+        }
+      })
+      .catch(() => setContractPrices({}))
+  }, [order.customer_id])
+
+  // ✅ Helper: get price for product (contract or base)
+  function priceForProduct(productId: string): number {
+    const p = products.find((x: any) => x.id === productId)
+    if (!p) return 0
+    return contractPrices[productId] ?? p.unit_price ?? p.price ?? 0
+  }
+
+  // ✅ Build product options with correct badge
   const productOptions: SelectOption[] = products.map((p: any) => ({
     value:    p.id,
     label:    p.name,
-    sublabel: `$${Number(p.price).toFixed(2)}${p.unit ? ' / ' + p.unit : ''}`,
-    badge:    String(p.product_number ?? p.product_code ?? ''),
+    sublabel: `$${(contractPrices[p.id] ?? p.unit_price ?? p.price ?? 0).toFixed(2)}${
+      contractPrices[p.id] !== undefined ? ' (contract)' : ''
+    }`,
+    badge:    String(p.product_number ?? ''),
   }))
 
   // ── Totals ────────────────────────────────────────────────────────────────
@@ -54,9 +84,9 @@ export default function AdminOrderEditView({ order, products }: any) {
     const product = products.find((p: any) => p.id === selectedProductId)
     if (!product) return
 
-    const qty = Math.max(1, selectedQty)
+    const qty   = Math.max(1, selectedQty)
+    const price = priceForProduct(selectedProductId)
 
-    // If product already in list — just increase quantity
     const existing = items.find(
       (i: any) => (i.product?.id || i.product_id) === selectedProductId
     )
@@ -72,14 +102,13 @@ export default function AdminOrderEditView({ order, products }: any) {
           product_name: product.name,
           product:      product,
           quantity:     qty,
-          unit_price:   Number(product.price),
+          unit_price:   price,
           gst_applicable: product.gst_applicable ?? false,
-          subtotal:     Number(product.price) * qty,
+          subtotal:     price * qty,
         },
       ])
     }
 
-    // Reset picker
     setSelectedProductId('')
     setSelectedQty(1)
   }
@@ -150,6 +179,12 @@ export default function AdminOrderEditView({ order, products }: any) {
             })
           }
         </p>
+        {/* ✅ Contract pricing indicator */}
+        {Object.keys(contractPrices).length > 0 && (
+          <p className="text-blue-600 text-sm mt-1 font-medium">
+            Contract pricing active ({Object.keys(contractPrices).length} products)
+          </p>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -201,78 +236,84 @@ export default function AdminOrderEditView({ order, products }: any) {
               <p className="text-center py-8 text-gray-400">No items — add products below</p>
             ) : (
               <div className="space-y-2">
-                {items.map((item: any) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-3 p-3 border rounded-lg hover:border-gray-300 transition-colors"
-                  >
-                    {/* Product code badge */}
-                    {(item.product?.product_number || item.product?.product_code) && (
-                      <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 shrink-0">
-                        {item.product.product_number ?? item.product.product_code}
-                      </span>
-                    )}
+                {items.map((item: any) => {
+                  // ✅ Get product_number from the joined product OR fallback
+                  const productCode = item.product?.product_number ?? item.product_code ?? '—'
+                  const isContractPrice = contractPrices[item.product_id] !== undefined
 
-                    {/* Name + price */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">
-                        {item.product?.name || item.product_name}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        ${Number(item.unit_price).toFixed(2)} each
-                        {item.gst_applicable && (
-                          <span className="ml-1 text-green-600">+ GST</span>
-                        )}
-                      </p>
-                    </div>
-
-                    {/* Qty controls */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 flex items-center justify-center"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </button>
-                      <input
-                        type="number"
-                        min={1}
-                        value={item.quantity}
-                        onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0)}
-                        className="w-12 text-center border rounded text-sm font-semibold py-0.5"
-                      />
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 flex items-center justify-center"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </button>
-                    </div>
-
-                    {/* Line total */}
-                    <div className="w-20 text-right text-sm font-semibold shrink-0">
-                      ${(item.quantity * Number(item.unit_price)).toFixed(2)}
-                    </div>
-
-                    {/* Remove */}
-                    <button
-                      onClick={() => updateQuantity(item.id, 0)}
-                      className="text-red-400 hover:text-red-600 shrink-0"
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 p-3 border rounded-lg hover:border-gray-300 transition-colors"
                     >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
+                      {/* Product code badge */}
+                      <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 shrink-0 min-w-[3rem] text-center">
+                        {productCode}
+                      </span>
+
+                      {/* Name + price */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">
+                          {item.product?.name || item.product_name}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          ${Number(item.unit_price).toFixed(2)} each
+                          {item.gst_applicable && (
+                            <span className="ml-1 text-green-600">+ GST</span>
+                          )}
+                          {isContractPrice && (
+                            <span className="ml-1 text-blue-600 font-medium">Contract</span>
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Qty controls */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 flex items-center justify-center"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <input
+                          type="number"
+                          min={1}
+                          value={item.quantity}
+                          onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 0)}
+                          className="w-12 text-center border rounded text-sm font-semibold py-0.5"
+                        />
+                        <button
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 flex items-center justify-center"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+
+                      {/* Line total */}
+                      <div className="w-20 text-right text-sm font-semibold shrink-0">
+                        ${(item.quantity * Number(item.unit_price)).toFixed(2)}
+                      </div>
+
+                      {/* Remove */}
+                      <button
+                        onClick={() => updateQuantity(item.id, 0)}
+                        className="text-red-400 hover:text-red-600 shrink-0"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
 
-          {/* Add product — SearchableSelect */}
+          {/* Add product */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold mb-4">Add Product</h2>
 
             <div className="flex gap-3 items-end">
-              {/* Product picker — grouped by category, searchable */}
               <div className="flex-1">
                 <SearchableSelect
                   label="Search products"
@@ -284,7 +325,6 @@ export default function AdminOrderEditView({ order, products }: any) {
                 />
               </div>
 
-              {/* Quantity */}
               <div className="w-24">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Qty</label>
                 <input
@@ -296,7 +336,6 @@ export default function AdminOrderEditView({ order, products }: any) {
                 />
               </div>
 
-              {/* Add button */}
               <button
                 onClick={addProduct}
                 disabled={!selectedProductId}
@@ -315,9 +354,16 @@ export default function AdminOrderEditView({ order, products }: any) {
               return p ? (
                 <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
                   <span className="font-medium text-green-800">{p.name}</span>
-                  <span className="text-green-600 ml-2">${Number(p.price).toFixed(2)} each</span>
                   <span className="text-green-600 ml-2">
-                    — adding {selectedQty} = <strong>${(Number(p.price) * selectedQty).toFixed(2)}</strong>
+                    ${priceForProduct(p.id).toFixed(2)} each
+                  </span>
+                  {contractPrices[p.id] !== undefined && (
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">
+                      Contract price
+                    </span>
+                  )}
+                  <span className="text-green-600 ml-2">
+                    — {selectedQty} units = <strong>${(priceForProduct(p.id) * selectedQty).toFixed(2)}</strong>
                   </span>
                 </div>
               ) : null
@@ -366,7 +412,7 @@ export default function AdminOrderEditView({ order, products }: any) {
               </button>
             </div>
 
-            {/* Order meta info */}
+            {/* Order meta */}
             <div className="mt-4 pt-4 border-t text-xs text-gray-400 space-y-1">
               <p>Status: <span className="font-medium text-gray-600">{order.status}</span></p>
               <p>Created: {new Date(order.created_at).toLocaleDateString('en-AU')}</p>
