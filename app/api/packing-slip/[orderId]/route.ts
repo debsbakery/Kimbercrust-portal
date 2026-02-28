@@ -53,14 +53,19 @@ export async function GET(
       })),
     }
 
-    const pdf = await generatePackingSlip({
-      order: orderWithCodes as any,
-      bakeryInfo: {
-        name:    process.env.BAKERY_NAME    || "Deb's Bakery",
-        phone:   process.env.BAKERY_PHONE   || '(07) 4632 9475',
-        address: process.env.BAKERY_ADDRESS || '20 Mann St, Toowoomba QLD 4350',
-      },
-    })
+    // After fetching the order, pass invoice_number to generator
+const pdf = await generatePackingSlip({
+  order: orderWithCodes as any,
+  bakeryInfo: {
+    name:    process.env.BAKERY_NAME    ?? "Deb's Bakery",
+    phone:   process.env.BAKERY_PHONE   ?? '(07) 4632 9475',
+    address: process.env.BAKERY_ADDRESS ?? '20 Mann St, Toowoomba QLD 4350',
+  },
+  // Pass the invoice number if the order has one
+  invoiceNumber: order.invoice_number
+    ? String(order.invoice_number).padStart(6, '0')
+    : undefined,
+})
 
     const pdfBuffer = Buffer.from(pdf.output('arraybuffer'))
 
