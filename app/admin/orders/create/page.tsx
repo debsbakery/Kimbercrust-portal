@@ -20,7 +20,7 @@ interface Customer {
 interface Product {
   id: string
   name: string
-  code: string   // ← correct DB column name
+  code: string
   price: number
   unit_price: number
   gst_applicable: boolean
@@ -31,7 +31,7 @@ interface LineItem {
   id: string
   productId: string
   productName: string
-  productNumber: string
+  productCode: string
   quantity: number
   unitPrice: number
   gstApplicable: boolean
@@ -45,14 +45,14 @@ const fmt = (n: number) =>
 export default function AdminCreateOrderPage() {
   const supabase = createClient()
 
-  const [customers,        setCustomers]       = useState<Customer[]>([])
-  const [products,         setProducts]        = useState<Product[]>([])
-  const [lineItems,        setLineItems]       = useState<LineItem[]>([])
-  const [loading,          setLoading]         = useState(false)
-  const [error,            setError]           = useState<string | null>(null)
-  const [success,          setSuccess]         = useState<string | null>(null)
+  const [customers,        setCustomers]        = useState<Customer[]>([])
+  const [products,         setProducts]         = useState<Product[]>([])
+  const [lineItems,        setLineItems]        = useState<LineItem[]>([])
+  const [loading,          setLoading]          = useState(false)
+  const [error,            setError]            = useState<string | null>(null)
+  const [success,          setSuccess]          = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [contractPrices,   setContractPrices]  = useState<Record<string, number>>({})
+  const [contractPrices,   setContractPrices]   = useState<Record<string, number>>({})
 
   const [form, setForm] = useState({
     customerId:          '',
@@ -63,93 +63,77 @@ export default function AdminCreateOrderPage() {
     source:              'phone',
   })
 
-  // ── Load customers + products ────────────────────────────────────────────
+  // ── Load customers + products ─────────────────────────────────────────────
   useEffect(() => {
-    // Customers — try both status columns
     supabase
       .from('customers')
-      .select('*')
+      .select('id, business_name, email, address, abn, payment_terms, balance')
       .order('business_name')
       .then(({ data }) => { if (data) setCustomers(data) })
 
-    // Products — use correct column name
     supabase
       .from('products')
       .select('id, name, code, price, unit_price, gst_applicable, is_available')
       .eq('is_available', true)
-      .order('product_number')
+      .order('code')
       .then(({ data }) => { if (data) setProducts(data) })
   }, [])
 
-  // ── Load contract pricing when customer changes ──────────────────────────
+  // ── Load contract pricing when customer changes ───────────────────────────
   useEffect(() => {
     if (!form.customerId) {
       setContractPrices({})
       return
     }
     fetch(`/api/customers/${form.customerId}/pricing`)
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => r.ok ? r.json() : { pricing: [] })
       .then((data) => {
-        if (data?.pricing) {
-          const map: Record<string, number> = {}
-          data.pricing.forEach((p: any) => { map[p.product_id] = p.price })
-          setContractPrices(map)
-        }
+        const map: Record<string, number> = {}
+        ;(data.pricing ?? []).forEach((p: any) => { map[p.product_id] = p.price })
+        setContractPrices(map)
       })
       .catch(() => setContractPrices({}))
   }, [form.customerId])
 
-  function priceFor(product: Product): number {
-    return contractPrices[product.id] ?? product.unit_price ?? product.price ?? 0
+  // ── Price resolver ────────────────────────────────────────────────────────
+  function priceFor(productId: string): number {
+    if (contractPrices[productId] !== undefined) return contractPrices[productId]
+    const p = products.find((x) => x.id === productId)
+    return p?.price ?? 0
   }
 
-  // ── Select options ───────────────────────────────────────────────────────
+  // ── Select options ────────────────────────────────────────────────────────
   const customerOptions: SelectOption[] = customers.map((c) => ({
     value:    c.id,
     label:    c.business_name || c.email,
-    sublabel: `Balance: ${fmt(c.balance || 0)} | ${c.payment_terms || 30} day terms`,
+    sublabel: `${c.payment_terms || 30} day terms`,
   }))
 
-  // ✅ badge = product_number (numeric string) so grouping works
   const productOptions: SelectOption[] = products.map((p) => ({
     value:    p.id,
     label:    p.name,
-badge: String(p.code ?? ''), 
-   sublabel: `${fmt(priceFor(p))}${p.gst_applicable ? ' + GST' : ' no GST'}`,
+    badge:    String(p.code ?? ''),
+    sublabel: `${fmt(priceFor(p.id))}${p.gst_applicable ? ' + GST' : ' no GST'}`,
   }))
 
-  // ── Customer change ──────────────────────────────────────────────────────
+  // ── Customer change ───────────────────────────────────────────────────────
   function handleCustomerChange(id: string) {
-    const c = customers.find((c) => c.id === id) || null
+    const c = customers.find((c) => c.id === id) ?? null
     setSelectedCustomer(c)
     setForm((f) => ({ ...f, customerId: id }))
-
-    // Update prices on existing line items when customer changes
-    if (c) {
-      setLineItems((prev) =>
-        prev.map((item) => {
-          const product = products.find((p) => p.id === item.productId)
-          if (!product) return item
-          return {
-            ...item,
-            unitPrice: contractPrices[item.productId] ?? product.unit_price ?? product.price ?? 0,
-          }
-        })
-      )
-    }
   }
 
-  // ── Line item management ─────────────────────────────────────────────────
+  // ── Line item management ──────────────────────────────────────────────────
   function addLineItem() {
     setLineItems((prev) => [
       ...prev,
       {
-        id:            Math.random().toString(36).slice(2),
-        productId:     '',
-        productName:   '',
-        productNumber: '',
-        quantity:      1,
-        unitPrice:     0,
+        id:           Math.random().toString(36).slice(2),
+        productId:    '',
+        productName:  '',
+        productCode:  '',
+        quantity:     1,
+        unitPrice:    0,
         gstApplicable: false,
       },
     ])
@@ -160,29 +144,31 @@ badge: String(p.code ?? ''),
       prev.map((item) => {
         if (item.id !== id) return item
 
+        // ── Product selected from dropdown ──
         if (field === 'productId') {
           if (!value) {
             return {
               ...item,
-              productId:     '',
-              productName:   '',
-              productNumber: '',
-              unitPrice:     0,
+              productId:    '',
+              productName:  '',
+              productCode:  '',
+              unitPrice:    0,
               gstApplicable: false,
             }
           }
-          const p = products.find((p) => p.id === value)
+          const p = products.find((x) => x.id === value)
           if (!p) return item
           return {
             ...item,
-            productId:     p.id,
-            productName:   p.name,
-            productNumber: String(p.code ?? ''),
-            unitPrice:     priceFor(p),
+            productId:    p.id,
+            productName:  p.name,
+            productCode:  String(p.code ?? ''),
+            unitPrice:    contractPrices[p.id] ?? p.price ?? 0,
             gstApplicable: p.gst_applicable ?? false,
           }
         }
 
+        // ── All other fields (quantity, unitPrice, gstApplicable) ──
         return { ...item, [field]: value }
       })
     )
@@ -192,14 +178,14 @@ badge: String(p.code ?? ''),
     setLineItems((prev) => prev.filter((item) => item.id !== id))
   }
 
-  // ── Totals ───────────────────────────────────────────────────────────────
+  // ── Totals ────────────────────────────────────────────────────────────────
   const subtotal   = lineItems.reduce((s, i) => s + i.quantity * i.unitPrice, 0)
   const gstTotal   = lineItems.reduce(
     (s, i) => s + (i.gstApplicable ? i.quantity * i.unitPrice * 0.1 : 0), 0
   )
   const grandTotal = subtotal + gstTotal
 
-  // ── Submit ───────────────────────────────────────────────────────────────
+  // ── Submit ────────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
@@ -207,11 +193,11 @@ badge: String(p.code ?? ''),
     setSuccess(null)
 
     try {
-      if (!form.customerId)  throw new Error('Please select a customer')
+      if (!form.customerId)   throw new Error('Please select a customer')
       if (!form.deliveryDate) throw new Error('Please select a delivery date')
-      if (!lineItems.length) throw new Error('Please add at least one product')
+      if (!lineItems.length)  throw new Error('Please add at least one product')
       if (lineItems.some((i) => !i.productId || i.quantity <= 0))
-        throw new Error('Please complete all line items — every row needs a product and quantity')
+        throw new Error('All rows need a product and quantity greater than 0')
 
       const customer = selectedCustomer!
 
@@ -221,8 +207,8 @@ badge: String(p.code ?? ''),
           customer_id:            form.customerId,
           customer_email:         customer.email,
           customer_business_name: customer.business_name,
-          customer_address:       customer.address || null,
-          customer_abn:           customer.abn     || null,
+          customer_address:       customer.address   || null,
+          customer_abn:           customer.abn       || null,
           delivery_date:          form.deliveryDate,
           total_amount:           grandTotal,
           status:                 'pending',
@@ -263,7 +249,6 @@ badge: String(p.code ?? ''),
         }. Total: ${fmt(grandTotal)}`
       )
 
-      // Reset form
       setLineItems([])
       setSelectedCustomer(null)
       setForm((f) => ({
@@ -283,7 +268,6 @@ badge: String(p.code ?? ''),
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -300,9 +284,7 @@ badge: String(p.code ?? ''),
           <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: '#006A4E' }}>
             <ClipboardList className="h-8 w-8" /> Create Order
           </h1>
-          <p className="text-gray-600 mt-1">
-            Enter phone, email or walk-in orders
-          </p>
+          <p className="text-gray-600 mt-1">Enter phone, email or walk-in orders</p>
         </div>
 
         {error && (
@@ -328,7 +310,6 @@ badge: String(p.code ?? ''),
             <h2 className="font-bold text-lg mb-4">Order Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              {/* Customer — full width */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Customer <span className="text-red-500">*</span>
@@ -341,11 +322,7 @@ badge: String(p.code ?? ''),
                 />
                 {selectedCustomer && (
                   <p className="text-xs text-gray-500 mt-1">
-                    Balance:{' '}
-                    <span className={selectedCustomer.balance > 0 ? 'text-red-600 font-semibold' : 'text-green-600'}>
-                      {fmt(selectedCustomer.balance || 0)}
-                    </span>
-                    {' | '}{selectedCustomer.payment_terms || 30} day terms
+                    {selectedCustomer.payment_terms || 30} day terms
                     {Object.keys(contractPrices).length > 0 && (
                       <span className="ml-2 text-blue-600 font-medium">
                         Contract pricing active ({Object.keys(contractPrices).length} products)
@@ -355,7 +332,6 @@ badge: String(p.code ?? ''),
                 )}
               </div>
 
-              {/* Delivery date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Delivery Date <span className="text-red-500">*</span>
@@ -369,7 +345,6 @@ badge: String(p.code ?? ''),
                 />
               </div>
 
-              {/* Order source */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Order Source</label>
                 <select
@@ -385,7 +360,6 @@ badge: String(p.code ?? ''),
                 </select>
               </div>
 
-              {/* PO number */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">PO Number</label>
                 <input
@@ -397,7 +371,6 @@ badge: String(p.code ?? ''),
                 />
               </div>
 
-              {/* Docket */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Docket Number</label>
                 <input
@@ -409,7 +382,6 @@ badge: String(p.code ?? ''),
                 />
               </div>
 
-              {/* Notes */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea
@@ -438,7 +410,7 @@ badge: String(p.code ?? ''),
               <button
                 type="button"
                 onClick={addLineItem}
-                className="flex items-center gap-2 px-4 py-2 rounded-md text-white text-sm font-medium hover:opacity-90 transition-opacity"
+                className="flex items-center gap-2 px-4 py-2 rounded-md text-white text-sm font-medium hover:opacity-90"
                 style={{ backgroundColor: '#006A4E' }}
               >
                 <Plus className="h-4 w-4" /> Add Product
@@ -452,7 +424,6 @@ badge: String(p.code ?? ''),
             ) : (
               <div className="space-y-2">
 
-                {/* Column headers */}
                 <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-500 pb-1 border-b px-1">
                   <span className="col-span-5">Product</span>
                   <span className="col-span-2 text-center">Qty</span>
@@ -467,7 +438,6 @@ badge: String(p.code ?? ''),
                     key={item.id}
                     className="grid grid-cols-12 gap-2 items-center bg-gray-50 p-2 rounded-lg"
                   >
-                    {/* Product searchable select — grouped by category */}
                     <div className="col-span-5">
                       <SearchableSelect
                         options={productOptions}
@@ -478,7 +448,6 @@ badge: String(p.code ?? ''),
                       />
                     </div>
 
-                    {/* Quantity */}
                     <div className="col-span-2">
                       <input
                         type="number"
@@ -492,7 +461,6 @@ badge: String(p.code ?? ''),
                       />
                     </div>
 
-                    {/* Unit price — editable to override */}
                     <div className="col-span-2">
                       <input
                         type="number"
@@ -506,7 +474,6 @@ badge: String(p.code ?? ''),
                       />
                     </div>
 
-                    {/* GST checkbox */}
                     <div className="col-span-1 flex justify-center">
                       <input
                         type="checkbox"
@@ -518,12 +485,10 @@ badge: String(p.code ?? ''),
                       />
                     </div>
 
-                    {/* Line total — subtotal only (ex GST) */}
                     <div className="col-span-1 text-right text-sm font-mono font-semibold">
                       {fmt(item.quantity * item.unitPrice)}
                     </div>
 
-                    {/* Remove */}
                     <div className="col-span-1 flex justify-center">
                       <button
                         type="button"
@@ -536,15 +501,12 @@ badge: String(p.code ?? ''),
                   </div>
                 ))}
 
-                {/* Totals */}
                 <div className="border-t pt-3 mt-2 space-y-1 text-right">
                   <div className="text-sm text-gray-600">
-                    Subtotal (ex GST):{' '}
-                    <span className="font-mono font-medium ml-2">{fmt(subtotal)}</span>
+                    Subtotal (ex GST): <span className="font-mono font-medium ml-2">{fmt(subtotal)}</span>
                   </div>
                   <div className="text-sm text-gray-600">
-                    GST (10%):{' '}
-                    <span className="font-mono font-medium ml-2">{fmt(gstTotal)}</span>
+                    GST (10%): <span className="font-mono font-medium ml-2">{fmt(gstTotal)}</span>
                   </div>
                   <div className="text-xl font-bold mt-1" style={{ color: '#006A4E' }}>
                     Total (inc GST): {fmt(grandTotal)}
