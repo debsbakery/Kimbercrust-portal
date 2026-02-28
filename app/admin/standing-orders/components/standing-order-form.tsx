@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Trash2, AlertCircle, CheckCircle } from 'lucide-react'
 import { SearchableSelect, SelectOption } from '@/components/ui/searchable-select'
@@ -29,13 +29,21 @@ interface ContractPrice {
 interface OrderItem {
   product_id: string
   quantity: number
-  product?: Product
-  contract_price?: number | null
+}
+
+interface ExistingStandingOrder {
+  id: string
+  customer_id: string
+  delivery_days: string
+  active: boolean
+  notes: string | null
+  items: { id: string; product_id: string; quantity: number }[]
 }
 
 interface Props {
   customers: Customer[]
   products: Product[]
+  standingOrder?: ExistingStandingOrder  // present = edit mode
 }
 
 const WEEKDAYS = [
@@ -55,69 +63,38 @@ function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
-export default function StandingOrderForm({ customers, products }: Props) {
+export default function StandingOrderForm({ customers, products, standingOrder }: Props) {
   const router = useRouter()
+  const isEditing = !!standingOrder
 
-  const [customerId, setCustomerId] = useState('')
-  const [selectedDays, setSelectedDays] = useState<string[]>([])
-  const [notes, setNotes] = useState('')
-  const [items, setItems] = useState<OrderItem[]>([])
+  // In edit mode — single day only (can't change day when editing)
+  const [customerId, setCustomerId]     = useState(standingOrder?.customer_id || '')
+  const [selectedDays, setSelectedDays] = useState<string[]>(
+    standingOrder?.delivery_days ? [standingOrder.delivery_days] : []
+  )
+  const [notes, setNotes]               = useState(standingOrder?.notes || '')
+  const [active, setActive]             = useState(standingOrder?.active ?? true)
+  const [items, setItems]               = useState<OrderItem[]>(
+    standingOrder?.items?.map(i => ({
+      product_id: i.product_id,
+      quantity: i.quantity,
+    })) || []
+  )
   const [contractPrices, setContractPrices] = useState<ContractPrice[]>([])
   const [loadingContracts, setLoadingContracts] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
+  const [submitting, setSubmitting]     = useState(false)
   const [submitResults, setSubmitResults] = useState<
     { day: string; success: boolean; message: string }[]
   >([])
-  const [error, setError] = useState('')
-  const [done, setDone] = useState(false)
+  const [error, setError]   = useState('')
+  const [done, setDone]     = useState(false)
 
-  // ── Options ────────────────────────────────────────────────────────────────
-  const customerOptions: SelectOption[] = customers.map((c) => ({
-    value: c.id,
-    label: c.business_name || c.email,
-    sublabel: c.contact_name || c.email,
-  }))
+  // Load contract prices on mount if editing
+  useEffect(() => {
+    if (customerId) loadContractPrices(customerId)
+  }, [])
 
-  const productOptions: SelectOption[] = products.map((p) => ({
-    value: p.id,
-    label: p.name,
-    badge: p.code || '—',
-    sublabel: formatCurrency(getEffectivePrice(p.id, p.price)),
-  }))
-
-  const availableProductOptions = productOptions.filter(
-    (o) => !items.find((i) => i.product_id === o.value)
-  )
-
-  // ── Pricing helpers ────────────────────────────────────────────────────────
-  function getEffectivePrice(productId: string, standardPrice: number): number {
-    const c = contractPrices.find((cp) => cp.product_id === productId)
-    return c ? c.contract_price : standardPrice
-  }
-
-  function getContractPrice(productId: string): number | null {
-    const c = contractPrices.find((cp) => cp.product_id === productId)
-    return c ? c.contract_price : null
-  }
-
-  function calculateTotal(): number {
-    return items.reduce((sum, item) => {
-      const product = products.find((p) => p.id === item.product_id)
-      if (!product) return sum
-      return sum + getEffectivePrice(item.product_id, product.price) * item.quantity
-    }, 0)
-  }
-
-  // ── Customer change — load contracts ──────────────────────────────────────
-  async function handleCustomerChange(id: string) {
-    setCustomerId(id)
-    setItems([])
-    setContractPrices([])
-    setSubmitResults([])
-    setDone(false)
-
-    if (!id) return
-
+  async function loadContractPrices(id: string) {
     setLoadingContracts(true)
     try {
       const res = await fetch(`/api/admin/contract-pricing?customerId=${id}`)
@@ -137,52 +114,54 @@ export default function StandingOrderForm({ customers, products }: Props) {
     }
   }
 
-  // ── Day toggle ─────────────────────────────────────────────────────────────
+  async function handleCustomerChange(id: string) {
+    setCustomerId(id)
+    setItems([])
+    setContractPrices([])
+    if (id) loadContractPrices(id)
+  }
+
+  function getContractPrice(productId: string): number | null {
+    const c = contractPrices.find(cp => cp.product_id === productId)
+    return c ? c.contract_price : null
+  }
+
+  function getEffectivePrice(productId: string, standardPrice: number): number {
+    return getContractPrice(productId) ?? standardPrice
+  }
+
+  function calculateTotal(): number {
+    return items.reduce((sum, item) => {
+      const product = products.find(p => p.id === item.product_id)
+      if (!product) return sum
+      return sum + getEffectivePrice(item.product_id, product.price) * item.quantity
+    }, 0)
+  }
+
+  // Day toggle — disabled in edit mode
   function toggleDay(day: string) {
-    setSelectedDays((prev) =>
-      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    if (isEditing) return
+    setSelectedDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
     )
   }
 
-  function selectWeekdays() {
-    setSelectedDays(['monday', 'tuesday', 'wednesday', 'thursday', 'friday'])
-  }
-
-  function selectAllDays() {
-    setSelectedDays(WEEKDAYS.map((d) => d.value))
-  }
-
-  function clearDays() {
-    setSelectedDays([])
-  }
-
-  // ── Items ──────────────────────────────────────────────────────────────────
   function addItem(productId: string) {
-    if (!productId || items.find((i) => i.product_id === productId)) return
-    const product = products.find((p) => p.id === productId)
-    setItems((prev) => [
-      ...prev,
-      {
-        product_id: productId,
-        quantity: 1,
-        product,
-        contract_price: getContractPrice(productId),
-      },
-    ])
+    if (!productId || items.find(i => i.product_id === productId)) return
+    setItems(prev => [...prev, { product_id: productId, quantity: 1 }])
   }
 
   function updateQuantity(productId: string, qty: number) {
     if (qty < 1) return
-    setItems((prev) =>
-      prev.map((i) => (i.product_id === productId ? { ...i, quantity: qty } : i))
+    setItems(prev =>
+      prev.map(i => i.product_id === productId ? { ...i, quantity: qty } : i)
     )
   }
 
   function removeItem(productId: string) {
-    setItems((prev) => prev.filter((i) => i.product_id !== productId))
+    setItems(prev => prev.filter(i => i.product_id !== productId))
   }
 
-  // ── Submit — one POST per selected day ────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -194,6 +173,38 @@ export default function StandingOrderForm({ customers, products }: Props) {
 
     setSubmitting(true)
 
+    // EDIT MODE — PUT to update existing
+    if (isEditing && standingOrder) {
+      try {
+        const res = await fetch(`/api/standing-orders/${standingOrder.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customer_id: customerId,
+            delivery_days: selectedDays[0],
+            active,
+            notes: notes || null,
+            items: items.map(i => ({
+              product_id: i.product_id,
+              quantity: i.quantity,
+            })),
+          }),
+        })
+
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to update')
+
+        setDone(true)
+        setTimeout(() => router.push('/admin/standing-orders'), 1500)
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
+
+    // CREATE MODE — POST once per selected day
     const results: { day: string; success: boolean; message: string }[] = []
 
     for (const day of selectedDays) {
@@ -206,7 +217,7 @@ export default function StandingOrderForm({ customers, products }: Props) {
             delivery_days: day,
             active: true,
             notes: notes || null,
-            items: items.map((i) => ({
+            items: items.map(i => ({
               product_id: i.product_id,
               quantity: i.quantity,
             })),
@@ -216,23 +227,11 @@ export default function StandingOrderForm({ customers, products }: Props) {
         const data = await res.json()
 
         if (res.status === 409) {
-          results.push({
-            day,
-            success: false,
-            message: `Already exists — skipped`,
-          })
+          results.push({ day, success: false, message: 'Already exists — skipped' })
         } else if (!res.ok) {
-          results.push({
-            day,
-            success: false,
-            message: data.error || 'Failed',
-          })
+          results.push({ day, success: false, message: data.error || 'Failed' })
         } else {
-          results.push({
-            day,
-            success: true,
-            message: 'Created',
-          })
+          results.push({ day, success: true, message: 'Created' })
         }
       } catch (err: any) {
         results.push({ day, success: false, message: err.message })
@@ -242,44 +241,60 @@ export default function StandingOrderForm({ customers, products }: Props) {
     setSubmitResults(results)
     setSubmitting(false)
 
-    const anySuccess = results.some((r) => r.success)
-    if (anySuccess) {
+    if (results.some(r => r.success)) {
       setDone(true)
-      setTimeout(() => router.push('/admin/standing-orders'), 2500)
+      setTimeout(() => router.push('/admin/standing-orders'), 2000)
     }
   }
+
+  // Build options
+  const customerOptions: SelectOption[] = customers.map(c => ({
+    value: c.id,
+    label: c.business_name || c.email,
+    sublabel: c.contact_name || c.email,
+  }))
+
+  const availableProductOptions: SelectOption[] = products
+    .filter(p => !items.find(i => i.product_id === p.id))
+    .map(p => ({
+      value: p.id,
+      label: p.name,
+      badge: p.code || '—',
+      sublabel: formatCurrency(getEffectivePrice(p.id, p.price)),
+    }))
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
 
-      {/* Submit results */}
+      {/* Results */}
       {submitResults.length > 0 && (
         <div className="bg-white rounded-lg border shadow-sm p-4 space-y-2">
           <p className="font-semibold text-sm text-gray-700 mb-3">Results</p>
-          {submitResults.map((r) => (
+          {submitResults.map(r => (
             <div
               key={r.day}
               className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm ${
-                r.success
-                  ? 'bg-green-50 text-green-800'
-                  : 'bg-yellow-50 text-yellow-800'
+                r.success ? 'bg-green-50 text-green-800' : 'bg-yellow-50 text-yellow-800'
               }`}
             >
               {r.success
                 ? <CheckCircle className="h-4 w-4 flex-shrink-0" />
-                : <AlertCircle className="h-4 w-4 flex-shrink-0" />
-              }
+                : <AlertCircle className="h-4 w-4 flex-shrink-0" />}
               <span className="capitalize font-medium w-24">{r.day}</span>
               <span>{r.message}</span>
             </div>
           ))}
-          {done && (
-            <p className="text-xs text-gray-400 mt-2">Redirecting to standing orders...</p>
-          )}
+          {done && <p className="text-xs text-gray-400 mt-2">Redirecting...</p>}
         </div>
       )}
 
-      {/* Error */}
+      {done && isEditing && (
+        <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
+          <CheckCircle className="h-5 w-5" />
+          <p className="font-medium">Standing order updated! Redirecting...</p>
+        </div>
+      )}
+
       {error && (
         <div className="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
@@ -296,6 +311,7 @@ export default function StandingOrderForm({ customers, products }: Props) {
           value={customerId}
           onChange={handleCustomerChange}
           placeholder="Search by business name..."
+          disabled={isEditing}
           required
         />
         {loadingContracts && (
@@ -311,46 +327,45 @@ export default function StandingOrderForm({ customers, products }: Props) {
         )}
       </div>
 
-      {/* Delivery Days — multi select */}
+      {/* Delivery Day */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold">Delivery Days</h2>
-          <div className="flex gap-2 text-xs">
-            <button
-              type="button"
-              onClick={selectWeekdays}
-              className="px-2 py-1 border rounded hover:bg-gray-50 text-gray-600"
-            >
-              Mon-Fri
-            </button>
-            <button
-              type="button"
-              onClick={selectAllDays}
-              className="px-2 py-1 border rounded hover:bg-gray-50 text-gray-600"
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={clearDays}
-              className="px-2 py-1 border rounded hover:bg-gray-50 text-gray-600"
-            >
-              Clear
-            </button>
-          </div>
+          <h2 className="text-lg font-semibold">Delivery Day</h2>
+          {!isEditing && (
+            <div className="flex gap-2 text-xs">
+              <button type="button"
+                onClick={() => setSelectedDays(['monday','tuesday','wednesday','thursday','friday'])}
+                className="px-2 py-1 border rounded hover:bg-gray-50 text-gray-600">
+                Mon-Fri
+              </button>
+              <button type="button"
+                onClick={() => setSelectedDays(WEEKDAYS.map(d => d.value))}
+                className="px-2 py-1 border rounded hover:bg-gray-50 text-gray-600">
+                All
+              </button>
+              <button type="button"
+                onClick={() => setSelectedDays([])}
+                className="px-2 py-1 border rounded hover:bg-gray-50 text-gray-600">
+                Clear
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-7 gap-2">
-          {WEEKDAYS.map((day) => {
+          {WEEKDAYS.map(day => {
             const selected = selectedDays.includes(day.value)
             return (
               <button
                 key={day.value}
                 type="button"
                 onClick={() => toggleDay(day.value)}
+                disabled={isEditing}
                 className={`py-3 rounded-lg text-sm font-semibold border-2 transition-all ${
                   selected
                     ? 'border-green-600 bg-green-600 text-white shadow-sm'
+                    : isEditing
+                    ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed'
                     : 'border-gray-200 text-gray-500 hover:border-gray-400'
                 }`}
               >
@@ -360,13 +375,46 @@ export default function StandingOrderForm({ customers, products }: Props) {
           })}
         </div>
 
-        {selectedDays.length > 0 && (
+        {isEditing && (
+          <p className="text-xs text-gray-400 mt-3">
+            Delivery day cannot be changed when editing. Delete and recreate to change the day.
+          </p>
+        )}
+
+        {!isEditing && selectedDays.length > 0 && (
           <p className="text-sm text-gray-500 mt-3">
             {selectedDays.length} day{selectedDays.length !== 1 ? 's' : ''} selected —
             will create {selectedDays.length} standing order{selectedDays.length !== 1 ? 's' : ''}
           </p>
         )}
       </div>
+
+      {/* Active toggle — edit mode only */}
+      {isEditing && (
+        <div className="bg-white rounded-lg shadow-sm border p-6">
+          <h2 className="text-lg font-semibold mb-4">Status</h2>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={active === true}
+                onChange={() => setActive(true)}
+                className="w-4 h-4 text-green-600"
+              />
+              <span className="text-sm font-medium text-green-700">Active</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                checked={active === false}
+                onChange={() => setActive(false)}
+                className="w-4 h-4 text-gray-500"
+              />
+              <span className="text-sm font-medium text-gray-600">Paused</span>
+            </label>
+          </div>
+        </div>
+      )}
 
       {/* Products */}
       <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -377,7 +425,7 @@ export default function StandingOrderForm({ customers, products }: Props) {
             label="Add Product"
             options={availableProductOptions}
             value=""
-            onChange={(productId) => { if (productId) addItem(productId) }}
+            onChange={productId => { if (productId) addItem(productId) }}
             placeholder="Search by code or name..."
             grouped={true}
           />
@@ -398,12 +446,11 @@ export default function StandingOrderForm({ customers, products }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {items.map((item) => {
-                  const product = products.find((p) => p.id === item.product_id)
+                {items.map(item => {
+                  const product = products.find(p => p.id === item.product_id)
                   if (!product) return null
                   const contractPrice = getContractPrice(item.product_id)
                   const effectivePrice = contractPrice ?? product.price
-                  const subtotal = effectivePrice * item.quantity
 
                   return (
                     <tr key={item.product_id} className="border-b last:border-0 hover:bg-gray-50">
@@ -427,40 +474,31 @@ export default function StandingOrderForm({ customers, products }: Props) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-center gap-1">
-                          <button
-                            type="button"
+                          <button type="button"
                             onClick={() => updateQuantity(item.product_id, item.quantity - 1)}
-                            className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100 font-bold text-gray-600"
-                          >
+                            className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100 font-bold text-gray-600">
                             -
                           </button>
                           <input
-                            type="number"
-                            min="1"
+                            type="number" min="1"
                             value={item.quantity}
-                            onChange={(e) =>
-                              updateQuantity(item.product_id, parseInt(e.target.value) || 1)
-                            }
+                            onChange={e => updateQuantity(item.product_id, parseInt(e.target.value) || 1)}
                             className="w-14 text-center border rounded py-1 text-sm font-semibold"
                           />
-                          <button
-                            type="button"
+                          <button type="button"
                             onClick={() => updateQuantity(item.product_id, item.quantity + 1)}
-                            className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100 font-bold text-gray-600"
-                          >
+                            className="w-7 h-7 rounded border border-gray-300 flex items-center justify-center hover:bg-gray-100 font-bold text-gray-600">
                             +
                           </button>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right text-sm font-semibold">
-                        {formatCurrency(subtotal)}
+                        {formatCurrency(effectivePrice * item.quantity)}
                       </td>
                       <td className="px-2 py-3 text-center">
-                        <button
-                          type="button"
+                        <button type="button"
                           onClick={() => removeItem(item.product_id)}
-                          className="text-red-400 hover:text-red-600"
-                        >
+                          className="text-red-400 hover:text-red-600">
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </td>
@@ -478,17 +516,6 @@ export default function StandingOrderForm({ customers, products }: Props) {
                   </td>
                   <td />
                 </tr>
-                {selectedDays.length > 1 && (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-3 text-sm font-semibold text-right text-gray-500">
-                      Weekly total ({selectedDays.length} days)
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-lg text-blue-700">
-                      {formatCurrency(calculateTotal() * selectedDays.length)}
-                    </td>
-                    <td />
-                  </tr>
-                )}
               </tfoot>
             </table>
           </div>
@@ -504,7 +531,7 @@ export default function StandingOrderForm({ customers, products }: Props) {
         <h2 className="text-lg font-semibold mb-4">Notes</h2>
         <textarea
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          onChange={e => setNotes(e.target.value)}
           rows={3}
           className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-green-500 text-sm"
           placeholder="Delivery instructions, special requests..."
@@ -516,11 +543,13 @@ export default function StandingOrderForm({ customers, products }: Props) {
         <button
           type="submit"
           disabled={submitting || done}
-          className="flex-1 py-3 rounded-lg text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          className="flex-1 py-3 rounded-lg text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ backgroundColor: '#006A4E' }}
         >
           {submitting
-            ? 'Creating...'
+            ? 'Saving...'
+            : isEditing
+            ? 'Update Standing Order'
             : selectedDays.length > 1
             ? `Create ${selectedDays.length} Standing Orders`
             : 'Create Standing Order'}
