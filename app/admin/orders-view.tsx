@@ -1,156 +1,134 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { Package, FileDown, FileText, Calendar, TrendingUp, DollarSign } from 'lucide-react';
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { Package, FileDown, FileText, Calendar, TrendingUp, DollarSign } from 'lucide-react'
 
 interface OrderItem {
-  id: string;
-  product_name: string;
-  quantity: number;
-  unit_price: number;
-  subtotal: number;
+  id: string
+  product_name: string
+  quantity: number
+  unit_price: number
+  subtotal: number
 }
 
 interface Order {
-  id: string;
-  customer_email: string;
-  customer_business_name: string | null;
-  delivery_date: string;
-  notes: string | null;
-  status: string;
-  total_amount: number | null;
-  source: string | null;
-  created_at: string;
-  order_items: OrderItem[];
+  id: string
+  customer_email: string
+  customer_business_name: string | null
+  delivery_date: string
+  notes: string | null
+  status: string
+  total_amount: number | null
+  source: string | null
+  created_at: string
+  order_items: OrderItem[]
 }
 
 interface Stats {
-  totalOrders: number;
-  pendingOrders: number;
-  totalRevenue: number;
-  todayOrders: number;
+  totalOrders: number
+  pendingOrders: number
+  totalRevenue: number
+  todayOrders: number
 }
 
-export default function OrdersView({ supabase }: { supabase: SupabaseClient }) {
-  const [orders, setOrders] = useState<Order[]>([]);
+// No longer accepts supabase as prop - creates its own client
+export default function OrdersView() {
+  const supabase = createClient()
+  const [orders, setOrders] = useState<Order[]>([])
   const [stats, setStats] = useState<Stats>({
     totalOrders: 0,
     pendingOrders: 0,
     totalRevenue: 0,
-    todayOrders: 0
-  });
-  const [loading, setLoading] = useState(true);
+    todayOrders: 0,
+  })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadOrders();
-    loadStats();
-  }, []);
+    loadOrders()
+    loadStats()
+  }, [])
 
   async function loadOrders() {
     const { data } = await supabase
       .from('orders')
-      .select(`
-        *,
-        order_items (*)
-      `)
-      .order('created_at', { ascending: false });
+      .select('*, order_items (*)')
+      .order('created_at', { ascending: false })
 
-    if (data) {
-      setOrders(data as Order[]);
-    }
-    setLoading(false);
+    if (data) setOrders(data as Order[])
+    setLoading(false)
   }
 
   async function loadStats() {
     const { count: totalOrders } = await supabase
       .from('orders')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
 
     const { count: pendingOrders } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'pending');
+      .eq('status', 'pending')
 
     const { data: revenueData } = await supabase
       .from('orders')
       .select('total_amount')
-      .not('total_amount', 'is', null);
+      .not('total_amount', 'is', null)
 
     const totalRevenue = revenueData?.reduce(
-      (sum, order) => sum + (order.total_amount || 0),
-      0
-    ) || 0;
+      (sum, order) => sum + (order.total_amount || 0), 0
+    ) || 0
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0]
     const { count: todayOrders } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
-      .gte('created_at', today);
+      .gte('created_at', today)
 
     setStats({
       totalOrders: totalOrders || 0,
       pendingOrders: pendingOrders || 0,
       totalRevenue,
-      todayOrders: todayOrders || 0
-    });
+      todayOrders: todayOrders || 0,
+    })
   }
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD'
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount)
 
   const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString('en-AU');
-    } catch {
-      return dateStr;
-    }
-  };
+    try { return new Date(dateStr).toLocaleDateString('en-AU') }
+    catch { return dateStr }
+  }
 
   const formatDateTime = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleString('en-AU');
-    } catch {
-      return dateStr;
-    }
-  };
+    try { return new Date(dateStr).toLocaleString('en-AU') }
+    catch { return dateStr }
+  }
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      pending: 'bg-yellow-100 text-yellow-800',
+      pending:   'bg-yellow-100 text-yellow-800',
       confirmed: 'bg-blue-100 text-blue-800',
       preparing: 'bg-purple-100 text-purple-800',
       delivered: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800'
-    };
-
+      cancelled: 'bg-red-100 text-red-800',
+    }
     return (
       <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
         {status}
       </span>
-    );
-  };
+    )
+  }
 
-  const getSourceBadge = (source: string | null) => {
-    if (source === 'online') {
-      return (
-        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-          🌐 Online
-        </span>
-      );
-    }
-    return (
-      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-600">
-        ✏️ Manual
-      </span>
-    );
-  };
+  const getSourceBadge = (source: string | null) => (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+      source === 'online'
+        ? 'bg-blue-50 text-blue-700'
+        : 'bg-gray-50 text-gray-600'
+    }`}>
+      {source === 'online' ? 'Online' : 'Manual'}
+    </span>
+  )
 
   if (loading) {
     return (
@@ -158,7 +136,7 @@ export default function OrdersView({ supabase }: { supabase: SupabaseClient }) {
         <Package className="h-8 w-8 animate-spin text-gray-400" />
         <span className="ml-3 text-gray-600">Loading orders...</span>
       </div>
-    );
+    )
   }
 
   return (
@@ -237,10 +215,10 @@ export default function OrdersView({ supabase }: { supabase: SupabaseClient }) {
                     </td>
                     <td className="px-4 py-3 text-sm">{formatDate(order.delivery_date)}</td>
                     <td className="px-4 py-3">
-                      <div className="max-w-[200px]">
+                      <div className="max-w-48">
                         {order.order_items.slice(0, 2).map((item, idx) => (
                           <p key={idx} className="text-sm truncate">
-                            {item.quantity}× {item.product_name}
+                            {item.quantity}x {item.product_name}
                           </p>
                         ))}
                         {order.order_items.length > 2 && (
@@ -259,38 +237,36 @@ export default function OrdersView({ supabase }: { supabase: SupabaseClient }) {
                       {formatDateTime(order.created_at)}
                     </td>
                     <td className="px-4 py-3">
-  <div className="flex gap-1 justify-center">
-    {/* NEW: Edit Button */}
-    <a
-      href={`/admin/orders/${order.id}/edit`}
-      className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700"
-    >
-      <FileText className="h-4 w-4" />
-      Edit
-    </a>
-    
-    <a
-      href={`/api/invoice/${order.id}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md text-white hover:opacity-90"
-      style={{ backgroundColor: '#CE1126' }}
-    >
-      <FileDown className="h-4 w-4" />
-      Invoice
-    </a>
-    <a
-      href={`/api/packing-slip/${order.id}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md text-white hover:opacity-90"
-      style={{ backgroundColor: '#006A4E' }}
-    >
-      <Package className="h-4 w-4" />
-      Slip
-    </a>
-  </div>
-</td>
+                      <div className="flex gap-1 justify-center">
+                        <a
+                          href={`/admin/orders/${order.id}/edit`}
+                          className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          <FileText className="h-4 w-4" />
+                          Edit
+                        </a>
+                        <a
+                          href={`/api/invoice/${order.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md text-white hover:opacity-90"
+                          style={{ backgroundColor: '#CE1126' }}
+                        >
+                          <FileDown className="h-4 w-4" />
+                          Invoice
+                        </a>
+                        <a
+                          href={`/api/packing-slip/${order.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sm px-3 py-1.5 rounded-md text-white hover:opacity-90"
+                          style={{ backgroundColor: '#006A4E' }}
+                        >
+                          <Package className="h-4 w-4" />
+                          Slip
+                        </a>
+                      </div>
+                    </td>
                   </tr>
                 ))
               ) : (
@@ -305,5 +281,5 @@ export default function OrdersView({ supabase }: { supabase: SupabaseClient }) {
         </div>
       </div>
     </div>
-  );
+  )
 }
