@@ -44,14 +44,13 @@ export async function GET(
     }
 
     // Attach product_code to each item for the packing slip
-    const orderWithCodes = {
-      ...order,
-      order_items: (order.order_items || []).map((item: any) => ({
-        ...item,
-        product_code: item.products?.code || null,
-        product_name: item.product_name || item.products?.name || '—',
-      })),
-    }
+  const orderWithCodes = {
+  ...order,
+  order_items: (order.order_items || []).map((item: any) => ({
+    ...item,
+    product_code: item.products?.code || null,  // ← was products?.code already? check thisproduct_name: item.product_name || item.products?.name || '—',
+  })),
+}
 
     // After fetching the order, pass invoice_number to generator
 const pdf = await generatePackingSlip({

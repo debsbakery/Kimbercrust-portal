@@ -51,7 +51,7 @@ export default function AdminOrderEditView({ order, products }: any) {
     sublabel: `$${(contractPrices[p.id] ?? p.unit_price ?? p.price ?? 0).toFixed(2)}${
       contractPrices[p.id] !== undefined ? ' (contract)' : ''
     }`,
-    badge:    String(p.product_number ?? ''),
+badge: String(p.code ?? ''),
   }))
 
   // ── Totals ────────────────────────────────────────────────────────────────
@@ -238,8 +238,14 @@ export default function AdminOrderEditView({ order, products }: any) {
               <div className="space-y-2">
                 {items.map((item: any) => {
                   // ✅ Get product_number from the joined product OR fallback
-                  const productCode = item.product?.product_number ?? item.product_code ?? '—'
-                  const isContractPrice = contractPrices[item.product_id] !== undefined
+// In the items map, change:
+// ❌ item.products?.product_number ?? item.product?.product_number
+// ✅
+const productCode =
+  item.products?.code ??
+  item.product?.code ??
+  '—'
+                    const isContractPrice = contractPrices[item.product_id] !== undefined
 
                   return (
                     <div

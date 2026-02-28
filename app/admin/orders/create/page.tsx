@@ -20,7 +20,7 @@ interface Customer {
 interface Product {
   id: string
   name: string
-  product_number: number   // ← correct DB column name
+  code: string   // ← correct DB column name
   price: number
   unit_price: number
   gst_applicable: boolean
@@ -75,7 +75,7 @@ export default function AdminCreateOrderPage() {
     // Products — use correct column name
     supabase
       .from('products')
-      .select('id, name, product_number, price, unit_price, gst_applicable, is_available')
+      .select('id, name, code, price, unit_price, gst_applicable, is_available')
       .eq('is_available', true)
       .order('product_number')
       .then(({ data }) => { if (data) setProducts(data) })
@@ -114,8 +114,8 @@ export default function AdminCreateOrderPage() {
   const productOptions: SelectOption[] = products.map((p) => ({
     value:    p.id,
     label:    p.name,
-    badge:    String(p.product_number ?? ''),
-    sublabel: `${fmt(priceFor(p))}${p.gst_applicable ? ' + GST' : ' no GST'}`,
+badge: String(p.code ?? ''), 
+   sublabel: `${fmt(priceFor(p))}${p.gst_applicable ? ' + GST' : ' no GST'}`,
   }))
 
   // ── Customer change ──────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ export default function AdminCreateOrderPage() {
             ...item,
             productId:     p.id,
             productName:   p.name,
-            productNumber: String(p.product_number ?? ''),
+            productNumber: String(p.code ?? ''),
             unitPrice:     priceFor(p),
             gstApplicable: p.gst_applicable ?? false,
           }

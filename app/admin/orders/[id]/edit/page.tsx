@@ -31,7 +31,7 @@ export default async function AdminEditOrderPage({
       products:product_id (
         id,
         name,
-        product_number,
+        code,
         price,
         unit_price,
         gst_applicable
@@ -47,10 +47,10 @@ export default async function AdminEditOrderPage({
 
   // ✅ Fetch all available products with correct column
   const { data: products } = await supabase
-    .from('products')
-    .select('id, name, product_number, price, unit_price, gst_applicable, is_available')
-    .eq('is_available', true)
-    .order('product_number')
+  .from('products')
+  .select('id, name, code, price, unit_price, gst_applicable, is_available')
+  .eq('is_available', true)
+  .order('code')   // ← order by code not product_number
 
   return <AdminOrderEditView order={order} products={products || []} />
 }
