@@ -24,39 +24,49 @@ export default function BatchPackingSlipGenerator({ availableDates }: Props) {
     }
   }
 
-  const handleGenerate = async () => {
-    if (!activeDate) {
-      alert('Please select a date')
+ const handleGenerate = async () => {
+  if (!activeDate) {
+    alert('Please select a date')
+    return
+  }
+
+  setIsGenerating(true)
+
+  try {
+    const response = await fetch('/api/batch-packing-slips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: activeDate }),
+    })
+
+    console.log('Status:', response.status)
+    console.log('Content-Type:', response.headers.get('content-type'))
+
+    if (!response.ok) {
+      const text = await response.text()
+      console.log('Error response:', text)
+      alert(`Error ${response.status}: ${text}`)
       return
     }
 
-    setIsGenerating(true)
+    const blob = await response.blob()
+    console.log('Blob size:', blob.size, 'type:', blob.type)
 
-    try {
-      const response = await fetch('/api/batch-packing-slips', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: activeDate }),
-      })
-
-      if (!response.ok) {
-        const err = await response.json()
-        throw new Error(err.error || 'Failed to generate packing slips')
-      }
-
-      const blob = await response.blob()
-      const url  = window.URL.createObjectURL(blob)
-
-      // Open PDF in new tab — use Ctrl+P to print
-      window.open(url, '_blank')
-
-    } catch (error: any) {
-      console.error('Error:', error)
-      alert(`Failed: ${error.message}`)
-    } finally {
-      setIsGenerating(false)
+    if (blob.size === 0) {
+      alert('PDF is empty — check Vercel logs')
+      return
     }
+
+    const url = window.URL.createObjectURL(blob)
+    window.open(url, '_blank')
+
+  } catch (error: any) {
+    console.error('Error:', error)
+    alert(`Failed: ${error.message}`)
+  } finally {
+    setIsGenerating(false)
   }
+}
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
