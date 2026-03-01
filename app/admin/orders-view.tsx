@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Package, FileDown, FileText, Calendar, TrendingUp, DollarSign, ChevronDown, ChevronRight } from 'lucide-react'
+import { Package, FileDown, FileText, Calendar, DollarSign, ChevronDown, ChevronRight } from 'lucide-react'
 
 interface OrderItem {
   id: string
@@ -33,44 +33,58 @@ interface Stats {
 }
 
 const DAY_COLORS: Record<string, string> = {
-  '0': 'bg-red-100 text-red-800 border-red-200',     // Sun
-  '1': 'bg-blue-100 text-blue-800 border-blue-200',   // Mon
-  '2': 'bg-green-100 text-green-800 border-green-200',// Tue
-  '3': 'bg-yellow-100 text-yellow-800 border-yellow-200', // Wed
-  '4': 'bg-purple-100 text-purple-800 border-purple-200', // Thu
-  '5': 'bg-pink-100 text-pink-800 border-pink-200',   // Fri
-  '6': 'bg-orange-100 text-orange-800 border-orange-200', // Sat
+  '0': 'bg-red-100 text-red-800 border-red-200',
+  '1': 'bg-blue-100 text-blue-800 border-blue-200',
+  '2': 'bg-green-100 text-green-800 border-green-200',
+  '3': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  '4': 'bg-purple-100 text-purple-800 border-purple-200',
+  '5': 'bg-pink-100 text-pink-800 border-pink-200',
+  '6': 'bg-orange-100 text-orange-800 border-orange-200',
+}
+
+// ── Brisbane = UTC+10, no DST, always ─────────────────────────────────────────
+function getBrisbaneToday(): string {
+  const brisbane = new Date(Date.now() + 10 * 60 * 60 * 1000)
+  return brisbane.toISOString().split('T')[0]
+}
+
+function getBrisbaneTomorrow(): string {
+  const brisbane = new Date(Date.now() + 10 * 60 * 60 * 1000)
+  brisbane.setUTCDate(brisbane.getUTCDate() + 1)
+  return brisbane.toISOString().split('T')[0]
 }
 
 export default function OrdersView() {
   const supabase = createClient()
-  const [orders, setOrders]   = useState<Order[]>([])
-  const [stats, setStats]     = useState<Stats>({
-    totalOrders: 0, pendingOrders: 0, totalRevenue: 0, todayOrders: 0
+  const [orders, setOrders]         = useState<Order[]>([])
+  const [stats, setStats]           = useState<Stats>({
+    totalOrders: 0, pendingOrders: 0, totalRevenue: 0, todayOrders: 0,
   })
   const [loading, setLoading]       = useState(true)
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
-  const [weekOffset, setWeekOffset] = useState(0) // 0 = current week
+  const [weekOffset, setWeekOffset] = useState(0)
 
   useEffect(() => {
     loadOrders()
     loadStats()
   }, [weekOffset])
 
+  // ── Week range using Brisbane date ────────────────────────────────────────
   function getWeekRange(offset: number) {
-    const now = new Date()
-    const day = now.getDay() // 0=Sun
-    const startOfWeek = new Date(now)
-    startOfWeek.setDate(now.getDate() - day + offset * 7)
-    startOfWeek.setHours(0, 0, 0, 0)
+    const today    = getBrisbaneToday()
+    const d        = new Date(today + 'T12:00:00Z')
+    const dayOfWeek = d.getUTCDay() // 0=Sun, 1=Mon...
+
+    // Start from Sunday of current Brisbane week
+    const startOfWeek = new Date(d)
+    startOfWeek.setUTCDate(d.getUTCDate() - dayOfWeek + offset * 7)
 
     const endOfWeek = new Date(startOfWeek)
-    endOfWeek.setDate(startOfWeek.getDate() + 6)
-    endOfWeek.setHours(23, 59, 59, 999)
+    endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6)
 
     return {
       start: startOfWeek.toISOString().split('T')[0],
-      end: endOfWeek.toISOString().split('T')[0],
+      end:   endOfWeek.toISOString().split('T')[0],
     }
   }
 
@@ -108,21 +122,21 @@ export default function OrdersView() {
       (sum, o) => sum + (o.total_amount || 0), 0
     ) || 0
 
-    const today = new Date().toISOString().split('T')[0]
+    // ✅ Brisbane today — not UTC
+    const today = getBrisbaneToday()
     const { count: todayOrders } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('delivery_date', today)
 
     setStats({
-      totalOrders: totalOrders || 0,
+      totalOrders:  totalOrders  || 0,
       pendingOrders: pendingOrders || 0,
       totalRevenue,
-      todayOrders: todayOrders || 0,
+      todayOrders:  todayOrders  || 0,
     })
   }
 
-  // Group orders by delivery_date
   const ordersByDate = orders.reduce<Record<string, Order[]>>((acc, order) => {
     const date = order.delivery_date
     if (!acc[date]) acc[date] = []
@@ -132,13 +146,11 @@ export default function OrdersView() {
 
   const sortedDates = Object.keys(ordersByDate).sort()
 
-  // Auto-expand today and tomorrow
+  // ✅ Auto-expand using Brisbane today + tomorrow
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0]
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const tomorrowStr = tomorrow.toISOString().split('T')[0]
-    setExpandedDays(new Set([today, tomorrowStr]))
+    const today    = getBrisbaneToday()
+    const tomorrow = getBrisbaneTomorrow()
+    setExpandedDays(new Set([today, tomorrow]))
   }, [orders])
 
   function toggleDay(date: string) {
@@ -150,35 +162,34 @@ export default function OrdersView() {
     })
   }
 
-  function expandAll() {
-    setExpandedDays(new Set(sortedDates))
-  }
-
-  function collapseAll() {
-    setExpandedDays(new Set())
-  }
+  function expandAll()  { setExpandedDays(new Set(sortedDates)) }
+  function collapseAll() { setExpandedDays(new Set()) }
 
   const { start, end } = getWeekRange(weekOffset)
 
   const formatDate = (dateStr: string) => {
     try {
-      return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-AU', {
-        weekday: 'long', day: 'numeric', month: 'short'
+      return new Date(dateStr + 'T12:00:00Z').toLocaleDateString('en-AU', {
+        weekday: 'long', day: 'numeric', month: 'short',
       })
     } catch { return dateStr }
+  }
+
+  const formatWeekDate = (dateStr: string, opts: Intl.DateTimeFormatOptions) => {
+    return new Date(dateStr + 'T12:00:00Z').toLocaleDateString('en-AU', opts)
   }
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount)
 
   const getDayColor = (dateStr: string) => {
-    const day = new Date(dateStr + 'T00:00:00').getDay().toString()
+    // ✅ Use T12:00:00Z to avoid day-shift
+    const day = new Date(dateStr + 'T12:00:00Z').getUTCDay().toString()
     return DAY_COLORS[day] || 'bg-gray-100 text-gray-800 border-gray-200'
   }
 
-  const isToday = (dateStr: string) => {
-    return dateStr === new Date().toISOString().split('T')[0]
-  }
+  // ✅ Compare against Brisbane today
+  const isToday = (dateStr: string) => dateStr === getBrisbaneToday()
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
@@ -190,7 +201,9 @@ export default function OrdersView() {
       cancelled: 'bg-red-100 text-red-800',
     }
     return (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${styles[status] || 'bg-gray-100 text-gray-800'}`}>
+      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+        styles[status] || 'bg-gray-100 text-gray-800'
+      }`}>
         {status}
       </span>
     )
@@ -210,13 +223,17 @@ export default function OrdersView() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="bg-white rounded-lg shadow-md p-5 border-l-4" style={{ borderColor: '#CE1126' }}>
+        <div className="bg-white rounded-lg shadow-md p-5 border-l-4"
+          style={{ borderColor: '#CE1126' }}>
           <p className="text-sm text-gray-600">Total Orders</p>
           <p className="text-3xl font-bold">{stats.totalOrders}</p>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-5 border-l-4" style={{ borderColor: '#006A4E' }}>
+        <div className="bg-white rounded-lg shadow-md p-5 border-l-4"
+          style={{ borderColor: '#006A4E' }}>
           <p className="text-sm text-gray-600">Pending</p>
-          <p className="text-3xl font-bold" style={{ color: '#CE1126' }}>{stats.pendingOrders}</p>
+          <p className="text-3xl font-bold" style={{ color: '#CE1126' }}>
+            {stats.pendingOrders}
+          </p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-5 border-l-4 border-blue-500">
           <p className="text-sm text-gray-600">Delivering Today</p>
@@ -224,7 +241,9 @@ export default function OrdersView() {
         </div>
         <div className="bg-white rounded-lg shadow-md p-5 border-l-4 border-yellow-500">
           <p className="text-sm text-gray-600">Total Revenue</p>
-          <p className="text-2xl font-bold text-yellow-700">{formatCurrency(stats.totalRevenue)}</p>
+          <p className="text-2xl font-bold text-yellow-700">
+            {formatCurrency(stats.totalRevenue)}
+          </p>
         </div>
       </div>
 
@@ -240,11 +259,14 @@ export default function OrdersView() {
             </button>
             <div className="text-center">
               <p className="font-semibold text-gray-800">
-                {weekOffset === 0 ? 'This Week' : weekOffset === 1 ? 'Next Week' : weekOffset === -1 ? 'Last Week' : `Week of ${start}`}
+                {weekOffset === 0  ? 'This Week'  :
+                 weekOffset === 1  ? 'Next Week'  :
+                 weekOffset === -1 ? 'Last Week'  :
+                 `Week of ${start}`}
               </p>
               <p className="text-xs text-gray-500">
-                {new Date(start + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} —
-                {new Date(end + 'T00:00:00').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                {formatWeekDate(start, { day: 'numeric', month: 'short' })} —
+                {formatWeekDate(end,   { day: 'numeric', month: 'short', year: 'numeric' })}
               </p>
             </div>
             <button
@@ -263,10 +285,16 @@ export default function OrdersView() {
             )}
           </div>
           <div className="flex gap-2">
-            <button onClick={expandAll} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border rounded">
+            <button
+              onClick={expandAll}
+              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border rounded"
+            >
               Expand All
             </button>
-            <button onClick={collapseAll} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border rounded">
+            <button
+              onClick={collapseAll}
+              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border rounded"
+            >
               Collapse All
             </button>
           </div>
@@ -282,14 +310,19 @@ export default function OrdersView() {
       ) : (
         <div className="space-y-3">
           {sortedDates.map(date => {
-            const dayOrders = ordersByDate[date]
+            const dayOrders  = ordersByDate[date]
             const isExpanded = expandedDays.has(date)
-            const dayTotal = dayOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+            const dayTotal   = dayOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
             const colorClass = getDayColor(date)
-            const today = isToday(date)
+            const today      = isToday(date)
 
             return (
-              <div key={date} className={`bg-white rounded-lg shadow-md overflow-hidden border ${today ? 'border-blue-400' : 'border-transparent'}`}>
+              <div
+                key={date}
+                className={`bg-white rounded-lg shadow-md overflow-hidden border ${
+                  today ? 'border-blue-400' : 'border-transparent'
+                }`}
+              >
                 {/* Day Header */}
                 <button
                   onClick={() => toggleDay(date)}
@@ -297,7 +330,7 @@ export default function OrdersView() {
                 >
                   <div className="flex items-center gap-3">
                     {isExpanded
-                      ? <ChevronDown className="h-5 w-5 text-gray-400" />
+                      ? <ChevronDown  className="h-5 w-5 text-gray-400" />
                       : <ChevronRight className="h-5 w-5 text-gray-400" />
                     }
                     <span className={`px-3 py-1 rounded-full text-sm font-bold border ${colorClass}`}>
@@ -312,14 +345,12 @@ export default function OrdersView() {
                       {dayOrders.length} order{dayOrders.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-bold text-lg" style={{ color: '#006A4E' }}>
-                      {formatCurrency(dayTotal)}
-                    </span>
-                  </div>
+                  <span className="font-bold text-lg" style={{ color: '#006A4E' }}>
+                    {formatCurrency(dayTotal)}
+                  </span>
                 </button>
 
-                {/* Day Orders */}
+                {/* Day Orders Table */}
                 {isExpanded && (
                   <div className="border-t">
                     <table className="w-full">
@@ -336,18 +367,23 @@ export default function OrdersView() {
                         {dayOrders.map(order => (
                           <tr key={order.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3">
-                              <p className="font-medium text-sm">{order.customer_business_name || '—'}</p>
+                              <p className="font-medium text-sm">
+                                {order.customer_business_name || '—'}
+                              </p>
                               <p className="text-xs text-gray-400">{order.customer_email}</p>
                             </td>
                             <td className="px-4 py-3">
                               <div className="text-sm space-y-0.5">
                                 {order.order_items.slice(0, 2).map((item, idx) => (
                                   <p key={idx} className="text-gray-600 truncate max-w-48">
-                                    <span className="font-semibold">{item.quantity}x</span> {item.product_name}
+                                    <span className="font-semibold">{item.quantity}x</span>{' '}
+                                    {item.product_name}
                                   </p>
                                 ))}
                                 {order.order_items.length > 2 && (
-                                  <p className="text-xs text-gray-400">+{order.order_items.length - 2} more</p>
+                                  <p className="text-xs text-gray-400">
+                                    +{order.order_items.length - 2} more
+                                  </p>
                                 )}
                               </div>
                             </td>
@@ -390,10 +426,12 @@ export default function OrdersView() {
                       </tbody>
                       <tfoot className="bg-gray-50 border-t">
                         <tr>
-                          <td colSpan={2} className="px-4 py-2 text-sm font-semibold text-gray-600 text-right">
+                          <td colSpan={2}
+                            className="px-4 py-2 text-sm font-semibold text-gray-600 text-right">
                             Day Total
                           </td>
-                          <td className="px-4 py-2 text-right font-bold" style={{ color: '#006A4E' }}>
+                          <td className="px-4 py-2 text-right font-bold"
+                            style={{ color: '#006A4E' }}>
                             {formatCurrency(dayTotal)}
                           </td>
                           <td colSpan={2} />
