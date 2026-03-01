@@ -7,6 +7,7 @@ import { SearchableSelect, SelectOption } from '@/components/ui/searchable-selec
 
 export default function AdminOrderEditView({ order, products }: any) {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
 
   const [items,               setItems]               = useState<any[]>(order.order_items || [])
   const [saving,              setSaving]              = useState(false)
@@ -14,47 +15,37 @@ export default function AdminOrderEditView({ order, products }: any) {
   const [selectedQty,         setSelectedQty]         = useState(1)
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState(order.purchase_order_number || '')
   const [docketNumber,        setDocketNumber]        = useState(order.docket_number || '')
+  const [contractPrices,      setContractPrices]      = useState<Record<string, number>>({})
 
-  // ✅ NEW: Contract pricing cache
-  const [contractPrices, setContractPrices] = useState<Record<string, number>>({})
+  // Prevent hydration mismatch
+  useEffect(() => { setMounted(true) }, [])
 
-  // ✅ NEW: Load contract pricing for this customer
+  // Load contract pricing
   useEffect(() => {
     if (!order.customer_id) return
-
     fetch(`/api/customers/${order.customer_id}/pricing`)
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => r.ok ? r.json() : { pricing: [] })
       .then((data) => {
-        if (data?.pricing) {
-          const map: Record<string, number> = {}
-          data.pricing.forEach((p: any) => {
-            map[p.product_id] = p.price
-          })
-          setContractPrices(map)
-          console.log('Loaded contract pricing:', Object.keys(map).length, 'products')
-        }
-      })
-      .catch(() => setContractPrices({}))
+        const map: Record<string, number> = {}
+        ;(data.pricing ?? []).forEach((p: any) => { map[p.product_id] = p.price })
+        setContractPrices(map)
+      }).catch(() => setContractPrices({}))
   }, [order.customer_id])
 
-  // ✅ Helper: get price for product (contract or base)
   function priceForProduct(productId: string): number {
+    if (contractPrices[productId] !== undefined) return contractPrices[productId]
     const p = products.find((x: any) => x.id === productId)
-    if (!p) return 0
-    return contractPrices[productId] ?? p.unit_price ?? p.price ?? 0
+    return p?.price ?? 0
   }
 
-  // ✅ Build product options with correct badge
   const productOptions: SelectOption[] = products.map((p: any) => ({
     value:    p.id,
     label:    p.name,
-    sublabel: `$${(contractPrices[p.id] ?? p.unit_price ?? p.price ?? 0).toFixed(2)}${
+    badge:    String(p.code ?? ''),
+    sublabel: `$${(contractPrices[p.id] ?? p.price ?? 0).toFixed(2)}${
       contractPrices[p.id] !== undefined ? ' (contract)' : ''
-    }`,
-badge: String(p.code ?? ''),
-  }))
+    }`,}))
 
-  // ── Totals ────────────────────────────────────────────────────────────────
   function calculateTotals() {
     const subtotal = items.reduce(
       (sum: number, item: any) => sum + item.quantity * item.unit_price, 0
@@ -67,7 +58,6 @@ badge: String(p.code ?? ''),
     return { subtotal, gst, total: subtotal + gst }
   }
 
-  // ── Item management ───────────────────────────────────────────────────────
   function updateQuantity(itemId: string, newQty: number) {
     if (newQty <= 0) {
       setItems((prev) => prev.filter((i: any) => i.id !== itemId))
@@ -80,7 +70,6 @@ badge: String(p.code ?? ''),
 
   function addProduct() {
     if (!selectedProductId) return
-
     const product = products.find((p: any) => p.id === selectedProductId)
     if (!product) return
 
@@ -88,7 +77,7 @@ badge: String(p.code ?? ''),
     const price = priceForProduct(selectedProductId)
 
     const existing = items.find(
-      (i: any) => (i.product?.id || i.product_id) === selectedProductId
+      (i: any) => (i.products?.id || i.product?.id || i.product_id) === selectedProductId
     )
 
     if (existing) {
@@ -97,14 +86,13 @@ badge: String(p.code ?? ''),
       setItems((prev) => [
         ...prev,
         {
-          id:           `new-${Date.now()}`,
-          product_id:   product.id,
-          product_name: product.name,
-          product:      product,
-          quantity:     qty,
-          unit_price:   price,
+          id:            `new-${Date.now()}`,
+          product_id:    product.id,
+          product_name:  product.name,
+          products:      product,
+          quantity:      qty,
+          unit_price:    price,
           gst_applicable: product.gst_applicable ?? false,
-          subtotal:     price * qty,
         },
       ])
     }
@@ -113,7 +101,6 @@ badge: String(p.code ?? ''),
     setSelectedQty(1)
   }
 
-  // ── Save ──────────────────────────────────────────────────────────────────
   async function saveChanges() {
     if (items.length === 0) {
       alert('Order must have at least one item')
@@ -129,8 +116,8 @@ badge: String(p.code ?? ''),
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           items: items.map((item: any) => ({
-            product_id:    item.product?.id || item.product_id,
-            product_name:  item.product?.name || item.product_name,
+            product_id:    item.products?.id || item.product?.id || item.product_id,
+            product_name:  item.products?.name || item.product?.name || item.product_name,
             quantity:      item.quantity,
             unit_price:    item.unit_price,
             gst_applicable: item.gst_applicable,
@@ -147,21 +134,42 @@ badge: String(p.code ?? ''),
         const err = await response.json()
         alert(`Failed to save: ${err.error ?? 'Unknown error'}`)
       }
-    } catch (error) {
-      console.error('Save error:', error)
-      alert('Error saving order — check console')
+    } catch (err) {
+      console.error('Save error:', err)
+      alert('Error saving order')
     } finally {
       setSaving(false)
     }
   }
 
+  // Show loading skeleton until client is mounted
+  if (!mounted) {
+    return (
+      <div className="max-w-5xl mx-auto p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/3"></div>
+          <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+          <div className="h-64 bg-gray-100 rounded"></div>
+        </div>
+      </div>
+    )
+  }
+
   const { subtotal, gst, total } = calculateTotals()
 
-  return (
-    <div className="max-w-5xl mx-auto p-6">
+  // Build display strings only on client (prevents hydration mismatch)
+  const orderTitle = order.invoice_number
+    ? `Edit Order #${String(order.invoice_number).padStart(6, '0')}`
+    : `Edit Order #${order.id.slice(0, 8).toUpperCase()}`
 
-      {/* Back */}
-      <button
+  const deliveryDisplay = order.delivery_date
+    ? new Date(order.delivery_date + 'T00:00:00').toLocaleDateString('en-AU', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+      })
+    : ''
+
+  return (
+    <div className="max-w-5xl mx-auto p-6"><button
         onClick={() => router.push('/admin')}
         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
       >
@@ -169,17 +177,10 @@ badge: String(p.code ?? ''),
       </button>
 
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">
-          Edit Order #{String(order.invoice_number ?? '').padStart(6, '0') || order.id.slice(0, 8).toUpperCase()}
-        </h1>
+        <h1 className="text-3xl font-bold">{orderTitle}</h1>
         <p className="text-gray-500 text-sm mt-1">
-          {order.customer_business_name} &mdash; Delivery: {
-            new Date(order.delivery_date + 'T00:00:00').toLocaleDateString('en-AU', {
-              weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-            })
-          }
+          {order.customer_business_name} &mdash; Delivery: {deliveryDisplay}
         </p>
-        {/* ✅ Contract pricing indicator */}
         {Object.keys(contractPrices).length > 0 && (
           <p className="text-blue-600 text-sm mt-1 font-medium">
             Contract pricing active ({Object.keys(contractPrices).length} products)
@@ -189,7 +190,6 @@ badge: String(p.code ?? ''),
 
       <div className="grid gap-6 lg:grid-cols-3">
 
-        {/* ── Left column ── */}
         <div className="lg:col-span-2 space-y-6">
 
           {/* PO / Docket */}
@@ -237,47 +237,36 @@ badge: String(p.code ?? ''),
             ) : (
               <div className="space-y-2">
                 {items.map((item: any) => {
-                  // ✅ Get product_number from the joined product OR fallback
-// In the items map, change:
-// ❌ item.products?.product_number ?? item.product?.product_number
-// ✅
-const productCode =
-  item.products?.code ??
-  item.product?.code ??
-  '—'
-                    const isContractPrice = contractPrices[item.product_id] !== undefined
+                  const productCode = item.products?.code ?? item.product?.code ?? ''
+                  const productName = item.products?.name ?? item.product?.name ?? item.product_name ?? ''
+                  const isContract  = contractPrices[item.product_id] !== undefined
 
                   return (
                     <div
                       key={item.id}
                       className="flex items-center gap-3 p-3 border rounded-lg hover:border-gray-300 transition-colors"
                     >
-                      {/* Product code badge */}
                       <span className="text-xs font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-500 shrink-0 min-w-[3rem] text-center">
-                        {productCode}
+                        {productCode || '—'}
                       </span>
 
-                      {/* Name + price */}
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">
-                          {item.product?.name || item.product_name}
-                        </p>
+                        <p className="font-medium text-sm truncate">{productName}</p>
                         <p className="text-xs text-gray-400">
                           ${Number(item.unit_price).toFixed(2)} each
-                          {item.gst_applicable && (
+                {item.gst_applicable && (
                             <span className="ml-1 text-green-600">+ GST</span>
                           )}
-                          {isContractPrice && (
+                          {isContract && (
                             <span className="ml-1 text-blue-600 font-medium">Contract</span>
                           )}
                         </p>
                       </div>
 
-                      {/* Qty controls */}
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                          className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 flex items-center justify-center"
+                          className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded flex items-center justify-center"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
@@ -290,18 +279,16 @@ const productCode =
                         />
                         <button
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                          className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded text-gray-600 flex items-center justify-center"
+                          className="w-7 h-7 bg-gray-100 hover:bg-gray-200 rounded flex items-center justify-center"
                         >
                           <Plus className="h-3 w-3" />
                         </button>
                       </div>
 
-                      {/* Line total */}
                       <div className="w-20 text-right text-sm font-semibold shrink-0">
                         ${(item.quantity * Number(item.unit_price)).toFixed(2)}
                       </div>
 
-                      {/* Remove */}
                       <button
                         onClick={() => updateQuantity(item.id, 0)}
                         className="text-red-400 hover:text-red-600 shrink-0"
@@ -349,36 +336,34 @@ const productCode =
                            hover:bg-green-700 disabled:bg-gray-200 disabled:text-gray-400
                            disabled:cursor-not-allowed transition-colors flex items-center gap-2"
               >
-                <Plus className="h-4 w-4" />
-                Add
+                <Plus className="h-4 w-4" /> Add
               </button>
             </div>
 
-            {/* Preview selected product */}
             {selectedProductId && (() => {
               const p = products.find((x: any) => x.id === selectedProductId)
-              return p ? (
+              if (!p) return null
+              const price = priceForProduct(p.id)
+              return (
                 <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
                   <span className="font-medium text-green-800">{p.name}</span>
-                  <span className="text-green-600 ml-2">
-                    ${priceForProduct(p.id).toFixed(2)} each
-                  </span>
+                  <span className="text-green-600 ml-2">${price.toFixed(2)} each</span>
                   {contractPrices[p.id] !== undefined && (
                     <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">
                       Contract price
                     </span>
                   )}
                   <span className="text-green-600 ml-2">
-                    — {selectedQty} units = <strong>${(priceForProduct(p.id) * selectedQty).toFixed(2)}</strong>
+                    — {selectedQty} = <strong>${(price * selectedQty).toFixed(2)}</strong>
                   </span>
                 </div>
-              ) : null
+              )
             })()}
           </div>
         </div>
 
-        {/* ── Right column — totals + save ── */}
-        <div className="space-y-4">
+        {/* Right column */}
+        <div>
           <div className="bg-white rounded-lg shadow p-6 sticky top-6">
             <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
 
@@ -418,10 +403,8 @@ const productCode =
               </button>
             </div>
 
-            {/* Order meta */}
             <div className="mt-4 pt-4 border-t text-xs text-gray-400 space-y-1">
               <p>Status: <span className="font-medium text-gray-600">{order.status}</span></p>
-              <p>Created: {new Date(order.created_at).toLocaleDateString('en-AU')}</p>
               {order.invoice_number && (
                 <p>Invoice #: <span className="font-medium">{String(order.invoice_number).padStart(6, '0')}</span></p>
               )}
