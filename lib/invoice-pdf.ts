@@ -1,306 +1,337 @@
 // lib/invoice-pdf.ts
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { OrderWithItems } from './types';
+import { formatCurrency } from './utils';
+
+// ── Helper: fetch image URL to base64 ────────────────────────────────────────
+async function imageUrlToBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const buffer = await res.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+    return `data:image/png;base64,${base64}`;
+  } catch {
+    return null;
+  }
+}
+
+// ── Fallback "D" circle if logo fails ─────────────────────────────────────────
+function drawFallbackLogo(
+  doc: jsPDF,
+  color: [number, number, number],
+  margin: number,
+  yPos: number
+) {
+  doc.setFillColor(...color);
+  doc.circle(margin + 12, yPos + 12, 12, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text('D', margin + 12, yPos + 15, { align: 'center' });
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface InvoiceData {
-  order: {
-    id: string
-    delivery_date: string
-    total_amount: number
-    status: string
-    created_at: string
-    customer_business_name: string
-    customer_email: string
-    customer_address: string
-    customer_abn: string | null
-    notes: string | null
-    order_items: {
-      product_name: string
-      quantity: number
-      unit_price: number
-      subtotal: number
-      gst_applicable: boolean
-    }[]
-  }
-  invoiceNumber: string
-  invoiceDate: string
+  order: OrderWithItems;
   bakery: {
-    name: string
-    phone: string
-    address: string
-    abn: string
-    email: string
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    abn?: string;
+    bankName?: string;
+    bankBSB?: string;
+    bankAccount?: string;
+  };
+}
+
+export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
+  const { order, bakery } = data;
+  const doc = new jsPDF();
+
+  const logoColor: [number, number, number] = [206, 17, 38];
+  const textColor: [number, number, number] = [0, 0, 0];
+  const margin = 20;
+  let yPos = margin;
+
+  // ── Header background ─────────────────────────────────────────────────────
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, 210, 50, 'F');
+
+  // ── Logo ──────────────────────────────────────────────────────────────────
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://debsbakery-portal.vercel.app';
+  const logoBase64 = await imageUrlToBase64(`${siteUrl}/logo.png`);
+
+  if (logoBase64) {
+    try {
+      doc.addImage(logoBase64, 'PNG', margin, yPos + 2, 25, 25);
+    } catch {
+      drawFallbackLogo(doc, logoColor, margin, yPos);
+    }
+  } else {
+    drawFallbackLogo(doc, logoColor, margin, yPos);
   }
-}
 
-// ── Colours (matches packing slip) ────────────────────────────────────────────
+  // ── Company name and details ──────────────────────────────────────────────
+  doc.setTextColor(...textColor);
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text(bakery.name, margin + 30, yPos + 12);
 
-const C = {
-  green:     [0, 106, 78]    as [number, number, number],
-  red:       [206, 17, 38]   as [number, number, number],
-  black:     [0, 0, 0]       as [number, number, number],
-  white:     [255, 255, 255] as [number, number, number],
-  lightGray: [240, 240, 240] as [number, number, number],
-  midGray:   [100, 100, 100] as [number, number, number],
-  darkGray:  [50, 50, 50]    as [number, number, number],
-}
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(bakery.email,   margin + 30, yPos + 20);
+  doc.text(bakery.phone,   margin + 30, yPos + 25);
+  doc.text(bakery.address, margin + 30, yPos + 30);
+  if (bakery.abn) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(`ABN: ${bakery.abn}`, margin + 30, yPos + 36);
+  }
 
-// ── Main Export ───────────────────────────────────────────────────────────────
+  // ── TAX INVOICE title ─────────────────────────────────────────────────────
+  doc.setTextColor(...textColor);
+  doc.setFontSize(28);
+  doc.setFont('helvetica', 'bold');
+  doc.text('TAX INVOICE', 210 - margin, 25, { align: 'right' });
 
-export function generateInvoicePDF(data: InvoiceData): jsPDF {
-  const { order, invoiceNumber, invoiceDate, bakery } = data
+  // ── Invoice details box ───────────────────────────────────────────────────
+  yPos = 60;
+  doc.setFillColor(250, 250, 250);
+  doc.rect(210 - 90, yPos, 70, 40, 'F');
 
-  const doc    = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const margin = 14
-  const PW     = 210
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Invoice Number:', 210 - 85, yPos + 8);
+  doc.text('Invoice Date:',   210 - 85, yPos + 16);
+  doc.text('Order Date:',     210 - 85, yPos + 24);
+  doc.text('Order ID:',       210 - 85, yPos + 32);
 
-  // ── Dates ─────────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'normal');
 
-  const deliveryDateFmt = order.delivery_date
-    ? new Date(order.delivery_date + 'T00:00:00').toLocaleDateString('en-AU', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-      })
-    : '—'
+  const invoiceNum = order.invoice_number
+    ? String(order.invoice_number).padStart(6, '0')
+    : `TEMP-${order.id.slice(0, 8).toUpperCase()}`;
 
-  const invoiceDateFmt = invoiceDate
-    ? new Date(invoiceDate).toLocaleDateString('en-AU', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-      })
-    : new Date().toLocaleDateString('en-AU', {
-        day: '2-digit', month: '2-digit', year: 'numeric',
-      })
+  const invoiceDate = new Date(`${order.delivery_date}T00:00:00`).toLocaleDateString('en-AU');
+  const orderDate   = new Date(order.created_at).toLocaleDateString('en-AU');
+  const orderId     = order.id.slice(0, 8).toUpperCase();
 
-  // ── Header — green top bar + bakery name ──────────────────────────────────
+  doc.text(invoiceNum,  210 - margin - 2, yPos + 8,  { align: 'right' });
+  doc.text(invoiceDate, 210 - margin - 2, yPos + 16, { align: 'right' });
+  doc.text(orderDate,   210 - margin - 2, yPos + 24, { align: 'right' });
+  doc.text(orderId,     210 - margin - 2, yPos + 32, { align: 'right' });
 
-  doc.setFillColor(...C.green)
-  doc.rect(0, 0, PW, 2, 'F')
+  // ── Customer / Bill To ────────────────────────────────────────────────────
+  yPos = 60;
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('BILL TO:', margin, yPos);
 
-  doc.setTextColor(...C.green)
-  doc.setFontSize(18)
-  doc.setFont('helvetica', 'bold')
-  doc.text(bakery.name, margin, 13)
+  doc.setFontSize(9);
+  yPos += 8;
 
-  doc.setTextColor(...C.midGray)
-  doc.setFontSize(7)
-  doc.setFont('helvetica', 'normal')
-  doc.text(bakery.phone,   PW - margin, 8,  { align: 'right' })
-  doc.text(bakery.address, PW - margin, 13, { align: 'right' })
-  doc.text(`ABN: ${bakery.abn}`, PW - margin, 18, { align: 'right' })
+  if (order.customer_business_name) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(order.customer_business_name, margin, yPos);
+    yPos += 6;
+  }
 
-  // ── INVOICE title ─────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'normal');
+  if (order.customer_email) {
+    doc.text(order.customer_email, margin, yPos);
+    yPos += 5;
+  }
 
-  doc.setTextColor(...C.darkGray)
-  doc.setFontSize(20)
-  doc.setFont('helvetica', 'bold')
-  doc.text('TAX INVOICE', margin, 30)
+  const customerAddress = order.customer_address || 'Address on file';
+  doc.text(customerAddress, margin, yPos);
+  yPos += 5;
 
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.setTextColor(...C.midGray)
-  doc.text(`Invoice #${invoiceNumber}`, margin, 37)
-
-  // ── Divider ───────────────────────────────────────────────────────────────
-
-  doc.setDrawColor(...C.lightGray)
-  doc.setLineWidth(0.4)
-  doc.line(margin, 41, PW - margin, 41)
-
-  // ── Bill To + Invoice Details boxes ───────────────────────────────────────
-
-  const boxTop = 44
-  const boxH   = 34
-
-  // Bill To (left)
-  doc.setFillColor(...C.lightGray)
-  doc.roundedRect(margin, boxTop, 90, boxH, 1.5, 1.5, 'F')
-
-  doc.setTextColor(...C.green)
-  doc.setFontSize(7)
-  doc.setFont('helvetica', 'bold')
-  doc.text('BILL TO', margin + 4, boxTop + 7)
-
-  const customerName = order.customer_business_name || order.customer_email || 'Customer'
-  doc.setTextColor(...C.black)
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
-  doc.text(customerName, margin + 4, boxTop + 15)
-
-  if (order.customer_address) {
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(...C.midGray)
-    const addrLines = doc.splitTextToSize(order.customer_address, 78)
-    doc.text(addrLines, margin + 4, boxTop + 21)
+  if ((order as any).customer_phone) {
+    doc.text((order as any).customer_phone, margin, yPos);
+    yPos += 5;
   }
 
   if (order.customer_abn) {
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(...C.midGray)
-    doc.text(`ABN: ${order.customer_abn}`, margin + 4, boxTop + boxH - 4)
+    doc.setFont('helvetica', 'bold');
+    doc.text(`ABN: ${order.customer_abn}`, margin, yPos);
+    yPos += 5;
   }
 
-  // Invoice Details (right)
-  doc.setFillColor(...C.lightGray)
-  doc.roundedRect(PW - margin - 85, boxTop, 85, boxH, 1.5, 1.5, 'F')
+  // ── PO / Docket Numbers ───────────────────────────────────────────────────
+  yPos = 110;
+  if ((order as any).purchase_order_number || (order as any).docket_number) {
+    doc.setFillColor(248, 249, 250);
+    doc.rect(margin, yPos, 170, 15, 'F');
 
-  const detailX     = PW - margin - 83
-  const detailRight = PW - margin - 3
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
 
-  const detailRow = (label: string, value: string, y: number) => {
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(...C.midGray)
-    doc.text(label, detailX, y)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(...C.black)
-    doc.text(value, detailRight, y, { align: 'right' })
+    let poLine = '';
+    if ((order as any).purchase_order_number) {
+      poLine = `PO Number: ${(order as any).purchase_order_number}`;
+    }
+    if ((order as any).docket_number) {
+      if (poLine) poLine += '  |  ';
+      poLine += `Docket Number: ${(order as any).docket_number}`;
+    }
+
+    doc.text(poLine, margin + 5, yPos + 10);
+    yPos += 20;
   }
 
-  detailRow('Invoice Number:',  `#${invoiceNumber}`,       boxTop + 9)
-  detailRow('Invoice Date:',    invoiceDateFmt,             boxTop + 16)
-  detailRow('Delivery Date:',   deliveryDateFmt,            boxTop + 23)
-  detailRow('Payment Terms:',   '30 days',                 boxTop + 30)
+  // ── Notes — only show if NOT auto-generated standing order ───────────────
+  if (order.notes && !order.notes.toLowerCase().includes('auto-generated')) {
+    yPos += 3;
+    doc.setFontSize(7);
+    doc.setTextColor(80, 80, 80);
+    doc.text('Notes:', margin, yPos);
+    yPos += 3;
+    const splitNotes = doc.splitTextToSize(order.notes, 85);
+    doc.text(splitNotes, margin, yPos);
+    yPos += (splitNotes.length * 3) + 3;
+    doc.setTextColor(...textColor);
+  }
 
-  // ── Line items table ──────────────────────────────────────────────────────
+  // ── Items table ───────────────────────────────────────────────────────────
+  yPos = Math.max(yPos + 5, 125);
 
-  const tableStartY = boxTop + boxH + 6
-
-  const tableRows = order.order_items.map((item) => [
-    item.product_name,
-    item.quantity.toString(),
-    `$${item.unit_price.toFixed(2)}`,
-    item.gst_applicable ? 'Yes' : 'No',
-    `$${(item.subtotal ?? item.unit_price * item.quantity).toFixed(2)}`,
-  ])
+  const tableData = order.order_items.map(item => {
+    const hasGST = item.gst_applicable !== false;
+    return [
+      (item as any).product_code || (item as any).code || '--',
+      item.product_name,
+      item.quantity.toString(),
+      formatCurrency(item.unit_price),
+      hasGST ? 'Yes' : 'No',
+      formatCurrency(item.subtotal ?? item.unit_price * item.quantity),
+    ];
+  });
 
   autoTable(doc, {
-    startY: tableStartY,
-    head:   [['Product', 'Qty', 'Unit Price', 'GST', 'Subtotal']],
-    body:   tableRows,
-    theme:  'plain',
-
+    startY: yPos,
+    head: [['Code', 'Product', 'Qty', 'Unit Price', 'GST', 'Subtotal']],
+    body: tableData,
+    theme: 'striped',
     headStyles: {
-      textColor:   C.white,
-      fillColor:   C.green,
-      fontStyle:   'bold',
-      fontSize:    8.5,
-      cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
+      fillColor: [0, 0, 0],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 9,
     },
-
     bodyStyles: {
-      fontSize:    8.5,
-      textColor:   C.black,
-      cellPadding: { top: 3, bottom: 3, left: 4, right: 4 },
-      lineWidth:   { bottom: 0.15 },
-      lineColor:   [220, 220, 220],
-      fillColor:   C.white,
+      fontSize: 8,
+      textColor: [0, 0, 0],
     },
-
-    alternateRowStyles: {
-      fillColor: [248, 250, 248] as [number, number, number],
-    },
-
     columnStyles: {
-      0: { cellWidth: 95 },
-      1: { cellWidth: 18, halign: 'center' },
-      2: { cellWidth: 28, halign: 'right' },
-      3: { cellWidth: 18, halign: 'center' },
-      4: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
+      0: { cellWidth: 20 },
+      1: { cellWidth: 60 },
+      2: { cellWidth: 15, halign: 'center' },
+      3: { cellWidth: 25, halign: 'right' },
+      4: { cellWidth: 15, halign: 'center' },
+      5: { cellWidth: 30, halign: 'right' },
     },
-
     margin: { left: margin, right: margin },
-  })
+  });
 
-  const tableEndY = (doc as any).lastAutoTable.finalY as number
+  // ── Totals ────────────────────────────────────────────────────────────────
+  const subtotal = order.order_items.reduce(
+    (sum, item) => sum + (item.subtotal ?? item.unit_price * item.quantity), 0
+  );
+  const gstTotal = order.order_items.reduce((sum, item) => {
+    const hasGST = item.gst_applicable !== false;
+    return sum + (hasGST ? (item.subtotal ?? item.unit_price * item.quantity) * 0.1 : 0);
+  }, 0);
+  const total = subtotal + gstTotal;
 
-  // ── Totals block ──────────────────────────────────────────────────────────
+  const finalY   = (doc as any).lastAutoTable.finalY + 10;
+  const summaryX = 210 - 75;
 
-  const gstItems    = order.order_items.filter((i) => i.gst_applicable)
-  const gstAmount   = gstItems.reduce((sum, i) => sum + (i.subtotal ?? i.unit_price * i.quantity) * 0.1, 0)
-  const subExGst    = order.total_amount - gstAmount
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...textColor);
+  doc.text('Subtotal:', summaryX, finalY);
+  doc.text(formatCurrency(subtotal), 210 - margin, finalY, { align: 'right' });
 
-  const totalsX = PW - margin - 80
-  let   totalsY = tableEndY + 4
+  doc.setFont('helvetica', 'bold');
+  doc.text('GST (10%):', summaryX, finalY + 7);
+  doc.text(formatCurrency(gstTotal), 210 - margin, finalY + 7, { align: 'right' });
 
-  const totalRow = (label: string, value: string, bold = false, color = C.black) => {
-    doc.setFontSize(9)
-    doc.setFont('helvetica', bold ? 'bold' : 'normal')
-    doc.setTextColor(...C.midGray)
-    doc.text(label, totalsX, totalsY)
-    doc.setTextColor(...color)
-    doc.text(value, PW - margin, totalsY, { align: 'right' })
-    totalsY += 6
+  doc.setFillColor(0, 0, 0);
+  doc.rect(summaryX - 5, finalY + 12, 70, 10, 'F');
+
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(11);
+  doc.text('TOTAL (inc GST):', summaryX, finalY + 19);
+  doc.text(formatCurrency(total), 210 - margin, finalY + 19, { align: 'right' });
+
+  // ── Bank Payment Details ──────────────────────────────────────────────────
+  doc.setTextColor(...textColor);
+  const bankY = finalY + 35;
+
+  if (bakery.bankName || bakery.bankBSB || bakery.bankAccount) {
+    doc.setFillColor(240, 253, 244);
+    doc.rect(margin, bankY, 170, 30, 'F');
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(22, 101, 52);
+    doc.text('Payment Information', margin + 5, bankY + 8);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+
+    let bankLineY = bankY + 15;
+    if (bakery.bankName) {
+      doc.text(`Bank: ${bakery.bankName}`, margin + 5, bankLineY);
+      bankLineY += 5;
+    }
+    if (bakery.bankBSB) {
+      doc.text(`BSB: ${bakery.bankBSB}`, margin + 5, bankLineY);
+      bankLineY += 5;
+    }
+    if (bakery.bankAccount) {
+      doc.text(`Account: ${bakery.bankAccount}`, margin + 5, bankLineY);
+      bankLineY += 5;
+    }
+    doc.text(`Reference: ${invoiceNum}`, margin + 5, bankLineY);
   }
 
-  totalRow('Subtotal (ex-GST):',  `$${subExGst.toFixed(2)}`)
-  totalRow('GST (10%):',          `$${gstAmount.toFixed(2)}`)
+  // ── Payment Terms ─────────────────────────────────────────────────────────
+  const termsY = (bakery.bankName || bakery.bankBSB || bakery.bankAccount)
+    ? bankY + 40
+    : finalY + 30;
 
-  // Divider above total
-  doc.setDrawColor(...C.green)
-  doc.setLineWidth(0.5)
-  doc.line(totalsX, totalsY, PW - margin, totalsY)
-  totalsY += 4
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...textColor);
 
-  // Total due
-  doc.setFillColor(...C.green)
-  doc.roundedRect(totalsX, totalsY - 5, PW - margin - totalsX, 10, 1, 1, 'F')
-  doc.setTextColor(...C.white)
-  doc.setFontSize(10)
-  doc.setFont('helvetica', 'bold')
-  doc.text('TOTAL DUE:', totalsX + 3, totalsY + 1.5)
-  doc.text(`$${order.total_amount.toFixed(2)}`, PW - margin - 3, totalsY + 1.5, { align: 'right' })
-  totalsY += 14
+  const paymentTerms = (order as any).payment_terms || 30;
+  doc.text(`Payment Terms: ${paymentTerms} days`, margin, termsY);
+  doc.text('Payment Methods: Bank Transfer or Cash at delivery', margin, termsY + 5);
 
-  // ── Payment details ───────────────────────────────────────────────────────
-
-  doc.setDrawColor(...C.lightGray)
-  doc.setLineWidth(0.3)
-  doc.setFillColor(248, 252, 250)
-  doc.roundedRect(margin, totalsY, PW - margin * 2, 22, 1.5, 1.5, 'FD')
-
-  doc.setTextColor(...C.green)
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'bold')
-  doc.text('PAYMENT DETAILS', margin + 4, totalsY + 7)
-
-  doc.setTextColor(...C.darkGray)
-  doc.setFontSize(7.5)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Please include invoice number as payment reference.', margin + 4, totalsY + 13)
-  doc.text(`Payment due within 30 days of invoice date (${invoiceDateFmt}).`, margin + 4, totalsY + 19)
-
-  // ── Notes ─────────────────────────────────────────────────────────────────
-
-  if (order.notes) {
-    totalsY += 28
-    doc.setDrawColor(251, 191, 36)
-    doc.setLineWidth(0.4)
-    doc.setFillColor(255, 253, 245)
-    const noteLines = doc.splitTextToSize(`Note: ${order.notes}`, PW - margin * 2 - 8)
-    const noteH     = noteLines.length * 4.5 + 6
-    doc.roundedRect(margin, totalsY, PW - margin * 2, noteH, 1, 1, 'FD')
-    doc.setTextColor(140, 90, 0)
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.text(noteLines, margin + 4, totalsY + 7)
-  }
+  // ── GST Statement ─────────────────────────────────────────────────────────
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(80, 80, 80);
+  doc.text('This is a Tax Invoice for GST purposes.', margin, termsY + 15);
+  doc.text(
+    `Total includes GST of ${formatCurrency(gstTotal)} where applicable.`,
+    margin, termsY + 20
+  );
 
   // ── Footer ────────────────────────────────────────────────────────────────
-
-  doc.setFontSize(7)
-  doc.setTextColor(...C.midGray)
-  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
   doc.text(
-    `${bakery.name}  |  ${bakery.phone}  |  ${bakery.email}  |  ABN: ${bakery.abn}`,
-    PW / 2, 285, { align: 'center' }
-  )
-  doc.text(
-    `Thank you for your business!`,
-    PW / 2, 290, { align: 'center' }
-  )
+    `Generated: ${new Date().toLocaleDateString('en-AU')}`,
+    105, 280, { align: 'center' }
+  );
+  doc.text('Thank you for your business!', 105, 284, { align: 'center' });
 
-  return doc
+  return doc;
 }
