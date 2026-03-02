@@ -16,38 +16,41 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const download = searchParams.get('download') === 'true'
 
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        customers (
-          id,
-          business_name,
-          contact_name,
-          email,
-          phone,
-          address,
-          abn,
-          payment_terms
-        ),
-        order_items (
-          id,
-          quantity,
-          unit_price,
-          subtotal,
-          gst_applicable,
-          product_name,
-          products (
-            id,
-            product_code,
-            code,
-            name,
-            description
-          )
-        )
-      `)
-      .eq('id', orderId)
-      .single()
+  const { data: order, error: orderError } = await supabase
+  .from('orders')
+  .select(`
+    *,
+    customers (
+      id,
+      business_name,
+      contact_name,
+      email,
+      phone,
+      address,
+      abn,
+      payment_terms
+    ),
+    order_items (
+      id,
+      quantity,
+      unit_price,
+      subtotal,
+      gst_applicable,
+      product_name,
+      products (
+        id,
+        code,
+        name,
+        description
+      )
+    ),
+    invoice_numbers (
+      invoice_number,
+      created_at
+    )
+  `)
+  .eq('id', orderId)
+  .single()
 
     if (orderError) throw orderError
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
@@ -130,10 +133,13 @@ export async function GET(
     const pdf = await generateInvoice({ order: orderWithItems as any, bakeryInfo })
     const pdfBuffer = Buffer.from(pdf.output('arraybuffer'))
 
-    const invoiceNum = order.invoice_number
-      ? String(order.invoice_number).padStart(6, '0')
-      : `TEMP-${order.id.slice(0, 8).toUpperCase()}`
-
+   // Replace the existing invoiceNum line with this:
+const invRecord = (order.invoice_numbers as any[])?.[0]
+const invoiceNum = invRecord?.invoice_number
+  ? String(invRecord.invoice_number).padStart(6, '0')
+  : order.invoice_number
+    ? String(order.invoice_number).padStart(6, '0')
+    : `TEMP-${order.id.slice(0, 8).toUpperCase()}`
     const filename = `invoice-${invoiceNum}.pdf`
 
     return new NextResponse(pdfBuffer, {

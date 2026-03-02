@@ -199,17 +199,45 @@ export default async function CustomerPortalPage() {
     total_due: parseFloat(arData?.total_due || customer.balance || '0'),
   };
 
-  // ═══════════════════════════════════════════
-  // 5. Fetch Invoices
-  // ═══════════════════════════════════════════
-  const { data: invoices } = await supabase
-    .from('orders')
-    .select('id, delivery_date, total_amount, status, created_at')
-    .eq('customer_id', customer.id)
-    .in('status', ['confirmed', 'delivered'])
-    .order('created_at', { ascending: false })
-    .limit(20);
+ // ═══════════════════════════════════════════
+// 5. Fetch Invoices (join invoice_numbers)
+// ═══════════════════════════════════════════
+const { data: invoiceOrders } = await supabase
+  .from('orders')
+  .select(`
+    id,
+    delivery_date,
+    total_amount,
+    status,
+    created_at,
+    invoice_numbers (
+      invoice_number,
+      created_at
+    ),
+    order_items (
+      id,
+      product_name,
+      quantity,
+      unit_price,
+      subtotal,
+      gst_applicable
+    )
+  `)
+  .eq('customer_id', customer.id)
+  .not('invoice_numbers', 'is', null)
+  .order('created_at', { ascending: false })
+  .limit(50);
 
+const invoices = (invoiceOrders || []).map((o: any) => ({
+  id:             o.id,
+  delivery_date:  o.delivery_date,
+  total_amount:   o.total_amount,
+  status:         o.status,
+  created_at:     o.created_at,
+  invoice_number: o.invoice_numbers?.[0]?.invoice_number ?? null,
+  invoice_date:   o.invoice_numbers?.[0]?.created_at ?? o.created_at,
+  items:          o.order_items || [],
+}));
   // ═══════════════════════════════════════════
   // 6. Fetch Notifications
   // ═══════════════════════════════════════════
@@ -247,7 +275,7 @@ export default async function CustomerPortalPage() {
     standingOrders: standingOrders,
     recentOrders: recentOrders,
     arBalance: arBalance,
-    invoices: invoices || [],
+    invoices: invoices ,
     notifications: notifications || [],
   };
 
