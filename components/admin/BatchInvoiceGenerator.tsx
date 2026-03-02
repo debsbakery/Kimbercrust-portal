@@ -1,8 +1,7 @@
-// components/admin/BatchInvoiceGenerator.tsx
 'use client'
 
 import { useState } from 'react'
-import { Download, Loader2, Calendar, Mail, MailX } from 'lucide-react'
+import { Download, Loader2, Calendar, Mail, MailX, RefreshCw } from 'lucide-react'
 
 interface BatchInvoiceGeneratorProps {
   availableDates: string[]
@@ -17,6 +16,7 @@ export default function BatchInvoiceGenerator({ availableDates }: BatchInvoiceGe
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [customDate,   setCustomDate]   = useState<string>(getBrisbaneToday())
   const [sendEmails,   setSendEmails]   = useState(false)
+  const [emailOnly,    setEmailOnly]    = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [result,       setResult]       = useState<any>(null)
 
@@ -28,9 +28,13 @@ export default function BatchInvoiceGenerator({ availableDates }: BatchInvoiceGe
       return
     }
 
-    if (sendEmails && !confirm('This will send invoice emails to all customers. Continue?')) {
-      return
-    }
+    const confirmMsg = emailOnly
+      ? 'This will RESEND invoice emails to all customers for this date. Continue?'
+      : sendEmails
+        ? 'This will generate invoices AND send emails to all customers. Continue?'
+        : null
+
+    if (confirmMsg && !confirm(confirmMsg)) return
 
     setIsGenerating(true)
     setResult(null)
@@ -41,7 +45,8 @@ export default function BatchInvoiceGenerator({ availableDates }: BatchInvoiceGe
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           delivery_date: activeDate,
-          sendEmails,
+          sendEmails:    emailOnly ? true : sendEmails,
+          emailOnly,
         }),
       })
 
@@ -76,7 +81,7 @@ export default function BatchInvoiceGenerator({ availableDates }: BatchInvoiceGe
 
       <h2 className="text-xl font-semibold">Select Delivery Date</h2>
 
-      {/* Dropdown — existing order dates */}
+      {/* Dropdown */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Choose from existing order dates
@@ -88,14 +93,12 @@ export default function BatchInvoiceGenerator({ availableDates }: BatchInvoiceGe
         >
           <option value="">-- Select a date --</option>
           {availableDates.map((date) => (
-            <option key={date} value={date}>
-              {formatAusDate(date)}
-            </option>
+            <option key={date} value={date}>{formatAusDate(date)}</option>
           ))}
         </select>
       </div>
 
-      {/* Manual date entry — defaults to Brisbane today */}
+      {/* Manual date — defaults to Brisbane today */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Or enter any date manually
@@ -112,38 +115,64 @@ export default function BatchInvoiceGenerator({ availableDates }: BatchInvoiceGe
       <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border">
         <button
           type="button"
-          onClick={() => setSendEmails(!sendEmails)}
+          onClick={() => { setSendEmails(!sendEmails); if (emailOnly) setEmailOnly(false) }}
           className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
             sendEmails ? 'bg-green-600' : 'bg-gray-300'
           }`}
         >
-          <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              sendEmails ? 'translate-x-6' : 'translate-x-1'
-            }`}
-          />
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+            sendEmails ? 'translate-x-6' : 'translate-x-1'
+          }`} />
         </button>
         <div className="flex items-center gap-2">
           {sendEmails
             ? <Mail  className="h-4 w-4 text-green-600" />
-            : <MailX className="h-4 w-4 text-gray-400" />
+            : <MailX className="h-4 w-4 text-gray-400"  />
           }
           <span className="text-sm font-medium">
-            {sendEmails
-              ? 'Will send invoice emails to customers'
-              : 'Invoice only — no emails'
-            }
+            {sendEmails ? 'Will send invoice emails to customers' : 'Invoice only — no emails'}
           </span>
+        </div>
+      </div>
+
+      {/* Resend emails toggle — only show after invoicing done */}
+      <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-lg border border-amber-200">
+        <button
+          type="button"
+          onClick={() => { setEmailOnly(!emailOnly); if (!emailOnly) setSendEmails(false) }}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+            emailOnly ? 'bg-amber-500' : 'bg-gray-300'
+          }`}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+            emailOnly ? 'translate-x-6' : 'translate-x-1'
+          }`} />
+        </button>
+        <div className="flex items-center gap-2">
+          <RefreshCw className={`h-4 w-4 ${emailOnly ? 'text-amber-600' : 'text-gray-400'}`} />
+          <div>
+            <p className="text-sm font-medium">
+              {emailOnly ? 'Resend mode — emails only, no new invoices' : 'Resend emails only'}
+            </p>
+            <p className="text-xs text-gray-500">
+              Use this if invoices were generated but emails were not sent
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Active date display */}
       {activeDate && (
-        <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
-          <span className="font-medium text-green-800">
-            Selected: {formatAusDate(activeDate)}
+        <div className={`p-3 rounded-lg text-sm border ${
+          emailOnly
+            ? 'bg-amber-50 border-amber-200'
+            : 'bg-green-50 border-green-200'
+        }`}>
+          <span className={`font-medium ${emailOnly ? 'text-amber-800' : 'text-green-800'}`}>
+            {emailOnly ? 'Resending emails for: ' : 'Selected: '}
+            {formatAusDate(activeDate)}
           </span>
-          {sendEmails && (
+          {sendEmails && !emailOnly && (
             <span className="ml-2 text-green-600">+ sending emails</span>
           )}
         </div>
@@ -153,19 +182,16 @@ export default function BatchInvoiceGenerator({ availableDates }: BatchInvoiceGe
       <button
         onClick={handleGenerateBatch}
         disabled={!activeDate || isGenerating}
-        className="w-full py-3 rounded-lg text-white font-semibold transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-        style={{ backgroundColor: '#006A4E' }}
+        className={`w-full py-3 rounded-lg text-white font-semibold transition-opacity
+          disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+        style={{ backgroundColor: emailOnly ? '#d97706' : '#006A4E' }}
       >
         {isGenerating ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Processing...
-          </>
+          <><Loader2 className="h-4 w-4 animate-spin" />Processing...</>
+        ) : emailOnly ? (
+          <><RefreshCw className="h-4 w-4" />Resend Emails for {activeDate ? formatAusDate(activeDate) : '...'}</>
         ) : (
-          <>
-            <Download className="h-4 w-4" />
-            Generate Invoices for {activeDate ? formatAusDate(activeDate) : '...'}
-          </>
+          <><Download className="h-4 w-4" />Generate Invoices for {activeDate ? formatAusDate(activeDate) : '...'}</>
         )}
       </button>
 
@@ -178,8 +204,10 @@ export default function BatchInvoiceGenerator({ availableDates }: BatchInvoiceGe
         }`}>
           {result.success ? (
             <div className="space-y-1">
-              <p className="font-semibold">Batch invoicing complete</p>
-              <p>Orders invoiced: {result.invoiced}</p>
+              <p className="font-semibold">
+                {result.resend_mode ? 'Email resend complete' : 'Batch invoicing complete'}
+              </p>
+              {!result.resend_mode && <p>Orders invoiced: {result.invoiced}</p>}
               <p>Total amount: ${Number(result.total_amount ?? 0).toFixed(2)}</p>
               {result.emails_sent !== undefined && (
                 <p>Emails sent: {result.emails_sent}</p>
@@ -192,7 +220,7 @@ export default function BatchInvoiceGenerator({ availableDates }: BatchInvoiceGe
                   ))}
                 </div>
               )}
-              {result.invoiced === 0 && (
+              {result.invoiced === 0 && !result.resend_mode && (
                 <p className="text-gray-600">No pending orders found for this date.</p>
               )}
             </div>

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { generateInvoice } from '@/lib/invoice-pdf'
+import { generateInvoicePDF } from '@/lib/invoice-pdf'
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
@@ -129,7 +129,7 @@ export async function GET(
       bankAccount: process.env.BAKERY_BANK_ACCOUNT || 'Account: XXXXXXXXXX',
     }
 
-    const pdf = await generateInvoice({ order: orderWithItems as any, bakeryInfo })
+const pdf = await generateInvoicePDF({ order: orderWithItems as any, bakeryInfo })
     const pdfBuffer = Buffer.from(pdf.output('arraybuffer'))
 
    // Replace the existing invoiceNum line with this:
