@@ -151,9 +151,8 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
 
   // ✅ Auto-expand using Brisbane today + tomorrow
   useEffect(() => {
-  const today    = getBrisbaneToday()
   const tomorrow = getBrisbaneTomorrow()
-  setExpandedDays(new Set([today, tomorrow]))
+  setExpandedDays(new Set([tomorrow]))
 }, [orders])
 
   function toggleDay(date: string) {
