@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Package, FileDown, FileText, Calendar, DollarSign, ChevronDown, ChevronRight } from 'lucide-react'
+import { Package, FileDown, FileText, Calendar, ChevronDown, ChevronRight, X } from 'lucide-react'
 
 interface OrderItem {
   id: string
@@ -42,7 +42,6 @@ const DAY_COLORS: Record<string, string> = {
   '6': 'bg-orange-100 text-orange-800 border-orange-200',
 }
 
-// ── Brisbane = UTC+10, no DST, always ─────────────────────────────────────────
 function getBrisbaneToday(): string {
   const brisbane = new Date(Date.now() + 10 * 60 * 60 * 1000)
   return brisbane.toISOString().split('T')[0]
@@ -53,32 +52,40 @@ function getBrisbaneTomorrow(): string {
   brisbane.setUTCDate(brisbane.getUTCDate() + 1)
   return brisbane.toISOString().split('T')[0]
 }
+
 function getInitialWeekOffset(): number {
   const today    = getBrisbaneToday()
   const todayDay = new Date(today + 'T12:00:00Z').getUTCDay()
-  return todayDay === 0 ? 1 : 0  // Sunday = jump to next week
+  return todayDay === 0 ? 1 : 0
 }
+
 export default function OrdersView() {
   const supabase = createClient()
-  const [orders, setOrders]         = useState<Order[]>([])
-  const [stats, setStats]           = useState<Stats>({
+
+  const [orders, setOrders]             = useState<Order[]>([])
+  const [stats, setStats]               = useState<Stats>({
     totalOrders: 0, pendingOrders: 0, totalRevenue: 0, todayOrders: 0,
   })
-  const [loading, setLoading]       = useState(true)
+  const [loading, setLoading]           = useState(true)
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
-const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
+  const [weekOffset, setWeekOffset]     = useState(getInitialWeekOffset)
+  const [cancelling, setCancelling]     = useState<string | null>(null) // ✅ INSIDE component
+
   useEffect(() => {
     loadOrders()
     loadStats()
   }, [weekOffset])
 
-  // ── Week range using Brisbane date ────────────────────────────────────────
-  function getWeekRange(offset: number) {
-    const today    = getBrisbaneToday()
-    const d        = new Date(today + 'T12:00:00Z')
-    const dayOfWeek = d.getUTCDay() // 0=Sun, 1=Mon...
+  useEffect(() => {
+    const tomorrow = getBrisbaneTomorrow()
+    setExpandedDays(new Set([tomorrow]))
+  }, [orders])
 
-    // Start from Sunday of current Brisbane week
+  function getWeekRange(offset: number) {
+    const today     = getBrisbaneToday()
+    const d         = new Date(today + 'T12:00:00Z')
+    const dayOfWeek = d.getUTCDay()
+
     const startOfWeek = new Date(d)
     startOfWeek.setUTCDate(d.getUTCDate() - dayOfWeek + offset * 7)
 
@@ -93,7 +100,6 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
 
   async function loadOrders() {
     const { start, end } = getWeekRange(weekOffset)
-
     const { data } = await supabase
       .from('orders')
       .select('*, order_items (*)')
@@ -125,7 +131,6 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
       (sum, o) => sum + (o.total_amount || 0), 0
     ) || 0
 
-    // ✅ Brisbane today — not UTC
     const today = getBrisbaneToday()
     const { count: todayOrders } = await supabase
       .from('orders')
@@ -133,11 +138,34 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
       .eq('delivery_date', today)
 
     setStats({
-      totalOrders:  totalOrders  || 0,
+      totalOrders:   totalOrders   || 0,
       pendingOrders: pendingOrders || 0,
       totalRevenue,
-      todayOrders:  todayOrders  || 0,
+      todayOrders:   todayOrders   || 0,
     })
+  }
+
+  // ✅ Cancel order — sets status to cancelled via API
+  async function cancelOrder(orderId: string, customerName: string) {
+    if (!confirm(`Cancel order for ${customerName}? This cannot be undone.`)) return
+    setCancelling(orderId)
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to cancel order')
+      }
+      await loadOrders()
+      await loadStats()
+    } catch (err: any) {
+      alert(`Error: ${err.message}`)
+    } finally {
+      setCancelling(null)
+    }
   }
 
   const ordersByDate = orders.reduce<Record<string, Order[]>>((acc, order) => {
@@ -149,12 +177,6 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
 
   const sortedDates = Object.keys(ordersByDate).sort()
 
-  // ✅ Auto-expand using Brisbane today + tomorrow
-  useEffect(() => {
-  const tomorrow = getBrisbaneTomorrow()
-  setExpandedDays(new Set([tomorrow]))
-}, [orders])
-
   function toggleDay(date: string) {
     setExpandedDays(prev => {
       const next = new Set(prev)
@@ -164,7 +186,7 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
     })
   }
 
-  function expandAll()  { setExpandedDays(new Set(sortedDates)) }
+  function expandAll()   { setExpandedDays(new Set(sortedDates)) }
   function collapseAll() { setExpandedDays(new Set()) }
 
   const { start, end } = getWeekRange(weekOffset)
@@ -177,20 +199,17 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
     } catch { return dateStr }
   }
 
-  const formatWeekDate = (dateStr: string, opts: Intl.DateTimeFormatOptions) => {
-    return new Date(dateStr + 'T12:00:00Z').toLocaleDateString('en-AU', opts)
-  }
+  const formatWeekDate = (dateStr: string, opts: Intl.DateTimeFormatOptions) =>
+    new Date(dateStr + 'T12:00:00Z').toLocaleDateString('en-AU', opts)
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(amount)
 
   const getDayColor = (dateStr: string) => {
-    // ✅ Use T12:00:00Z to avoid day-shift
     const day = new Date(dateStr + 'T12:00:00Z').getUTCDay().toString()
     return DAY_COLORS[day] || 'bg-gray-100 text-gray-800 border-gray-200'
   }
 
-  // ✅ Compare against Brisbane today
   const isToday = (dateStr: string) => dateStr === getBrisbaneToday()
 
   const getStatusBadge = (status: string) => {
@@ -225,17 +244,13 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="bg-white rounded-lg shadow-md p-5 border-l-4"
-          style={{ borderColor: '#CE1126' }}>
+        <div className="bg-white rounded-lg shadow-md p-5 border-l-4" style={{ borderColor: '#CE1126' }}>
           <p className="text-sm text-gray-600">Total Orders</p>
           <p className="text-3xl font-bold">{stats.totalOrders}</p>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-5 border-l-4"
-          style={{ borderColor: '#006A4E' }}>
+        <div className="bg-white rounded-lg shadow-md p-5 border-l-4" style={{ borderColor: '#006A4E' }}>
           <p className="text-sm text-gray-600">Pending</p>
-          <p className="text-3xl font-bold" style={{ color: '#CE1126' }}>
-            {stats.pendingOrders}
-          </p>
+          <p className="text-3xl font-bold" style={{ color: '#CE1126' }}>{stats.pendingOrders}</p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-5 border-l-4 border-blue-500">
           <p className="text-sm text-gray-600">Delivering Today</p>
@@ -243,9 +258,7 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
         </div>
         <div className="bg-white rounded-lg shadow-md p-5 border-l-4 border-yellow-500">
           <p className="text-sm text-gray-600">Total Revenue</p>
-          <p className="text-2xl font-bold text-yellow-700">
-            {formatCurrency(stats.totalRevenue)}
-          </p>
+          <p className="text-2xl font-bold text-yellow-700">{formatCurrency(stats.totalRevenue)}</p>
         </div>
       </div>
 
@@ -267,7 +280,7 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
                  `Week of ${start}`}
               </p>
               <p className="text-xs text-gray-500">
-                {formatWeekDate(start, { day: 'numeric', month: 'short' })} —
+                {formatWeekDate(start, { day: 'numeric', month: 'short' })} —{' '}
                 {formatWeekDate(end,   { day: 'numeric', month: 'short', year: 'numeric' })}
               </p>
             </div>
@@ -287,16 +300,12 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
             )}
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={expandAll}
-              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border rounded"
-            >
+            <button onClick={expandAll}
+              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border rounded">
               Expand All
             </button>
-            <button
-              onClick={collapseAll}
-              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border rounded"
-            >
+            <button onClick={collapseAll}
+              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border rounded">
               Collapse All
             </button>
           </div>
@@ -367,7 +376,8 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {dayOrders.map(order => (
-                          <tr key={order.id} className="hover:bg-gray-50">
+                          <tr key={order.id}
+                            className={`hover:bg-gray-50 ${order.status === 'cancelled' ? 'opacity-50' : ''}`}>
                             <td className="px-4 py-3">
                               <p className="font-medium text-sm">
                                 {order.customer_business_name || '—'}
@@ -396,7 +406,7 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
                               {getStatusBadge(order.status)}
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex gap-1 justify-center">
+                              <div className="flex gap-1 justify-center flex-wrap">
                                 <a
                                   href={`/admin/orders/${order.id}/edit`}
                                   className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded bg-blue-600 text-white hover:bg-blue-700"
@@ -421,6 +431,21 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
                                 >
                                   <Package className="h-3 w-3" />Slip
                                 </a>
+
+                                {/* ✅ Cancel button — hidden if already cancelled or invoiced */}
+                                {order.status !== 'cancelled' && order.status !== 'invoiced' && (
+                                  <button
+                                    onClick={() => cancelOrder(
+                                      order.id,
+                                      order.customer_business_name || order.customer_email
+                                    )}
+                                    disabled={cancelling === order.id}
+                                    className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded bg-red-100 text-red-700 hover:bg-red-200 disabled:opacity-50"
+                                  >
+                                    <X className="h-3 w-3" />
+                                    {cancelling === order.id ? '...' : 'Cancel'}
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -432,8 +457,7 @@ const [weekOffset, setWeekOffset] = useState(getInitialWeekOffset)
                             className="px-4 py-2 text-sm font-semibold text-gray-600 text-right">
                             Day Total
                           </td>
-                          <td className="px-4 py-2 text-right font-bold"
-                            style={{ color: '#006A4E' }}>
+                          <td className="px-4 py-2 text-right font-bold" style={{ color: '#006A4E' }}>
                             {formatCurrency(dayTotal)}
                           </td>
                           <td colSpan={2} />
