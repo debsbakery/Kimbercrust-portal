@@ -488,10 +488,21 @@ export default function DirectInvoicePage() {
           console.error('Credit memo exception:', memoErr)
         }
       }
+      // ✅ Assign invoice number immediately
+      const invRes = await fetch('/api/admin/assign-invoice-number', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: newOrder.id }),
+      })
+      const invData = await invRes.json()
+      const invoiceNumber = invRes.ok
+        ? String(invData.invoiceNumber).padStart(6, '0')
+        : 'PENDING'
 
       alert(
-        `Invoice Created!\n\nOrder: ${newOrder.id.slice(0, 8)}\nSubtotal: ${fmt(subtotal)}\nGST: ${fmt(gstTotal)}\nTotal: ${fmt(grandTotal)}`
+        `Invoice Created!\n\nInvoice #: ${invoiceNumber}\nSubtotal: ${fmt(subtotal)}\nGST: ${fmt(gstTotal)}\nTotal: ${fmt(grandTotal)}`
       )
+     
       resetForm()
 
     } catch (err: any) {
