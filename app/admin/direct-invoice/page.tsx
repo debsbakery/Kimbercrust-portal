@@ -1,4 +1,5 @@
-﻿'use client'
+﻿
+'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -142,7 +143,10 @@ function SearchableSelect({
               <X className="h-3 w-3" />
             </span>
           )}
-          <ChevronDown className={['h-4 w-4 text-gray-400 transition-transform duration-150', open ? 'rotate-180' : ''].join(' ')} />
+          <ChevronDown className={[
+            'h-4 w-4 text-gray-400 transition-transform duration-150',
+            open ? 'rotate-180' : '',
+          ].join(' ')} />
         </span>
       </button>
 
@@ -154,7 +158,7 @@ function SearchableSelect({
               <input
                 ref={inputRef}
                 type="text"
-                value={query}
+                                value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Type to search..."
                 className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:border-green-600"
@@ -204,15 +208,15 @@ function SearchableSelect({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function DirectInvoicePage() {
-  const supabase = createClient()  // no await - client component
+  const supabase = createClient()
 
-  const [customers,       setCustomers]       = useState<Customer[]>([])
-  const [products,        setProducts]        = useState<Product[]>([])
-  const [lineItems,       setLineItems]        = useState<LineItem[]>([])
-  const [loading,         setLoading]          = useState(false)
-  const [error,           setError]            = useState<string | null>(null)
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [formData,        setFormData]         = useState({
+  const [customers,        setCustomers]        = useState<Customer[]>([])
+  const [products,         setProducts]         = useState<Product[]>([])
+  const [lineItems,        setLineItems]         = useState<LineItem[]>([])
+  const [loading,          setLoading]           = useState(false)
+  const [error,            setError]             = useState<string | null>(null)
+  const [selectedCustomer, setSelectedCustomer]  = useState<Customer | null>(null)
+  const [formData,         setFormData]          = useState({
     customerId:          '',
     deliveryDate:        new Date().toISOString().split('T')[0],
     purchaseOrderNumber: '',
@@ -248,9 +252,9 @@ export default function DirectInvoicePage() {
     return {
       value:    p.id,
       label:    is900 ? 'Manual Adjustment' : p.name,
-      badge:    code,
+      badge:    String(code),
       sublabel: is900
-        ? 'Enter custom amount - No GST'
+        ? 'Enter custom description + amount'
         : `$${(p.unit_price || p.price || 0).toFixed(2)} | ${p.gst_applicable ? 'GST' : 'No GST'}`,
     }
   })
@@ -265,17 +269,17 @@ export default function DirectInvoicePage() {
 
   function addLineItem(isCredit = false) {
     setLineItems(prev => [...prev, {
-      id:           Math.random().toString(36).slice(2),
-      productId:    '',
-      productName:  '',
-      productCode:  '',
-      quantity:     1,
-      unitPrice:    0,
+      id:            Math.random().toString(36).slice(2),
+      productId:     '',
+      productName:   '',
+      productCode:   '',
+      quantity:      1,
+      unitPrice:     0,
       gstApplicable: true,
       isCredit,
       creditPercent: 100,
-      creditType:   'product_credit',
-      isCustom:     false,
+      creditType:    'product_credit',
+      isCustom:      false,
     }])
   }
 
@@ -283,18 +287,25 @@ export default function DirectInvoicePage() {
     setLineItems(prev => prev.map(item => {
       if (item.id !== id) return item
       if (field === 'productId') {
-        if (!value) return { ...item, productId: '', productName: '', productCode: '', unitPrice: 0, isCustom: false }
+        if (!value) return {
+          ...item,
+          productId:   '',
+          productName: '',
+          productCode: '',
+          unitPrice:   0,
+          isCustom:    false,
+        }
         const p = products.find(p => p.id === value)
         if (!p) return item
         const is900 = p.code === '900' || p.product_code === 900
         return {
           ...item,
-          productId:    p.id,
-          productName:  is900 ? '' : p.name,
-          productCode:  p.code || p.product_number || p.product_code?.toString() || '',
-          unitPrice:    is900 ? 0 : (p.unit_price || p.price || 0),
+          productId:     p.id,
+          productName:   is900 ? '' : p.name,
+          productCode:   p.code || p.product_number || p.product_code?.toString() || '',
+          unitPrice:     is900 ? 0 : (p.unit_price || p.price || 0),
           gstApplicable: is900 ? false : (p.gst_applicable ?? true),
-          isCustom:     is900,
+          isCustom:      is900,
         }
       }
       return { ...item, [field]: value }
@@ -348,8 +359,10 @@ export default function DirectInvoicePage() {
     setError(null)
 
     try {
-      if (!formData.customerId)  throw new Error('Please select a customer')
-      if (!lineItems.length)     throw new Error('Please add at least one line item')
+      if (!formData.customerId)
+        throw new Error('Please select a customer')
+      if (!lineItems.length)
+        throw new Error('Please add at least one line item')
       if (lineItems.some(i => !i.productId || i.quantity <= 0))
         throw new Error('Please complete all line items')
       if (lineItems.some(i => i.isCustom && !i.productName.trim()))
@@ -361,38 +374,36 @@ export default function DirectInvoicePage() {
         ...lineItems.filter(i => i.productCode !== '900'),
       ]
 
-      // Create order
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert({
-          customer_id:             formData.customerId,
-          customer_email:          customer.email,
-          customer_business_name:  customer.business_name,
-          customer_address:        customer.address,
-          customer_abn:            customer.abn,
-          delivery_date:           formData.deliveryDate,
-          total_amount:            grandTotal,
-          status:                  'invoiced',
-          source:                  'direct_invoice',
-          notes:                   formData.notes               || null,
-          purchase_order_number:   formData.purchaseOrderNumber || null,
-          docket_number:           formData.docketNumber        || null,
+          customer_id:            formData.customerId,
+          customer_email:         customer.email,
+          customer_business_name: customer.business_name,
+          customer_address:       customer.address,
+          customer_abn:           customer.abn,
+          delivery_date:          formData.deliveryDate,
+          total_amount:           grandTotal,
+          status:                 'invoiced',
+          source:                 'direct_invoice',
+          notes:                  formData.notes               || null,
+          purchase_order_number:  formData.purchaseOrderNumber || null,
+          docket_number:          formData.docketNumber        || null,
         })
         .select()
         .single()
 
       if (orderError) throw new Error(`Order creation failed: ${orderError.message}`)
 
-      // Create order items
       const { error: itemsError } = await supabase
         .from('order_items')
         .insert(sortedItems.map(item => ({
-          order_id:     newOrder.id,
-          product_id:   item.productId,
-          product_name: item.productName,
-          quantity:     item.isCredit ? -item.quantity : item.quantity,
-          unit_price:   item.unitPrice,
-          subtotal:     lineSubtotal(item),
+          order_id:       newOrder.id,
+          product_id:     item.productId,
+          product_name:   item.productName,
+          quantity:       item.isCredit ? -item.quantity : item.quantity,
+          unit_price:     item.unitPrice,
+          subtotal:       lineSubtotal(item),
           gst_applicable: item.gstApplicable,
         })))
 
@@ -401,7 +412,6 @@ export default function DirectInvoicePage() {
         throw new Error(`Order items failed: ${itemsError.message}`)
       }
 
-      // AR transaction
       const paymentTerms = customer.payment_terms || 30
       const dueDate      = new Date(formData.deliveryDate)
       dueDate.setDate(dueDate.getDate() + paymentTerms)
@@ -420,13 +430,11 @@ export default function DirectInvoicePage() {
 
       if (arError) throw new Error(`AR transaction failed: ${arError.message}`)
 
-      // Update customer balance
       await supabase
         .from('customers')
         .update({ balance: (customer.balance || 0) + grandTotal })
         .eq('id', formData.customerId)
 
-      // Credit memo if needed
       if (hasCredits) {
         try {
           const creditLines    = lineItems.filter(i => i.isCredit)
@@ -438,19 +446,19 @@ export default function DirectInvoicePage() {
           const { data: memo, error: memoError } = await supabase
             .from('credit_memos')
             .insert({
-              customer_id:         formData.customerId,
-              reference_order_id:  newOrder.id,
-              credit_type:         allStale ? 'stale_return' : 'product_credit',
-              credit_number:       `CM-${Date.now().toString().slice(-6)}`,
-              credit_date:         formData.deliveryDate,
-              status:              'issued',
-              notes:               formData.notes || null,
-              reason:              'Direct invoice',
-              applied_amount:      0,
-              subtotal:            creditSubtotal,
-              gst_amount:          creditGst,
-              total_amount:        creditTotal,
-              amount:              Math.abs(creditTotal),
+              customer_id:        formData.customerId,
+              reference_order_id: newOrder.id,
+              credit_type:        allStale ? 'stale_return' : 'product_credit',
+              credit_number:      `CM-${Date.now().toString().slice(-6)}`,
+              credit_date:        formData.deliveryDate,
+              status:             'issued',
+              notes:              formData.notes || null,
+              reason:             'Direct invoice',
+              applied_amount:     0,
+              subtotal:           creditSubtotal,
+              gst_amount:         creditGst,
+              total_amount:       creditTotal,
+              amount:             Math.abs(creditTotal),
             })
             .select()
             .single()
@@ -498,7 +506,6 @@ export default function DirectInvoicePage() {
   return (
     <div className="p-8 max-w-5xl mx-auto">
 
-      {/* Header */}
       <a
         href="/admin"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
@@ -655,7 +662,7 @@ export default function DirectInvoicePage() {
                     </span>
                   </div>
 
-                  {/* Product select */}
+                  {/* Product select + custom fields */}
                   <div className="col-span-4">
                     <SearchableSelect
                       options={productOptions}
@@ -663,14 +670,33 @@ export default function DirectInvoicePage() {
                       onChange={val => updateLineItem(item.id, 'productId', val)}
                       placeholder="Select product..."
                     />
+                    {/* ✅ Custom description + GST toggle for code 900 */}
                     {item.isCustom && (
-                      <input
-                        type="text"
-                        placeholder="Enter description..."
-                        value={item.productName}
-                        onChange={e => updateLineItem(item.id, 'productName', e.target.value)}
-                        className="w-full border rounded px-2 py-1 text-sm mt-1 border-orange-300 focus:outline-none"
-                      />
+                      <div className="space-y-1 mt-1">
+                        <input
+                          type="text"
+                          placeholder="Enter description..."
+                          value={item.productName}
+                          onChange={e => updateLineItem(item.id, 'productName', e.target.value)}
+                          className="w-full border rounded px-2 py-1 text-sm border-orange-300 focus:outline-none focus:border-green-600"
+                        />
+                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={item.gstApplicable}
+                            onChange={e => updateLineItem(item.id, 'gstApplicable', e.target.checked)}
+                            className="rounded"
+                          />
+                          <span className="text-xs text-gray-600 font-medium">
+                            GST applicable (10%)
+                          </span>
+                          {item.gstApplicable && item.unitPrice > 0 && (
+                            <span className="text-xs text-green-700 bg-green-50 px-1.5 py-0.5 rounded font-mono">
+                              +{fmt(item.quantity * item.unitPrice * 0.1)} GST
+                            </span>
+                          )}
+                        </label>
+                      </div>
                     )}
                   </div>
 
@@ -743,7 +769,7 @@ export default function DirectInvoicePage() {
                   <div className="col-span-1 flex justify-center pt-1.5">
                     <button
                       type="button"
-                                      onClick={() => removeLineItem(item.id)}
+                      onClick={() => removeLineItem(item.id)}
                       className="text-gray-400 hover:text-red-500"
                     >
                       <Trash2 className="h-4 w-4" />
