@@ -322,20 +322,20 @@ export default function RecipeBuilder({ recipe, lines: initialLines, allIngredie
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">Quantity (grams)</label>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={newLine.quantity_grams}
-              onChange={(e) => setNewLine({ ...newLine, quantity_grams: e.target.value })}
-              placeholder="e.g. 25000"
-              className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
-            />
-          </div>
-        </div>
+         <div>
+  <label className="block text-xs font-medium text-gray-600 mb-1">Quantity (grams)</label>
+  <input
+    type="number"
+    min="1"
+    step="1"
+    defaultValue={newLine.quantity_grams}
+    onChange={(e) => setNewLine({ ...newLine, quantity_grams: e.target.value })}
+    placeholder="e.g. 25000"
+    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+    required
+    key={newLine.type}
+  />
+</div>
 
         <button
           type="submit"
