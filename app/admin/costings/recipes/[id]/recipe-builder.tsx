@@ -14,6 +14,7 @@ interface Recipe {
   id: string
   product_id: string | null
   base_ingredient_id: string | null
+  name: string | null
   products?: {
     id: string
     name: string
@@ -36,9 +37,7 @@ interface RecipeLine {
   } | null
   sub_recipes?: {
     id: string
-    products?: {
-      name: string
-    } | null
+    products?: { name: string } | null
   } | null
 }
 
@@ -58,7 +57,9 @@ export default function RecipeBuilder({
   const router = useRouter()
   const [lines, setLines] = useState<RecipeLine[]>(initialLines)
   const [baseIngredientId, setBaseIngredientId] = useState(recipe.base_ingredient_id || '')
+  const [recipeName, setRecipeName] = useState(recipe.name || '')
   const [savingBase, setSavingBase] = useState(false)
+  const [savingName, setSavingName] = useState(false)
   const [newLine, setNewLine] = useState({
     type: 'ingredient' as 'ingredient' | 'sub_recipe',
     ingredient_id: '',
@@ -68,6 +69,20 @@ export default function RecipeBuilder({
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
 
+  // ── Is this a base recipe (no product linked)? ────────────────────
+  const isBaseRecipe = !recipe.product_id
+
+  async function saveName() {
+    setSavingName(true)
+    await fetch(`/api/admin/recipes/${recipe.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: recipeName || null }),
+    })
+    setSavingName(false)
+    window.location.reload()
+  }
+
   async function saveBaseIngredient() {
     setSavingBase(true)
     await fetch(`/api/admin/recipes/${recipe.id}`, {
@@ -76,7 +91,7 @@ export default function RecipeBuilder({
       body: JSON.stringify({ base_ingredient_id: baseIngredientId || null }),
     })
     setSavingBase(false)
-    router.refresh()
+    window.location.reload()
   }
 
   async function addLine(e: React.FormEvent) {
@@ -106,12 +121,12 @@ export default function RecipeBuilder({
 
     setAdding(false)
 
- if (res.ok) {
-  setNewLine({ type: 'ingredient', ingredient_id: '', sub_recipe_id: '', quantity_grams: '' })
-  window.location.reload()  // ← change router.refresh() to this
-} else {
-  alert('Failed to add line')
-}
+    if (res.ok) {
+      setNewLine({ type: 'ingredient', ingredient_id: '', sub_recipe_id: '', quantity_grams: '' })
+      window.location.reload()
+    } else {
+      alert('Failed to add line')
+    }
   }
 
   async function deleteLine(lineId: string) {
@@ -123,8 +138,7 @@ export default function RecipeBuilder({
       body: JSON.stringify({ line_id: lineId }),
     })
     setDeleting(null)
-// router.refresh()
-window.location.reload()
+    window.location.reload()
   }
 
   const totalWeight = lines.reduce((sum, line) => {
@@ -153,22 +167,51 @@ window.location.reload()
         </button>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
-            {recipe.products?.name || 'Base Recipe'}
+            {recipe.name || recipe.products?.name || 'Unnamed Recipe'}
           </h1>
           {recipe.products?.code && (
             <p className="text-sm text-gray-400 font-mono">#{recipe.products.code}</p>
           )}
+          {isBaseRecipe && (
+            <span className="inline-block mt-1 text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-medium">
+              Base Recipe
+            </span>
+          )}
         </div>
       </div>
 
-      {/* ── Base Ingredient Selector ──────────────────────────────── */}
+      {/* ── Recipe Name (base recipes only) ──────────────────────── */}
+      {isBaseRecipe && (
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <h2 className="text-base font-semibold text-gray-800 mb-3">Recipe Name</h2>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={recipeName}
+              onChange={(e) => setRecipeName(e.target.value)}
+              placeholder="e.g. White Dough, Sourdough Base..."
+              className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <button
+              onClick={saveName}
+              disabled={savingName}
+              className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition"
+            >
+              {savingName ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Base Ingredient Selector (optional) ──────────────────── */}
       <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <h2 className="text-base font-semibold text-gray-800 mb-3">
-          Base Ingredient (for scaling)
+        <h2 className="text-base font-semibold text-gray-800 mb-1">
+          Scaling Ingredient
+          <span className="ml-2 text-xs font-normal text-gray-400">(optional)</span>
         </h2>
         <p className="text-xs text-gray-500 mb-3">
-          Select the flour or main ingredient used as the scaling reference
-          when printing recipes at different weights.
+          Choose which ingredient to scale from when printing this recipe at a different weight.
+          e.g. "print for 10kg flour" or "print for 500g salt".
         </p>
         <div className="flex gap-3">
           <select
@@ -176,7 +219,7 @@ window.location.reload()
             onChange={(e) => setBaseIngredientId(e.target.value)}
             className="flex-1 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            <option value="">— Select base ingredient —</option>
+            <option value="">— None selected —</option>
             {allIngredients.map((ing) => (
               <option key={ing.id} value={ing.id}>
                 {ing.name}
@@ -196,7 +239,7 @@ window.location.reload()
       {/* ── Recipe Lines Table ────────────────────────────────────── */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <h2 className="text-base font-semibold text-gray-800">Recipe Lines</h2>
+          <h2 className="text-base font-semibold text-gray-800">Ingredients</h2>
         </div>
 
         {lines.length === 0 ? (
@@ -287,7 +330,6 @@ window.location.reload()
           Add Ingredient or Sub-Recipe
         </h2>
 
-        {/* Radio buttons — their own div, closed before grid */}
         <div className="flex gap-4">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -309,13 +351,10 @@ window.location.reload()
           </label>
         </div>
 
-        {/* Grid — separate div, after radio buttons div is closed */}
         <div className="grid grid-cols-2 gap-4">
           {newLine.type === 'ingredient' ? (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Ingredient
-              </label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Ingredient</label>
               <select
                 value={newLine.ingredient_id}
                 onChange={(e) => setNewLine({ ...newLine, ingredient_id: e.target.value })}
@@ -332,9 +371,7 @@ window.location.reload()
             </div>
           ) : (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Sub-Recipe
-              </label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Sub-Recipe</label>
               <select
                 value={newLine.sub_recipe_id}
                 onChange={(e) => setNewLine({ ...newLine, sub_recipe_id: e.target.value })}
@@ -344,7 +381,7 @@ window.location.reload()
                 <option value="">— Select recipe —</option>
                 {allRecipes.map((r) => (
                   <option key={r.id} value={r.id}>
-                    {r.products?.name || 'Base Recipe'}
+                    {r.name || r.products?.name || 'Unnamed Base Recipe'}
                   </option>
                 ))}
               </select>
@@ -369,7 +406,6 @@ window.location.reload()
           </div>
         </div>
 
-        {/* Submit button — outside grid, inside form */}
         <button
           type="submit"
           disabled={adding}
