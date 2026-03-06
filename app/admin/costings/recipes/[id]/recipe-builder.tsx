@@ -107,11 +107,12 @@ export default function RecipeBuilder({
     setAdding(false)
 
     if (res.ok) {
-      setNewLine({ type: 'ingredient', ingredient_id: '', sub_recipe_id: '', quantity_grams: '' })
-      router.refresh()
-    } else {
-      alert('Failed to add line')
-    }
+  setNewLine({ type: 'ingredient', ingredient_id: '', sub_recipe_id: '', quantity_grams: '' })
+  // router.refresh()  ← doesn't work reliably
+  window.location.reload()  // ← force full reload
+} else {
+  alert('Failed to add line')
+}
   }
 
   async function deleteLine(lineId: string) {
@@ -123,7 +124,8 @@ export default function RecipeBuilder({
       body: JSON.stringify({ line_id: lineId }),
     })
     setDeleting(null)
-    router.refresh()
+// router.refresh()
+window.location.reload()
   }
 
   const totalWeight = lines.reduce((sum, line) => {
