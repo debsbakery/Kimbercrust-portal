@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/service'
+
 export async function POST(req: NextRequest) {
   const { customerId } = await req.json()
 
@@ -7,8 +8,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing customerId' }, { status: 400 })
   }
 
+  // ✅ This line was missing entirely!
+  const supabase = createServiceClient()
 
-  // Fetch customer — correct column name is business_name not name
+  // Fetch customer
   const { data: customer, error: fetchError } = await supabase
     .from('customers')
     .select('id, business_name, email, portal_access')
