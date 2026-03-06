@@ -56,7 +56,7 @@ export default async function RecipeBuilderPage({ params }: { params: { id: stri
       )
     `)
     .neq('id', params.id)
-    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
 
   return (
     <RecipeBuilder
@@ -67,4 +67,5 @@ export default async function RecipeBuilderPage({ params }: { params: { id: stri
     />
   )
 }
+
 
