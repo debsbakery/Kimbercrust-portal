@@ -58,14 +58,16 @@ export default function WeeklyReportView({ weeks, topProducts, thisWeekStart }: 
   const maxRevenue = Math.max(...weeks.map(w => w.revenue))
 
   // ── Profit estimate ───────────────────────────────────────────
-  const wages        = parseFloat(actualWages[current?.week_start] || '0') || 0
-  const estIngred    = current ? current.revenue * 0.30 : 0
-  const estOverhead  = current ? current.revenue * 0.30 : 0
-  const totalCosts   = estIngred + wages + estOverhead
-  const estProfit    = current ? current.revenue - totalCosts : 0
-  const estMargin    = current && current.revenue > 0
-    ? (estProfit / current.revenue) * 100
-    : 0
+ const wages       = parseFloat(actualWages[current?.week_start] || '0') || 0
+const estIngred   = current.revenue * 0.30  // 30% until recipes done
+const estOverhead = current.revenue * 0.30  // 30% long term avg
+const labourCost  = wagesEntered 
+  ? wages                        // use actual wages
+  : current.revenue * 0.30       // or 30% estimate
+
+const totalCosts  = estIngred + labourCost + estOverhead
+const estProfit   = current.revenue - totalCosts
+const estMargin   = (estProfit / current.revenue) * 100
   const wagesEntered = wages > 0
 
   return (
