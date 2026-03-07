@@ -129,7 +129,11 @@ const [activeTab, setActiveTab] = useState<Tab>('orders')
                 style={{ backgroundColor: '#1f2937' }}>
                 <DollarSign className="h-4 w-4" />AR Dashboard
               </a>
-
+<a href="/admin/reports/weekly"
+  className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
+  style={{ backgroundColor: '#7c3aed' }}>
+  <BarChart3 className="h-4 w-4" />Weekly Report
+</a>
               <a href="/admin/payments/record"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#16a34a' }}>
