@@ -12,14 +12,9 @@ const limit  = pLimit(3)
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createAdminClient() // ← admin, no await
+    const supabase = createAdminClient()
 
-    // Accept optional params from body — falls back to last month
     const body = await request.json().catch(() => ({}))
-
-    // If specific customerIds passed, use those
-    // If balanceOnly = true, only customers with balance > 0
-    // Default: last complete month
     const { customerIds, balanceOnly = true } = body
 
     const now       = new Date()
@@ -35,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     const monthLabel = lastMonth.toLocaleString('en-AU', {
       month: 'long',
-      year: 'numeric',
+      year:  'numeric',
     })
 
     // ── Fetch customers ───────────────────────────────────────
@@ -44,12 +39,10 @@ export async function POST(request: NextRequest) {
       .select('id, email, business_name, contact_name, balance, address, payment_terms')
       .not('email', 'is', null)
 
-    // Filter by balance if requested
     if (balanceOnly) {
       query = query.gt('balance', 0)
     }
 
-    // Filter to specific customers if provided
     if (customerIds && customerIds.length > 0) {
       query = query.in('id', customerIds)
     }
@@ -63,59 +56,69 @@ export async function POST(request: NextRequest) {
     if (!customers || customers.length === 0) {
       return NextResponse.json({
         success: true,
-        sent: 0,
-        failed: 0,
-        total: 0,
+        sent:    0,
+        failed:  0,
+        total:   0,
         message: 'No customers to send statements to',
       })
     }
 
     const allCustomerIds = customers.map(c => c.id)
 
-    // ── Batch fetch AR transactions — 2 queries total ─────────
-    const [{ data: periodTx }, { data: priorTx }] = await Promise.all([
-      // Transactions within the statement period
+    // ── Batch fetch AR transactions — 2 queries ───────────────
+    // Column names: type (not transaction_type), invoice_id (not order_id)
+    const [{ data: periodTxRaw }, { data: priorTxRaw }] = await Promise.all([
       supabase
         .from('ar_transactions')
-        .select('id, transaction_type, amount, description, created_at, order_id, customer_id')
+        .select('id, type, amount, amount_paid, description, created_at, invoice_id, customer_id')
         .in('customer_id', allCustomerIds)
         .gte('created_at', startDate)
         .lte('created_at', endDate + 'T23:59:59')
         .order('created_at', { ascending: true }),
 
-      // Prior transactions for opening balance
       supabase
         .from('ar_transactions')
-        .select('amount, transaction_type, customer_id')
+        .select('amount, type, customer_id')
         .in('customer_id', allCustomerIds)
         .lt('created_at', startDate),
     ])
 
-    // ── Batch fetch invoice numbers ───────────────────────────
-    const allOrderIds = [
-      ...new Set((periodTx ?? []).filter(t => t.order_id).map(t => t.order_id))
+    // Always arrays — never null
+    const periodTx = periodTxRaw ?? []
+    const priorTx  = priorTxRaw  ?? []
+
+    // ── Batch fetch invoice numbers via invoice_id ────────────
+    // invoice_id on ar_transactions links to invoice_numbers.id
+    const allInvoiceIds = [
+      ...new Set(
+        periodTx
+          .filter(t => t.invoice_id)
+          .map(t => t.invoice_id as string)
+      )
     ]
 
     let invoiceMap: Record<string, string> = {}
-    if (allOrderIds.length > 0) {
+
+    if (allInvoiceIds.length > 0) {
       const { data: invNums } = await supabase
         .from('invoice_numbers')
-        .select('order_id, invoice_number')
-        .in('order_id', allOrderIds)
-      invoiceMap = Object.fromEntries(
-        (invNums ?? []).map(i => [i.order_id, i.invoice_number])
-      )
+        .select('id, invoice_number')
+        .in('id', allInvoiceIds)
+
+      for (const inv of invNums ?? []) {
+        invoiceMap[inv.id] = inv.invoice_number
+      }
     }
 
-    // ── Group by customer for O(1) lookup ─────────────────────
-    const txByCustomer    = groupBy(periodTx ?? [], 'customer_id')
-    const priorByCustomer = groupBy(priorTx  ?? [], 'customer_id')
+    // ── Group by customer_id for O(1) lookup ──────────────────
+    const txByCustomer    = groupBy(periodTx, 'customer_id')
+    const priorByCustomer = groupBy(priorTx,  'customer_id')
 
     let sent   = 0
     let failed = 0
     const errors: string[] = []
 
-    // ── Process each customer concurrently (max 3 at a time) ──
+    // ── Process each customer concurrently (max 3 at once) ────
     await Promise.all(
       customers.map(customer =>
         limit(async () => {
@@ -123,51 +126,51 @@ export async function POST(request: NextRequest) {
             const transactions = txByCustomer[customer.id]    ?? []
             const prior        = priorByCustomer[customer.id] ?? []
 
-            // Calculate opening balance from prior AR transactions
+            // Opening balance from all AR before period
             const openingBalance = prior.reduce((sum, tx) => {
-              const isCredit =
-                tx.transaction_type === 'payment' ||
-                tx.transaction_type === 'credit'
-              return sum + (isCredit ? -tx.amount : tx.amount)
+              const isCredit = tx.type === 'payment' || tx.type === 'credit'
+              return sum + (isCredit ? -Number(tx.amount) : Number(tx.amount))
             }, 0)
 
             // Build statement lines with running balance
             let runningBalance = openingBalance
+
             const lines = transactions.map(tx => {
-              const isCredit =
-                tx.transaction_type === 'payment' ||
-                tx.transaction_type === 'credit'
+              const isCredit = tx.type === 'payment' || tx.type === 'credit'
 
               runningBalance = isCredit
-                ? runningBalance - tx.amount
-                : runningBalance + tx.amount
+                ? runningBalance - Number(tx.amount)
+                : runningBalance + Number(tx.amount)
 
-              const invoiceNum = tx.order_id ? invoiceMap[tx.order_id] : null
-              const reference  = invoiceNum
+              const invoiceNum = tx.invoice_id
+                ? invoiceMap[tx.invoice_id]
+                : null
+
+              const reference = invoiceNum
                 ? `INV-${String(invoiceNum).padStart(4, '0')}`
-                : tx.transaction_type.toUpperCase()
+                : String(tx.type ?? '').toUpperCase()
 
               return {
-                date: tx.created_at,
-                description: isCredit
-                  ? tx.transaction_type === 'credit'
-                    ? 'Credit note'
-                    : 'Payment received - thank you'
-                  : reference,
+                date:             tx.created_at,
+                description:      isCredit
+                  ? (tx.type === 'credit'
+                      ? 'Credit note'
+                      : 'Payment received - thank you')
+                  : (tx.description || reference),
                 reference,
-                debit:            isCredit ? null : tx.amount,
-                credit:           isCredit ? tx.amount : null,
+                debit:            isCredit ? null : Number(tx.amount),
+                credit:           isCredit ? Number(tx.amount) : null,
                 balance:          Math.round(runningBalance * 100) / 100,
-                transaction_type: tx.transaction_type,
+                transaction_type: tx.type,
               }
             })
 
-            // Generate PDF with new signature
+            // Generate PDF
             const pdfBuffer = await generateStatementPDF({
               customer,
               lines,
-              openingBalance:  Math.round(openingBalance  * 100) / 100,
-              closingBalance:  Math.round(runningBalance  * 100) / 100,
+              openingBalance: Math.round(openingBalance  * 100) / 100,
+              closingBalance: Math.round(runningBalance  * 100) / 100,
               startDate,
               endDate,
             })
@@ -259,8 +262,8 @@ function groupBy<T extends Record<string, any>>(
   key: string
 ): Record<string, T[]> {
   return arr.reduce((acc, item) => {
-    const g   = item[key]
-    acc[g]    = acc[g] ?? []
+    const g = item[key]
+    acc[g]  = acc[g] ?? []
     acc[g].push(item)
     return acc
   }, {} as Record<string, T[]>)
