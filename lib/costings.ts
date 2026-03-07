@@ -23,13 +23,13 @@ export interface IngredientLine {
   is_sub_recipe: boolean
 }
 
-// ── Recursively calculate cost per gram for a recipe ─────────────
+// ── Recursively calculate cost per gram for a recipe ──────────────
 export async function calcCostPerGram(
   supabase: ReturnType<typeof createAdminClient>,
   recipeId: string,
   depth = 0
 ): Promise<number> {
-  if (depth > 3) return 0 // prevent infinite recursion
+  if (depth > 3) return 0
 
   const { data: lines } = await supabase
     .from('recipe_lines')
@@ -44,7 +44,7 @@ export async function calcCostPerGram(
 
   if (!lines || lines.length === 0) return 0
 
-  let totalCost = 0
+  let totalCost   = 0
   let totalWeight = 0
 
   for (const line of lines) {
@@ -93,24 +93,26 @@ export async function flattenIngredients(
       const ing = line.ingredients as any
       const qty = Number(line.quantity_grams ?? 0) * scaleFactor
       result.push({
-        name: ing.name,
+        name:           ing.name,
         quantity_grams: qty,
-        cost: (qty / 1000) * Number(ing.unit_cost ?? 0),
-        is_sub_recipe: false,
+        cost:           (qty / 1000) * Number(ing.unit_cost ?? 0),
+        is_sub_recipe:  false,
       })
     } else if (line.sub_recipe_id) {
-      // Recursively flatten sub-recipe
       const subQty = Number(line.sub_qty_grams ?? 0)
-      // We need total weight of sub-recipe to calculate scale factor
+
       const { data: subLines } = await supabase
         .from('recipe_lines')
         .select('quantity_grams, sub_qty_grams')
         .eq('recipe_id', line.sub_recipe_id)
-      
-      const subTotalWeight = (subLines ?? []).reduce((s, l) => 
+
+      const subTotalWeight = (subLines ?? []).reduce((s, l) =>
         s + Number(l.quantity_grams ?? l.sub_qty_grams ?? 0), 0)
-      
-      const subScale = subTotalWeight > 0 ? (subQty / subTotalWeight) * scaleFactor : 0
+
+      const subScale = subTotalWeight > 0
+        ? (subQty / subTotalWeight) * scaleFactor
+        : 0
+
       const subIngredients = await flattenIngredients(
         supabase, line.sub_recipe_id, subScale, depth + 1
       )
@@ -131,7 +133,9 @@ export async function calcProductCosting(
 ): Promise<ProductCosting> {
   const salePrice   = Number(product.price ?? 0)
   const weightGrams = product.weight_grams ? Number(product.weight_grams) : null
-  const labourPct   = product.labour_pct != null ? Number(product.labour_pct) : globalLabourPct
+  const labourPct   = product.labour_pct != null
+    ? Number(product.labour_pct)
+    : globalLabourPct
 
   let ingredientCost: number | null = null
   let ingredientLines: IngredientLine[] = []
@@ -142,30 +146,43 @@ export async function calcProductCosting(
       ? weightGrams * costPerGram
       : null
 
-    // Flatten ingredients for detail view
     if (weightGrams) {
       const { data: subLines } = await supabase
         .from('recipe_lines')
         .select('quantity_grams, sub_qty_grams')
         .eq('recipe_id', recipe.id)
-      
+
       const recipeTotalWeight = (subLines ?? []).reduce((s: number, l: any) =>
         s + Number(l.quantity_grams ?? l.sub_qty_grams ?? 0), 0)
-      
-      const scaleFactor = recipeTotalWeight > 0 ? weightGrams / recipeTotalWeight : 0
+
+      const scaleFactor = recipeTotalWeight > 0
+        ? weightGrams / recipeTotalWeight
+        : 0
+
       ingredientLines = await flattenIngredients(supabase, recipe.id, scaleFactor)
     }
   }
 
-  const labourCost   = salePrice > 0 ? salePrice * labourPct / 100 : null
-  const overheadCost = weightGrams != null ? (weightGrams / 1000) * overheadPerKg : null
+  // ✅ Labour + overhead calculate independently — no recipe needed
+  const labourCost   = salePrice > 0
+    ? salePrice * labourPct / 100
+    : null
 
-  const totalCost =
-    ingredientCost != null && labourCost != null && overheadCost != null
-      ? ingredientCost + labourCost + overheadCost
-      : null
+  const overheadCost = weightGrams != null
+    ? (weightGrams / 1000) * overheadPerKg
+    : null
 
-  const netProfit = totalCost != null ? salePrice - totalCost : null
+  // ✅ Total shows if labour + overhead available
+  // Ingredient cost treated as 0 if no recipe yet
+  const canCalcTotal = labourCost != null && overheadCost != null
+  const totalCost    = canCalcTotal
+    ? (ingredientCost ?? 0) + labourCost + overheadCost
+    : null
+
+  const netProfit = totalCost != null
+    ? salePrice - totalCost
+    : null
+
   const marginPct = totalCost != null && salePrice > 0
     ? ((salePrice - totalCost) / salePrice) * 100
     : null
