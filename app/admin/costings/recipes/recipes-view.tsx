@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Search } from 'lucide-react'
 
 interface Recipe {
   id: string
@@ -31,6 +31,8 @@ export default function RecipesView({ recipes: initial, availableProducts }: Pro
   const router = useRouter()
   const [recipes, setRecipes] = useState<Recipe[]>(initial)
   const [showNewForm, setShowNewForm] = useState(false)
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'all' | 'base' | 'product'>('all')
   const [newRecipe, setNewRecipe] = useState({
     product_id: '',
     is_base: false,
@@ -38,6 +40,20 @@ export default function RecipesView({ recipes: initial, availableProducts }: Pro
   const [creating, setCreating] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // ── Filter logic ──────────────────────────────────────────────────
+  const filteredRecipes = recipes.filter((r) => {
+    const name = r.name || r.products?.name || ''
+    const code = r.products?.code || ''
+    const matchesSearch =
+      name.toLowerCase().includes(search.toLowerCase()) ||
+      code.toLowerCase().includes(search.toLowerCase())
+    const matchesType =
+      typeFilter === 'all' ? true :
+      typeFilter === 'base' ? !r.product_id :
+      !!r.product_id
+    return matchesSearch && matchesType
+  })
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -91,11 +107,13 @@ export default function RecipesView({ recipes: initial, availableProducts }: Pro
   return (
     <div className="space-y-6 max-w-5xl">
 
+      {/* ── Header ───────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Recipes</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {recipes.length} recipe{recipes.length !== 1 ? 's' : ''}
+            {recipes.length} recipe{recipes.length !== 1 ? 's' : ''} —
+            ingredient formulas for products
           </p>
         </div>
         <button
@@ -106,6 +124,7 @@ export default function RecipesView({ recipes: initial, availableProducts }: Pro
         </button>
       </div>
 
+      {/* ── New Recipe Form ───────────────────────────────────────── */}
       {showNewForm && (
         <form
           onSubmit={handleCreate}
@@ -118,7 +137,9 @@ export default function RecipesView({ recipes: initial, availableProducts }: Pro
               type="checkbox"
               id="is_base"
               checked={newRecipe.is_base}
-              onChange={(e) => setNewRecipe({ ...newRecipe, is_base: e.target.checked, product_id: '' })}
+              onChange={(e) =>
+                setNewRecipe({ ...newRecipe, is_base: e.target.checked, product_id: '' })
+              }
               className="w-4 h-4 rounded border-gray-300 text-indigo-600"
             />
             <label htmlFor="is_base" className="text-sm text-gray-600">
@@ -172,10 +193,36 @@ export default function RecipesView({ recipes: initial, availableProducts }: Pro
         </form>
       )}
 
+      {/* ── Search + Filter ───────────────────────────────────────── */}
+      <div className="flex gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search recipes..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 border border-gray-300 rounded-lg py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value as any)}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        >
+          <option value="all">All Types</option>
+          <option value="base">Base Only</option>
+          <option value="product">Product Only</option>
+        </select>
+      </div>
+
+      {/* ── Recipes Table ─────────────────────────────────────────── */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-        {recipes.length === 0 ? (
+        {filteredRecipes.length === 0 ? (
           <div className="text-center py-12 text-gray-400 text-sm">
-            No recipes yet — create one above.
+            {search || typeFilter !== 'all'
+              ? 'No recipes match your search.'
+              : 'No recipes yet — create one above.'}
           </div>
         ) : (
           <table className="w-full text-sm">
@@ -187,7 +234,7 @@ export default function RecipesView({ recipes: initial, availableProducts }: Pro
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {recipes.map((recipe) => (
+              {filteredRecipes.map((recipe) => (
                 <tr key={recipe.id} className="hover:bg-gray-50 transition">
                   <td className="px-4 py-3">
                     {recipe.products ? (
@@ -204,7 +251,9 @@ export default function RecipesView({ recipes: initial, availableProducts }: Pro
                     ) : (
                       <span className="font-medium text-gray-900">
                         {recipe.name || (
-                          <span className="text-gray-400 italic">Unnamed — click Edit to name</span>
+                          <span className="text-gray-400 italic">
+                            Unnamed — click Edit to name
+                          </span>
                         )}
                       </span>
                     )}
@@ -243,6 +292,7 @@ export default function RecipesView({ recipes: initial, availableProducts }: Pro
           </table>
         )}
       </div>
+
     </div>
   )
 }
