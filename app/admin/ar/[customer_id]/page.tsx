@@ -34,7 +34,7 @@ async function getCustomerLedger(customerId: string) {
   // ── AR transactions (invoices + credits) ──────────────────
   const { data: arTx } = await supabase
     .from('ar_transactions')
-    .select('id, type, amount, description, created_at, invoice_id')
+    .select('id, type, amount, amount_paid, description, created_at, invoice_id')
     .eq('customer_id', customerId)
     .order('created_at', { ascending: true })
 
@@ -97,6 +97,9 @@ async function getCustomerLedger(customerId: string) {
       debit:       isCredit ? 0 : Number(tx.amount),
       credit:      isCredit ? Number(tx.amount) : 0,
       balance:     0,
+       amount_paid:  amountPaid,
+  outstanding:  isCredit ? 0 : outstanding,
+  paid_status:  isPaid ? 'paid' : isPartial ? 'partial' : 'unpaid',
     })
   }
 

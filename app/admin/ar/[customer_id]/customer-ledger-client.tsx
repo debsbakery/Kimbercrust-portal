@@ -13,6 +13,9 @@ interface LedgerEntry {
   debit: number
   credit: number
   balance: number
+   amount_paid?: number
+  outstanding?: number
+  paid_status?: 'paid' | 'partial' | 'unpaid'
 }
 
 interface Props {
@@ -146,23 +149,28 @@ export default function CustomerLedgerClient({
                     <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
                       {formatAusDate(entry.date)}
                     </td>
-                    <td className="px-4 py-3">
-                      {entry.type === 'invoice' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-medium">
-                          <FileText className="h-3 w-3" /> Invoice
-                        </span>
-                      )}
-                      {entry.type === 'payment' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
-                          <DollarSign className="h-3 w-3" /> Payment
-                        </span>
-                      )}
-                      {entry.type === 'credit' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-700 rounded text-xs font-medium">
-                          <MinusCircle className="h-3 w-3" /> Credit
-                        </span>
-                      )}
-                    </td>
+                    // After the description cell — add paid status badge
+<td className="px-4 py-3 text-right text-sm">
+  {entry.type === 'invoice' && (
+    <>
+      {entry.paid_status === 'paid' && (
+        <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+          PAID
+        </span>
+      )}
+      {entry.paid_status === 'partial' && (
+        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+          PART ${entry.amount_paid?.toFixed(2)}
+        </span>
+      )}
+      {entry.paid_status === 'unpaid' && (
+        <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+          UNPAID
+        </span>
+      )}
+    </>
+  )}
+</td>
                     <td className="px-4 py-3 text-gray-700 max-w-xs truncate">
                       {entry.description}
                     </td>

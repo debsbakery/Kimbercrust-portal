@@ -31,7 +31,25 @@ export default function StatementActions({ customer }: StatementActionsProps) {
   { label: 'All Time',     from: new Date(2020, 0, 1), to: new Date() },
 ], [])
 
-  const handlePrintStatement = async () => {
+ const handleOpenInvoices = async () => {
+  setIsGenerating(true)
+  try {
+    const res = await fetch(`/api/statement/${customer.id}/open-invoices`)
+    if (!res.ok) throw new Error('Failed to generate')
+    const blob = await res.blob()
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    a.href     = url
+    a.download = `open-invoices-${customer.business_name?.replace(/\s+/g, '-') || customer.id}.pdf`
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (err: any) {
+    alert('Failed: ' + err.message)
+  } finally {
+    setIsGenerating(false)
+  }
+}
+const handlePrintStatement = async () => {
     setIsGenerating(true)
     try {
       const params = new URLSearchParams({
@@ -159,7 +177,16 @@ export default function StatementActions({ customer }: StatementActionsProps) {
             </>
           )}
         </Button>
-
+// Add button in JSX:
+<Button
+  onClick={handleOpenInvoices}
+  disabled={isGenerating}
+  variant="outline"
+  className="gap-2"
+>
+  <FileText className="h-4 w-4" />
+  Open Invoices PDF
+</Button>
         <Button
           onClick={handleEmailStatement}
           disabled={isSending || !customer.email}
