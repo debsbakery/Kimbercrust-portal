@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic'
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
@@ -44,8 +44,8 @@ async function getCustomerLedger(customerId: string) {
     .order('credit_date', { ascending: true })
 
   const invoiceIds = (arTxRaw ?? [])
-    .filter(t => t.invoice_id)
-    .map(t => t.invoice_id as string)
+    .filter((t: any) => t.invoice_id)
+    .map((t: any) => t.invoice_id as string)
 
   let invoiceMap: Record<string, string> = {}
   if (invoiceIds.length > 0) {
@@ -108,7 +108,7 @@ async function getCustomerLedger(customerId: string) {
   }
 
   for (const pmt of pmtRaw ?? []) {
-    const method = pmt.payment_method?.replace(/_/g, ' ') || 'payment'
+    const method = (pmt.payment_method ?? '').replace(/_/g, ' ') || 'payment'
     entries.push({
       id:          pmt.id,
       date:        pmt.payment_date + 'T12:00:00',
@@ -130,9 +130,7 @@ async function getCustomerLedger(customerId: string) {
       id:          cm.id,
       date:        cm.credit_date || cm.created_at,
       type:        'credit',
-      description: `Credit ${cm.credit_number || ''} - ${
-        cm.credit_type === 'stale_return' ? 'Stale Return' : 'Product Credit'
-      }`,
+      description: `Credit ${cm.credit_number || ''} - ${cm.credit_type === 'stale_return' ? 'Stale Return' : 'Product Credit'}`,
       debit:       0,
       credit:      cmAmount,
       balance:     0,
@@ -151,20 +149,13 @@ async function getCustomerLedger(customerId: string) {
     e.balance = Math.round(running * 100) / 100
   }
 
-  const totalInvoiced = entries
-    .filter(e => e.type === 'invoice')
-    .reduce((s, e) => s + e.debit, 0)
-
-  const totalPaid = (pmtRaw ?? [])
-    .reduce((s, p) => s + Number(p.amount), 0)
-
-  const totalCredits = entries
-    .filter(e => e.type === 'credit')
-    .reduce((s, e) => s + e.credit, 0)
+  const totalInvoiced = entries.filter(e => e.type === 'invoice').reduce((s, e) => s + e.debit, 0)
+  const totalPaid     = (pmtRaw ?? []).reduce((s, p) => s + Number(p.amount), 0)
+  const totalCredits  = entries.filter(e => e.type === 'credit').reduce((s, e) => s + e.credit, 0)
 
   return {
     customer,
-    entries:       [...entries].reverse(),
+    entries:        [...entries].reverse(),
     totalInvoiced,
     totalPaid,
     totalCredits,
@@ -188,9 +179,7 @@ export default async function CustomerLedgerPage({
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-8 text-center">
           <p className="text-red-700 font-semibold">Customer not found</p>
-          <Link href="/admin/ar" className="mt-4 inline-block text-red-600 hover:underline">
-            Back to AR
-          </Link>
+          <Link href="/admin/ar" className="mt-4 inline-block text-red-600 hover:underline">Back to AR</Link>
         </div>
       </div>
     )
@@ -200,15 +189,9 @@ export default async function CustomerLedgerPage({
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
-
-      <Link
-        href="/admin/ar"
-        className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: '#CE1126' }}
-      >
+      <Link href="/admin/ar" className="flex items-center gap-1 text-sm mb-4 hover:opacity-80" style={{ color: '#CE1126' }}>
         <ArrowLeft className="h-4 w-4" /> Back to AR
       </Link>
-
       <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
         <div className="flex justify-between items-start">
           <div>
@@ -216,27 +199,17 @@ export default async function CustomerLedgerPage({
               {customer.business_name || customer.contact_name}
             </h1>
             <p className="text-gray-500 text-sm mt-0.5">{customer.email}</p>
-            {customer.address && (
-              <p className="text-gray-400 text-xs mt-1">{customer.address}</p>
-            )}
+            {customer.address && <p className="text-gray-400 text-xs mt-1">{customer.address}</p>}
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-500 mb-1">Current Balance</p>
-            <p
-              className="text-3xl font-bold"
-              style={{ color: currentBalance > 0 ? '#CE1126' : '#006A4E' }}
-            >
+            <p className="text-3xl font-bold" style={{ color: currentBalance > 0 ? '#CE1126' : '#006A4E' }}>
               {formatCurrency(Math.abs(currentBalance))}
             </p>
-            {currentBalance < 0 && (
-              <p className="text-xs text-green-600 mt-1">Credit balance</p>
-            )}
-            {currentBalance === 0 && (
-              <p className="text-xs text-green-600 mt-1">Account clear</p>
-            )}
+            {currentBalance < 0 && <p className="text-xs text-green-600 mt-1">Credit balance</p>}
+            {currentBalance === 0 && <p className="text-xs text-green-600 mt-1">Account clear</p>}
           </div>
         </div>
-
         <div className="grid grid-cols-4 gap-3 mt-5">
           <div className="p-3 bg-red-50 rounded-lg border border-red-100">
             <p className="text-xs text-red-500">Total Invoiced</p>
@@ -250,32 +223,23 @@ export default async function CustomerLedgerPage({
             <p className="text-xs text-orange-500">Credits Applied</p>
             <p className="text-lg font-bold text-orange-700">{formatCurrency(totalCredits)}</p>
           </div>
-          <div
-            className="p-3 rounded-lg border"
-            style={{ backgroundColor: currentBalance > 0 ? '#fef2f2' : '#f0fdf4' }}
-          >
+          <div className="p-3 rounded-lg border" style={{ backgroundColor: currentBalance > 0 ? '#fef2f2' : '#f0fdf4' }}>
             <p className="text-xs text-gray-500">Balance Due</p>
-            <p
-              className="text-lg font-bold"
-              style={{ color: currentBalance > 0 ? '#CE1126' : '#006A4E' }}
-            >
+            <p className="text-lg font-bold" style={{ color: currentBalance > 0 ? '#CE1126' : '#006A4E' }}>
               {formatCurrency(currentBalance)}
             </p>
           </div>
         </div>
       </div>
-
       <div className="mb-6">
         <StatementActions customer={customer} />
       </div>
-
       <CustomerLedgerClient
         customerId={customer_id}
         customer={customer}
         entries={entries}
         currentBalance={currentBalance}
       />
-
     </div>
   )
 }
