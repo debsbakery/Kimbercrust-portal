@@ -92,19 +92,20 @@ async function getCustomerLedger(customerId: string) {
       ? 'partial'
       : 'unpaid'
 
-    entries.push({
-      id:          tx.id,
-      date:        tx.created_at,
-      type:        isCredit ? 'credit' : 'invoice',
-      description: tx.description || reference,
-      debit:       isCredit ? 0 : txAmount,
-      credit:      isCredit ? txAmount : 0,
-      balance:     0,
-      amount_paid: amtPaid,
-      outstanding,
-      paid_status: paidStatus,
-      due_date:    tx.due_date || null,
-    })
+   entries.push({
+  id:          tx.id,
+  date:        tx.created_at,
+  type:        isCredit ? 'credit' : 'invoice',
+  description: tx.description || reference,
+  debit:       isCredit ? 0 : txAmount,
+  credit:      isCredit ? txAmount : 0,
+  balance:     0,
+  amount_paid: amtPaid,
+  outstanding,
+  paid_status: paidStatus,
+  due_date:    tx.due_date || null,
+  invoice_id:  tx.invoice_id || null, 
+})
   }
 
   for (const pmt of pmtRaw ?? []) {

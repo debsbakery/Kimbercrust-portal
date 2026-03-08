@@ -3,12 +3,8 @@
 import { useState } from 'react'
 import { formatCurrency } from '@/lib/utils'
 import {
-  DollarSign,
-  FileText,
-  MinusCircle,
-  Plus,
-  Loader2,
-  X,
+  DollarSign, FileText, MinusCircle,
+  Plus, Loader2, X, AlertCircle,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -24,6 +20,7 @@ interface LedgerEntry {
   outstanding: number
   paid_status: 'paid' | 'partial' | 'unpaid' | 'na'
   due_date: string | null
+  invoice_id: string | null
 }
 
 interface Props {
@@ -34,7 +31,7 @@ interface Props {
 }
 
 function formatAusDate(dateStr: string): string {
-  if (!dateStr) return '—'
+  if (!dateStr) return '-'
   const d = new Date(dateStr)
   return [
     d.getDate().toString().padStart(2, '0'),
@@ -53,42 +50,85 @@ export default function CustomerLedgerClient({
 
   const [showPayment, setShowPayment] = useState(false)
   const [payAmount, setPayAmount]     = useState('')
-  const [payDate, setPayDate]         = useState(
-    new Date().toISOString().split('T')[0]
-  )
+  const [payDate, setPayDate]         = useState(new Date().toISOString().split('T')[0])
   const [payMethod, setPayMethod]     = useState('bank_transfer')
   const [payRef, setPayRef]           = useState('')
   const [payNotes, setPayNotes]       = useState('')
+  const [allocMode, setAllocMode]     = useState<'fifo' | 'manual'>('fifo')
+  const [manualAlloc, setManualAlloc] = useState<Record<string, string>>({})
   const [saving, setSaving]           = useState(false)
   const [error, setError]             = useState('')
 
+  // Unpaid + partial invoices available for allocation
+  const unpaidInvoices = entries.filter(
+    e => e.type === 'invoice' && e.paid_status !== 'paid'
+  ).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+  // Build FIFO allocations from unpaid invoices
+  function buildFifoAllocations(amount: number) {
+    const allocs: { invoice_id: string; amount: number }[] = []
+    let remaining = amount
+    for (const inv of unpaidInvoices) {
+      if (remaining <= 0) break
+      if (!inv.invoice_id) continue
+      const outstanding = inv.debit - inv.amount_paid
+      const applying   = Math.min(remaining, outstanding)
+      if (applying > 0) {
+        allocs.push({ invoice_id: inv.invoice_id, amount: Math.round(applying * 100) / 100 })
+        remaining -= applying
+      }
+    }
+    return allocs
+  }
+
+  // Build manual allocations from checkboxes
+  function buildManualAllocations() {
+    const allocs: { invoice_id: string; amount: number }[] = []
+    for (const [invoice_id, amtStr] of Object.entries(manualAlloc)) {
+      const amt = parseFloat(amtStr)
+      if (amt > 0 && invoice_id) {
+        allocs.push({ invoice_id, amount: Math.round(amt * 100) / 100 })
+      }
+    }
+    return allocs
+  }
+
   const handleRecordPayment = async () => {
-    if (!payAmount || parseFloat(payAmount) <= 0) {
+    const amount = parseFloat(payAmount)
+    if (!payAmount || amount <= 0) {
       setError('Please enter a valid amount')
       return
     }
     setError('')
     setSaving(true)
+
     try {
+      const allocations = allocMode === 'fifo'
+        ? buildFifoAllocations(amount)
+        : buildManualAllocations()
+
       const res = await fetch('/api/admin/payments', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customer_id:      customerId,
-          amount:           parseFloat(payAmount),
+          amount,
           payment_date:     payDate,
           payment_method:   payMethod,
           reference_number: payRef   || null,
           notes:            payNotes || null,
-          allocations:      [],
+          allocations,
         }),
       })
+
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to record payment')
+
       setShowPayment(false)
       setPayAmount('')
       setPayRef('')
       setPayNotes('')
+      setManualAlloc({})
       router.refresh()
     } catch (err: any) {
       setError(err.message)
@@ -97,8 +137,19 @@ export default function CustomerLedgerClient({
     }
   }
 
+  function closeModal() {
+    setShowPayment(false)
+    setError('')
+    setManualAlloc({})
+  }
+
+  const payAmountNum  = parseFloat(payAmount) || 0
+  const fifoPreview   = allocMode === 'fifo' ? buildFifoAllocations(payAmountNum) : []
+  const manualTotal   = Object.values(manualAlloc).reduce((s, v) => s + (parseFloat(v) || 0), 0)
+
   return (
     <>
+      {/* Header + Record Payment button */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold text-gray-800">
           Transaction Ledger
@@ -106,17 +157,27 @@ export default function CustomerLedgerClient({
             {entries.length} transactions
           </span>
         </h2>
-        {currentBalance > 0 && (
-          <button
-            onClick={() => setShowPayment(true)}
-            className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg"
-            style={{ backgroundColor: '#006A4E' }}
-          >
-            <Plus className="h-4 w-4" /> Record Payment
-          </button>
-        )}
+        <button
+          onClick={() => setShowPayment(true)}
+          className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg"
+          style={{ backgroundColor: '#006A4E' }}
+        >
+          <Plus className="h-4 w-4" /> Record Payment
+        </button>
       </div>
 
+      {/* Overdue alert */}
+      {unpaidInvoices.length > 0 && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2 text-sm text-amber-800">
+          <AlertCircle className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>{unpaidInvoices.length}</strong> invoice{unpaidInvoices.length !== 1 ? 's' : ''} outstanding
+            totalling <strong>{formatCurrency(unpaidInvoices.reduce((s, e) => s + (e.debit - e.amount_paid), 0))}</strong>
+          </span>
+        </div>
+      )}
+
+      {/* Ledger table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -141,7 +202,7 @@ export default function CustomerLedgerClient({
               ) : (
                 entries.map((entry, i) => (
                   <tr
-                    key={`${entry.id}-${i}`}
+                    key={entry.id + '-' + i}
                     className={
                       entry.type === 'payment' ? 'bg-green-50 hover:bg-green-100' :
                       entry.type === 'credit'  ? 'bg-orange-50 hover:bg-orange-100' :
@@ -181,7 +242,7 @@ export default function CustomerLedgerClient({
                           )}
                           {entry.paid_status === 'partial' && (
                             <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-xs font-medium whitespace-nowrap">
-                              PART ${entry.amount_paid.toFixed(2)}
+                              PART {formatCurrency(entry.amount_paid)}
                             </span>
                           )}
                           {entry.paid_status === 'unpaid' && (
@@ -193,10 +254,10 @@ export default function CustomerLedgerClient({
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-red-600">
-                      {entry.debit > 0 ? formatCurrency(entry.debit) : '—'}
+                      {entry.debit > 0 ? formatCurrency(entry.debit) : '-'}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-green-600">
-                      {entry.credit > 0 ? formatCurrency(entry.credit) : '—'}
+                      {entry.credit > 0 ? formatCurrency(entry.credit) : '-'}
                     </td>
                     <td
                       className="px-4 py-3 text-right font-mono font-semibold"
@@ -212,10 +273,13 @@ export default function CustomerLedgerClient({
         </div>
       </div>
 
+      {/* Payment modal */}
       {showPayment && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
-            <div className="flex items-center justify-between p-5 border-b">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+
+            {/* Modal header */}
+            <div className="flex items-center justify-between p-5 border-b sticky top-0 bg-white">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Record Payment</h3>
                 <p className="text-sm text-gray-500 mt-0.5">
@@ -223,19 +287,19 @@ export default function CustomerLedgerClient({
                   {' · '}Balance: {formatCurrency(currentBalance)}
                 </p>
               </div>
-              <button
-                onClick={() => { setShowPayment(false); setError('') }}
-                className="text-gray-400 hover:text-gray-600 p-1"
-              >
+              <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 p-1">
                 <X className="h-5 w-5" />
               </button>
             </div>
+
             <div className="p-5 space-y-4">
               {error && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
                   {error}
                 </div>
               )}
+
+              {/* Amount */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Amount <span className="text-red-500">*</span>
@@ -260,6 +324,8 @@ export default function CustomerLedgerClient({
                   Pay full balance ({formatCurrency(currentBalance)})
                 </button>
               </div>
+
+              {/* Date */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Payment Date <span className="text-red-500">*</span>
@@ -271,10 +337,10 @@ export default function CustomerLedgerClient({
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
+
+              {/* Method */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Payment Method
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                 <select
                   value={payMethod}
                   onChange={e => setPayMethod(e.target.value)}
@@ -287,10 +353,10 @@ export default function CustomerLedgerClient({
                   <option value="other">Other</option>
                 </select>
               </div>
+
+              {/* Reference */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Reference Number
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reference Number</label>
                 <input
                   type="text"
                   placeholder="e.g. BSB/Acc or cheque number"
@@ -299,10 +365,112 @@ export default function CustomerLedgerClient({
                   className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
+
+              {/* Invoice allocation — only show if there are unpaid invoices */}
+              {unpaidInvoices.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Apply Payment To
+                  </label>
+
+                  {/* Mode toggle */}
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      onClick={() => setAllocMode('fifo')}
+                      className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                        allocMode === 'fifo'
+                          ? 'bg-green-700 text-white border-green-700'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-green-600'
+                      }`}
+                    >
+                      Auto (oldest first)
+                    </button>
+                    <button
+                      onClick={() => setAllocMode('manual')}
+                      className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+                        allocMode === 'manual'
+                          ? 'bg-green-700 text-white border-green-700'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-green-600'
+                      }`}
+                    >
+                      Manual selection
+                    </button>
+                  </div>
+
+                  {/* FIFO preview */}
+                  {allocMode === 'fifo' && payAmountNum > 0 && (
+                    <div className="space-y-1">
+                      {fifoPreview.length === 0 ? (
+                        <p className="text-xs text-gray-400">Enter an amount above to preview allocation</p>
+                      ) : (
+                        fifoPreview.map(a => {
+                          const inv = unpaidInvoices.find(e => e.invoice_id === a.invoice_id)
+                          return (
+                            <div key={a.invoice_id} className="flex justify-between items-center p-2 bg-green-50 rounded text-xs">
+                              <span className="text-gray-700">{inv?.description || a.invoice_id}</span>
+                              <span className="font-semibold text-green-700">{formatCurrency(a.amount)}</span>
+                            </div>
+                          )
+                        })
+                      )}
+                      {payAmountNum > currentBalance && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          Amount exceeds balance — overpayment of {formatCurrency(payAmountNum - currentBalance)} will be recorded
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Manual selection */}
+                  {allocMode === 'manual' && (
+                    <div className="space-y-2">
+                      {unpaidInvoices.map(inv => {
+                        const outstanding = inv.debit - inv.amount_paid
+                        return (
+                          <div key={inv.id} className="flex items-center gap-3 p-2 border rounded-lg">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium truncate">{inv.description}</p>
+                              <p className="text-xs text-gray-400">
+                                Outstanding: {formatCurrency(outstanding)}
+                                {inv.paid_status === 'partial' && (
+                                  <span className="ml-1 text-amber-600">
+                                    (partial - paid {formatCurrency(inv.amount_paid)})
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                            <div className="flex items-center border rounded overflow-hidden w-28">
+                              <span className="px-2 py-1 bg-gray-50 text-gray-500 border-r text-xs">$</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                max={outstanding.toFixed(2)}
+                                placeholder={outstanding.toFixed(2)}
+                                value={manualAlloc[inv.invoice_id ?? inv.id] ?? ''}
+                                onChange={e => setManualAlloc(prev => ({
+                                  ...prev,
+                                  [inv.invoice_id ?? inv.id]: e.target.value,
+                                }))}
+                                className="w-full px-2 py-1 text-xs focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {manualTotal > 0 && (
+                        <p className="text-xs text-gray-500 text-right">
+                          Allocating: {formatCurrency(manualTotal)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Notes */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea
                   rows={2}
                   placeholder="Optional notes..."
@@ -312,9 +480,11 @@ export default function CustomerLedgerClient({
                 />
               </div>
             </div>
-            <div className="flex gap-3 p-5 border-t bg-gray-50 rounded-b-xl">
+
+            {/* Modal footer */}
+            <div className="flex gap-3 p-5 border-t bg-gray-50 rounded-b-xl sticky bottom-0">
               <button
-                onClick={() => { setShowPayment(false); setError('') }}
+                onClick={closeModal}
                 className="flex-1 px-4 py-2 border rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
               >
                 Cancel
@@ -338,4 +508,3 @@ export default function CustomerLedgerClient({
     </>
   )
 }
-
