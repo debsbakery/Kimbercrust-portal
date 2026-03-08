@@ -7,6 +7,37 @@ import ProductForm from '../components/product-form'
 import ProductCostingPanel from './product-costing-panel'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+async function calcCostPerGram(
+  supabase: ReturnType<typeof createAdminClient>,
+  recipeId: string
+): Promise<number> {
+  const { data: lines } = await supabase
+    .from('recipe_lines')
+    .select('quantity_grams, sub_qty_grams, ingredient_id, sub_recipe_id, ingredients ( unit_cost )')
+    .eq('recipe_id', recipeId)
+
+  if (!lines || lines.length === 0) return 0
+
+  let totalCost = 0
+  let totalWeight = 0
+
+  for (const line of lines) {
+    if (line.ingredient_id && line.ingredients) {
+      const qty = Number(line.quantity_grams ?? 0)
+      const cost = Number((line.ingredients as any).unit_cost ?? 0)
+      totalCost += (qty / 1000) * cost
+      totalWeight += qty
+    } else if (line.sub_recipe_id) {
+      const subCostPerGram = await calcCostPerGram(supabase, line.sub_recipe_id)
+      const qty = Number(line.sub_qty_grams ?? 0)
+      totalCost += qty * subCostPerGram
+      totalWeight += qty
+    }
+  }
+
+  return totalWeight > 0 ? totalCost / totalWeight : 0
+}
+
 async function getProduct(id: string) {
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/products/${id}`,
@@ -50,6 +81,16 @@ async function getProductCosting(productId: string) {
     (l) => l.ingredient_id !== null || l.sub_recipe_id !== null
   )
 
+  const subRecipeCosts: Record<string, number> = {}
+  for (const line of validLines) {
+    if (line.sub_recipe_id && !subRecipeCosts[line.sub_recipe_id]) {
+      subRecipeCosts[line.sub_recipe_id] = await calcCostPerGram(
+        supabase,
+        line.sub_recipe_id
+      )
+    }
+  }
+
   const { data: costSettings } = await supabase
     .from('cost_settings')
     .select('setting_key, value')
@@ -62,6 +103,7 @@ async function getProductCosting(productId: string) {
   return {
     recipe,
     lines: validLines,
+    subRecipeCosts,
     labourPct: settingsMap['labour_pct'] ?? 30,
     overheadPerKg: settingsMap['overhead_per_kg'] ?? 2,
   }
@@ -116,7 +158,6 @@ export default async function EditProductPage({
         <div className="max-w-2xl w-full">
           <ProductForm product={product} isEditing={true} />
         </div>
-
         <div>
           <ProductCostingPanel
             productId={id}

@@ -29,6 +29,7 @@ interface CostingData {
     yield_qty: number | null
   }
   lines: IngredientRow[]
+  subRecipeCosts: Record<string, number>
   labourPct: number
   overheadPerKg: number
 }
@@ -41,9 +42,12 @@ interface Props {
   costing: CostingData | null
 }
 
-function calcLineCost(line: IngredientRow): number {
+function calcLineCost(line: IngredientRow, subRecipeCosts: Record<string, number>): number {
   if (line.ingredient_id && line.ingredients) {
     return ((line.quantity_grams ?? 0) / 1000) * Number(line.ingredients.unit_cost)
+  }
+  if (line.sub_recipe_id && subRecipeCosts[line.sub_recipe_id]) {
+    return (line.sub_qty_grams ?? 0) * subRecipeCosts[line.sub_recipe_id]
   }
   return 0
 }
@@ -80,14 +84,19 @@ export default function ProductCostingPanel({
     )
   }
 
-  const { recipe, lines, labourPct, overheadPerKg } = costing
+  const { recipe, lines, subRecipeCosts, labourPct, overheadPerKg } = costing
 
-  const totalIngredientCost = lines.reduce((sum, line) => sum + calcLineCost(line), 0)
+  const totalIngredientCost = lines.reduce(
+    (sum, line) => sum + calcLineCost(line, subRecipeCosts),
+    0
+  )
   const totalWeightGrams = lines.reduce(
     (sum, line) => sum + (line.quantity_grams ?? line.sub_qty_grams ?? 0),
     0
   )
-  const costPerKg = totalWeightGrams > 0 ? totalIngredientCost / (totalWeightGrams / 1000) : 0
+  const costPerKg = totalWeightGrams > 0
+    ? totalIngredientCost / (totalWeightGrams / 1000)
+    : 0
 
   const effectiveLabourPct = productLabourPct ?? labourPct
   const productWeight = productWeightGrams ?? 0
@@ -169,7 +178,7 @@ export default function ProductCostingPanel({
           </thead>
           <tbody className="divide-y divide-gray-100">
             {lines.map((line) => {
-              const lineCost = calcLineCost(line)
+              const lineCost = calcLineCost(line, subRecipeCosts)
               const ingName = line.ingredients?.name
                 ?? line.sub_recipes?.name
                 ?? line.sub_recipes?.products?.name
@@ -177,6 +186,9 @@ export default function ProductCostingPanel({
               const qty = line.quantity_grams ?? line.sub_qty_grams ?? 0
               const unitCost = line.ingredients
                 ? Number(line.ingredients.unit_cost)
+                : null
+              const subCostPerKg = line.sub_recipe_id && subRecipeCosts[line.sub_recipe_id]
+                ? subRecipeCosts[line.sub_recipe_id] * 1000
                 : null
 
               return (
@@ -191,7 +203,11 @@ export default function ProductCostingPanel({
                     {qty.toLocaleString()}g
                   </td>
                   <td className="px-4 py-2.5 text-right text-gray-500 text-xs">
-                    {unitCost !== null ? '$' + unitCost.toFixed(4) + '/kg' : '—'}
+                    {unitCost !== null
+                      ? '$' + unitCost.toFixed(4) + '/kg'
+                      : subCostPerKg !== null
+                        ? '$' + subCostPerKg.toFixed(4) + '/kg'
+                        : '—'}
                   </td>
                   <td className="px-4 py-2.5 text-right font-semibold text-gray-900">
                     ${lineCost.toFixed(4)}
@@ -212,10 +228,7 @@ export default function ProductCostingPanel({
               </td>
             </tr>
             <tr>
-              <td
-                colSpan={3}
-                className="px-4 py-1.5 text-xs text-indigo-600 font-semibold"
-              >
+              <td colSpan={3} className="px-4 py-1.5 text-xs text-indigo-600 font-semibold">
                 Ingredient cost per kg
               </td>
               <td className="px-4 py-1.5 text-right text-xs font-bold text-indigo-600">
@@ -242,7 +255,6 @@ export default function ProductCostingPanel({
         ) : (
           <div className="space-y-2">
 
-            {/* Cost rows */}
             <div className="grid grid-cols-2 gap-x-4 text-sm">
               <span className="text-gray-600">Product weight</span>
               <span className="text-right font-mono font-semibold text-gray-800">
@@ -304,7 +316,6 @@ export default function ProductCostingPanel({
               </span>
             </div>
 
-            {/* Margin highlight */}
             {margin !== null && marginPct !== null && (
               <div className={
                 'mt-2 p-3 rounded-lg flex items-center justify-between ' +
@@ -340,12 +351,11 @@ export default function ProductCostingPanel({
                 </div>
               </div>
             )}
-
           </div>
         )}
       </div>
 
-      {/* Footer note */}
+      {/* Footer */}
       <div className="px-6 py-3 bg-gray-50 border-t border-gray-200">
         <p className="text-xs text-gray-400">
           Labour and overhead from{' '}
