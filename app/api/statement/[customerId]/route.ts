@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const endDate      = searchParams.get('endDate')
       || new Date().toISOString().split('T')[0]
 
-    // ── Customer ──────────────────────────────────────────────
+    // Customer
     const { data: customer, error: customerError } = await supabase
       .from('customers')
       .select('id, business_name, contact_name, email, address, balance, payment_terms')
@@ -29,10 +29,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 })
     }
 
-    // ── Fetch AR transactions (invoices + credits) ────────────
+    // AR transactions in period (invoices + credits)
     let txQuery = supabase
       .from('ar_transactions')
-      .select('id, type, amount, description, created_at, invoice_id')
+      .select('id, type, amount, amount_paid, description, created_at, invoice_id')
       .eq('customer_id', customerId)
       .order('created_at', { ascending: true })
 
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (txError) throw new Error(txError.message)
     const transactions = txRaw ?? []
 
-    // ── Fetch payments in period ──────────────────────────────
+    // Payments in period
     let pmtQuery = supabase
       .from('payments')
       .select('id, amount, payment_date, payment_method, reference_number')
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (pmtError) throw new Error(pmtError.message)
     const payments = pmtRaw ?? []
 
-    // ── Invoice number map via invoice_id → invoice_numbers.id ─
+    // Invoice number map
     const invoiceIds = transactions
       .filter(t => t.invoice_id)
       .map(t => t.invoice_id as string)
@@ -68,17 +68,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         .from('invoice_numbers')
         .select('id, invoice_number')
         .in('id', invoiceIds)
-
       for (const inv of invNums ?? []) {
         invoiceMap[inv.id] = inv.invoice_number
       }
     }
 
-    // ── Opening balance BEFORE period ─────────────────────────
+    // Opening balance BEFORE period
     let openingBalance = 0
-
     if (startDate) {
-      // Prior invoices/credits
       const { data: priorTxRaw } = await supabase
         .from('ar_transactions')
         .select('amount, type')
@@ -86,11 +83,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         .lt('created_at', startDate)
 
       const priorInvoiceTotal = (priorTxRaw ?? []).reduce((sum, tx) => {
-        const isCredit = tx.type === 'credit'
-        return sum + (isCredit ? -Number(tx.amount) : Number(tx.amount))
+        return sum + (tx.type === 'credit' ? -Number(tx.amount) : Number(tx.amount))
       }, 0)
 
-      // Prior payments
       const { data: priorPmtRaw } = await supabase
         .from('payments')
         .select('amount')
@@ -104,56 +99,73 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       openingBalance = priorInvoiceTotal - priorPaymentTotal
     }
 
-    // ── Merge invoices + payments into unified sorted lines ────
+    // Merge all lines into unified sorted list
     type RawLine = {
-      date: string      // ISO string for sorting
+      date: string
       type: 'invoice' | 'credit' | 'payment'
       amount: number
+      amount_paid: number
       description: string
       reference: string
+      paid_status: 'paid' | 'partial' | 'unpaid' | 'na'
     }
 
     const rawLines: RawLine[] = []
 
-    // Add invoice/credit lines
+    // Invoice + credit lines
     for (const tx of transactions) {
       const isCredit   = tx.type === 'credit'
       const invoiceNum = tx.invoice_id ? invoiceMap[tx.invoice_id] : null
       const reference  = invoiceNum
-        ? `INV-${String(invoiceNum).padStart(4, '0')}`
+        ? 'INV-' + String(invoiceNum).padStart(4, '0')
         : String(tx.type ?? '').toUpperCase()
+
+      const txAmount  = Number(tx.amount || 0)
+      const amtPaid   = Number(tx.amount_paid || 0)
+
+      const paidStatus: 'paid' | 'partial' | 'unpaid' | 'na' = isCredit
+        ? 'na'
+        : amtPaid >= txAmount - 0.01
+        ? 'paid'
+        : amtPaid > 0
+        ? 'partial'
+        : 'unpaid'
 
       rawLines.push({
         date:        tx.created_at,
         type:        isCredit ? 'credit' : 'invoice',
-        amount:      Number(tx.amount),
+        amount:      txAmount,
+        amount_paid: amtPaid,
         description: tx.description || reference,
         reference,
+        paid_status: paidStatus,
       })
     }
 
-    // Add payment lines
+    // Payment lines
     for (const pmt of payments) {
       const method = pmt.payment_method
         ? pmt.payment_method.replace(/_/g, ' ')
         : 'payment'
+      const ref = pmt.reference_number ? ' - ' + pmt.reference_number : ''
 
       rawLines.push({
-        // payment_date is a date string — add time for sorting
         date:        pmt.payment_date + 'T12:00:00',
         type:        'payment',
         amount:      Number(pmt.amount),
-        description: `Payment received - thank you (${method})`,
+        amount_paid: 0,
+        description: 'Payment received - thank you (' + method + ')' + ref,
         reference:   pmt.reference_number || 'PAYMENT',
+        paid_status: 'na',
       })
     }
 
-    // Sort everything by date ascending
+    // Sort oldest first (ascending) for statement
     rawLines.sort((a, b) =>
       new Date(a.date).getTime() - new Date(b.date).getTime()
     )
 
-    // ── Build final lines with running balance ─────────────────
+    // Build final lines with running balance
     let runningBalance = openingBalance
 
     const lines = rawLines.map(raw => {
@@ -171,10 +183,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         credit:           isCredit ? raw.amount : null,
         balance:          Math.round(runningBalance * 100) / 100,
         transaction_type: raw.type,
+        paid_status:      raw.paid_status,
+        amount_paid:      raw.amount_paid,
       }
     })
 
-    // ── Generate PDF ──────────────────────────────────────────
+    // Generate PDF
     const pdfBuffer = await generateStatementPDF({
       customer,
       lines,
@@ -191,7 +205,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return new Response(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type':        'application/pdf',
-        'Content-Disposition': `attachment; filename="statement-${safeName}-${endDate}.pdf"`,
+        'Content-Disposition': 'attachment; filename="statement-' + safeName + '-' + endDate + '.pdf"',
       },
     })
 
