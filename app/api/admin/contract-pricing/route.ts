@@ -60,8 +60,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { customerId, productId, contractPrice, effectiveFrom, effectiveTo } = body
 
-    if (!customerId || !productId || !contractPrice || !effectiveFrom) {
-      return NextResponse.json(
+if (!customerId || !productId || contractPrice == null || !effectiveFrom) {
+    return NextResponse.json(
         { success: false, error: 'customerId, productId, contractPrice and effectiveFrom are required' },
         { status: 400 }
       )
