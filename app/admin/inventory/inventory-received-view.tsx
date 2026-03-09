@@ -25,8 +25,7 @@ interface Receipt {
   ingredients: {
     id: string
     name: string
-    unit: string
-  } | null
+    unit: string} | null
 }
 
 interface Props {
@@ -35,14 +34,15 @@ interface Props {
 }
 
 const EMPTY_FORM = {
-  ingredient_id: '',
-  supplier:      '',
-  quantity_kg:   '',
-  unit_cost:     '',
-  invoice_ref:   '',
-  received_date: new Date().toISOString().split('T')[0],
-  notes:         '',
-  update_cost:   true,
+  ingredient_id:  '',
+  supplier:       '',
+  packs:          '',
+  pack_size_kg:   '',
+  price_per_pack: '',
+  invoice_ref:    '',
+  received_date:  new Date().toISOString().split('T')[0],
+  notes:          '',
+  update_cost:    true,
 }
 
 export default function InventoryReceivedView({ ingredients, initialReceipts }: Props) {
@@ -57,17 +57,30 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
 
   const selectedIngredient = ingredients.find((i) => i.id === form.ingredient_id)
 
+  const packs        = Number(form.packs) || 0
+  const packSizeKg   = Number(form.pack_size_kg) || 0
+  const pricePerPack = Number(form.price_per_pack) || 0
+
+  const totalKg      = packs * packSizeKg
+  const totalCost    = packs * pricePerPack
+  const unitCostCalc = totalKg > 0 ? totalCost / totalKg : 0
+
   const prevCost = selectedIngredient ? Number(selectedIngredient.unit_cost) : null
-  const newCost  = form.unit_cost ? Number(form.unit_cost) : null
-  const costChanged = prevCost !== null && newCost !== null && prevCost !== newCost
+  const costChanged = prevCost !== null && unitCostCalc > 0 && prevCost !== unitCostCalc
   const costDiff = costChanged
-    ? (((newCost - prevCost) / prevCost) * 100).toFixed(1)
+    ? (((unitCostCalc - prevCost) / prevCost) * 100).toFixed(1)
     : null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setSuccess('')
+
+    if (totalKg <= 0 || unitCostCalc <= 0) {
+      setError('Invalid quantities — check packs, pack size, and price')
+      return
+    }
+
     setSaving(true)
 
     try {
@@ -77,8 +90,8 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
         body: JSON.stringify({
           ingredient_id: form.ingredient_id,
           supplier:      form.supplier      || null,
-          quantity_kg:   Number(form.quantity_kg),
-          unit_cost:     Number(form.unit_cost),
+          quantity_kg:   totalKg,
+          unit_cost:     unitCostCalc,
           invoice_ref:   form.invoice_ref   || null,
           received_date: form.received_date,
           notes:         form.notes         || null,
@@ -90,9 +103,8 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
       if (!res.ok) throw new Error(json.error)
 
       setSuccess(
-        'Receipt saved' +
-        (form.update_cost ? ' — ingredient cost updated' : '') +
-        '.'
+        `Recorded ${packs} × ${packSizeKg}kg = ${totalKg}kg @ $${unitCostCalc.toFixed(4)}/kg` +
+        (form.update_cost ? ' — ingredient cost updated' : '')
       )
       setForm({ ...EMPTY_FORM })
 
@@ -116,8 +128,7 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
         body: JSON.stringify({ id }),
       })
       if (!res.ok) throw new Error('Delete failed')
-      setReceipts((prev) => prev.filter((r) => r.id !== id))
-    } catch (err: any) {
+      setReceipts((prev) => prev.filter((r) => r.id !== id))} catch (err: any) {
       setError(err.message)
     } finally {
       setDeleting(null)
@@ -128,12 +139,8 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
     ? receipts.filter((r) => r.ingredient_id === filterIng)
     : receipts
 
-  const totalSpend = filteredReceipts.reduce(
-    (s, r) => s + Number(r.total_cost ?? 0), 0
-  )
-  const totalKg = filteredReceipts.reduce(
-    (s, r) => s + Number(r.quantity_kg ?? 0), 0
-  )
+  const totalSpend = filteredReceipts.reduce((s, r) => s + Number(r.total_cost ?? 0), 0)
+  const totalKgAll = filteredReceipts.reduce((s, r) => s + Number(r.quantity_kg ?? 0), 0)
 
   return (
     <div className="space-y-6">
@@ -171,7 +178,7 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
               {/* Ingredient */}
-              <div>
+              <div className="sm:col-span-2 lg:col-span-3">
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
                   Ingredient <span className="text-red-500">*</span>
                 </label>
@@ -183,7 +190,6 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
                       ...form,
                       ingredient_id: e.target.value,
                       supplier: ing?.supplier ?? form.supplier,
-                      unit_cost: ing ? String(ing.unit_cost) : form.unit_cost,
                     })
                   }}
                   required
@@ -213,7 +219,7 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
               </div>
 
               {/* Supplier */}
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
                   Supplier
                 </label>
@@ -226,76 +232,117 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
                 />
               </div>
 
-              {/* Quantity */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  Quantity (kg) <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  value={form.quantity_kg}
-                  onChange={(e) => setForm({ ...form, quantity_kg: e.target.value })}
-                  required
-                  placeholder="e.g. 25"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
+            </div>
 
-              {/* Unit Cost */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  Unit Cost ($/kg) <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-gray-400 text-sm">$</span>
+            {/* Pack-based entry */}
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg space-y-4">
+              <p className="text-sm font-bold text-blue-900">Pack-Based Entry</p>
+              <p className="text-xs text-blue-700">
+                e.g. Received 42 bags of flour, 25kg per bag, $25 per bag
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+                {/* Packs */}
+                <div>
+                  <label className="block text-xs font-semibold text-blue-800 mb-1">
+                    Packs / Bags <span className="text-red-500">*</span>
+                  </label>
                   <input
                     type="number"
-                    min="0"
-                    step="0.0001"
-                    value={form.unit_cost}
-                    onChange={(e) => setForm({ ...form, unit_cost: e.target.value })}
+                    min="1"
+                    step="1"
+                    value={form.packs}
+                    onChange={(e) => setForm({ ...form, packs: e.target.value })}
                     required
-                    placeholder="e.g. 1.08"
-                    className="w-full pl-7 border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="e.g. 42"
+                    className="w-full border border-blue-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                {costChanged && costDiff && (
-                  <p className={
-                    'text-xs mt-1 font-semibold ' +
-                    (Number(costDiff) > 0 ? 'text-red-600' : 'text-green-600')
-                  }>
-                    {Number(costDiff) > 0 ? 'Up' : 'Down'} {Math.abs(Number(costDiff))}% from ${prevCost!.toFixed(4)}
-                  </p>
-                )}
+
+                {/* Pack Size */}
+                <div>
+                  <label className="block text-xs font-semibold text-blue-800 mb-1">
+                    Pack Size (kg) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0.001"
+                    step="0.001"
+                    value={form.pack_size_kg}
+                    onChange={(e) => setForm({ ...form, pack_size_kg: e.target.value })}
+                    required
+                    placeholder="e.g. 25"
+                    className="w-full border border-blue-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Price per Pack */}
+                <div>
+                  <label className="block text-xs font-semibold text-blue-800 mb-1">
+                    Price / Pack <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5 text-blue-600 text-sm font-semibold">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.price_per_pack}
+                      onChange={(e) => setForm({ ...form, price_per_pack: e.target.value })}
+                      required
+                      placeholder="e.g. 25"
+                      className="w-full pl-7 border border-blue-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
               </div>
 
-              {/* Invoice Ref */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">
-                  Invoice / Docket Ref
-                </label>
-                <input
-                  type="text"
-                  value={form.invoice_ref}
-                  onChange={(e) => setForm({ ...form, invoice_ref: e.target.value })}
-                  placeholder="e.g. INV-12345"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
+              {/* Calculated values */}
+              {totalKg > 0 && unitCostCalc > 0 && (
+                <div className="grid grid-cols-3 gap-3 pt-3 border-t border-blue-300">
+                  <div>
+                    <p className="text-xs text-blue-600 font-semibold">Total kg</p>
+                    <p className="text-lg font-bold text-blue-900">{totalKg.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-600 font-semibold">Total cost</p>
+                    <p className="text-lg font-bold text-blue-900">${totalCost.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-blue-600 font-semibold">Cost per kg</p>
+                    <p className="text-lg font-bold text-blue-900">${unitCostCalc.toFixed(4)}</p>
+                  </div>
+                </div>
+              )}
+
+              {costChanged && costDiff && (
+                <div className={
+                  'p-2 rounded-lg text-xs font-bold ' +
+                  (Number(costDiff) > 0
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-green-100 text-green-700')
+                }>
+                  {Number(costDiff) > 0 ? '⬆' : '⬇'} {Math.abs(Number(costDiff))}% from ${prevCost!.toFixed(4)}/kg
+                </div>
+              )}
 
             </div>
 
-            {/* Total Cost Preview */}
-            {form.quantity_kg && form.unit_cost && (
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-                <span className="text-sm text-blue-700 font-semibold">Total delivery cost:</span>
-                <span className="text-lg font-bold text-blue-800">
-                  ${(Number(form.quantity_kg) * Number(form.unit_cost)).toFixed(2)}
-                </span>
-              </div>
-            )}
+            {/* Invoice Ref */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Invoice / Docket Ref
+              </label>
+              <input
+                type="text"
+                value={form.invoice_ref}
+                onChange={(e) => setForm({ ...form, invoice_ref: e.target.value })}
+                placeholder="e.g. INV-12345"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
 
             {/* Notes */}
             <div>
@@ -319,8 +366,7 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
                 className="mt-0.5 w-4 h-4 accent-green-600"
               />
               <label htmlFor="update_cost" className="text-sm text-amber-800 cursor-pointer">
-                <span className="font-bold">Update ingredient cost to this delivery price</span>
-                <span className="block text-xs text-amber-700 mt-0.5">
+                <span className="font-bold">Update ingredient cost to ${unitCostCalc.toFixed(4)}/kg</span><span className="block text-xs text-amber-700 mt-0.5">
                   This will update recipe costs and product margins automatically.
                   Uncheck if this delivery price is a one-off anomaly.
                 </span>
@@ -357,8 +403,7 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
               {ingredients.map((ing) => (
                 <option key={ing.id} value={ing.id}>{ing.name}</option>
               ))}
-            </select>
-          </div>
+            </select></div>
         </div>
 
         {/* KPI row */}
@@ -367,7 +412,7 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
             <Package className="h-4 w-4 text-gray-400" />
             <div>
               <p className="text-xs text-gray-500">Total Received</p>
-              <p className="font-bold text-gray-800">{totalKg.toFixed(1)} kg</p>
+              <p className="font-bold text-gray-800">{totalKgAll.toFixed(1)} kg</p>
             </div>
           </div>
           <div className="px-5 py-3 flex items-center gap-2">
@@ -382,7 +427,7 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
             <div>
               <p className="text-xs text-gray-500">Avg Cost/kg</p>
               <p className="font-bold text-gray-800">
-                {totalKg > 0 ? '$' + (totalSpend / totalKg).toFixed(4) : '—'}
+                {totalKgAll > 0 ? '$' + (totalSpend / totalKgAll).toFixed(4) : '—'}
               </p>
             </div>
           </div>
@@ -444,8 +489,6 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
             </tbody>
           </table>
         )}
-      </div>
-
-    </div>
+      </div></div>
   )
 }
