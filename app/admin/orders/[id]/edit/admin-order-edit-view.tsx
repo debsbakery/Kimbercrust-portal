@@ -38,9 +38,9 @@ export default function AdminOrderEditView({ order, products }: any) {
   }
 
   function resolveItemPrice(item: any): number {
-    if (item.unit_price > 0) return Number(item.unit_price)
-    return Number(item.products?.price ?? item.product?.price ?? 0)
-  }
+  if (item.unit_price != null) return Number(item.unit_price)
+  return Number(item.products?.price ?? item.product?.price ?? 0)
+}
 
   function resolveProductCode(item: any): string {
     return String(
