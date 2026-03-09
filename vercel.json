@@ -1,0 +1,13 @@
+{
+  "crons": [
+    
+    {
+      "path": "/api/cron/ar-aging",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/monthly-statements",
+      "schedule": "0 0 1 * *"
+    }
+  ]
+}
