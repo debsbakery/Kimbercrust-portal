@@ -46,7 +46,7 @@ async function getCustomerLedger(customerId: string) {
   // Build invoiceMap (invoice_numbers.id -> invoice_number)
   // Build orderIdMap (invoice_numbers.id -> order_id)
   // order_id is what invoice_payments.invoice_id expects (FK to orders.id)
-  const invoiceIds = (arTxRaw ?? [])
+   const invoiceIds = (arTxRaw ?? [])
     .filter((t: any) => t.invoice_id)
     .map((t: any) => t.invoice_id as string)
 
@@ -57,13 +57,12 @@ async function getCustomerLedger(customerId: string) {
     const { data: invNums } = await supabase
       .from('invoice_numbers')
       .select('id, invoice_number, order_id')
-      .in('id', invoiceIds)
+      .in('order_id', invoiceIds)  // Changed from .in('id', invoiceIds)
     for (const inv of invNums ?? []) {
-      invoiceMap[inv.id] = inv.invoice_number
-      if (inv.order_id) orderIdMap[inv.id] = inv.order_id
+      invoiceMap[inv.order_id] = inv.invoice_number  // Changed from inv.id
+      if (inv.order_id) orderIdMap[inv.order_id] = inv.order_id
     }
   }
-
   type LedgerEntry = {
     id: string
     date: string
