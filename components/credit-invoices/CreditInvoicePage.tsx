@@ -205,8 +205,8 @@ export default function CreditInvoicePage({ customers, products }: Props) {
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl">
       <div className="flex items-center gap-3 mb-6">
-        <FileText className="h-7 w-7" style={{ color: '#ffffff' }} />
-        <h1 className="text-2xl font-bold" style={{ color: '#ffffff' }}>
+        <FileText className="h-7 w-7" style={{ color: '#2c2c2c' }} />
+        <h1 className="text-2xl font-bold" style={{ color: '#2c2c2c' }}>
           Credit Invoices
         </h1>
       </div>
@@ -407,7 +407,7 @@ export default function CreditInvoicePage({ customers, products }: Props) {
               onClick={handleIssue}
               disabled={saving || !items.length || !selectedCustomer}
               className="w-full gap-2"
-              style={{ backgroundColor: '#ffffff', color: 'white' }}
+              style={{ backgroundColor: '#2c2c2c', color: 'white' }}
             >
               {saving
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Issuing...</>

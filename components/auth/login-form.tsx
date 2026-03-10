@@ -84,8 +84,8 @@ export function LoginForm() {
             className="h-40 w-auto mx-auto mb-4"
           />
           <h2 className="text-2xl font-bold mb-1">
-            <span style={{ color: '#8B000' }}>Deb's</span>{" "}
-            <span style={{ color: '#ffffff' }}>Bakery</span>
+            <span style={{ color: '#8B0000' }}>Deb's</span>{" "}
+            <span style={{ color: '#2c2c2c' }}>Bakery</span>
           </h2>
           <p className="text-gray-600 mt-2">
             {isSignUp ? "Create your account" : "Welcome back"}
@@ -106,7 +106,7 @@ export function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
-              style={{ '--tw-ring-color': '#8B000' } as React.CSSProperties}
+              style={{ '--tw-ring-color': '#8B0000' } as React.CSSProperties}
               required
             />
           </div>
@@ -123,7 +123,7 @@ export function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent"
-              style={{ '--tw-ring-color': '#8B000' } as React.CSSProperties}
+              style={{ '--tw-ring-color': '#8B0000' } as React.CSSProperties}
               required
               minLength={6}
             />
@@ -150,7 +150,7 @@ export function LoginForm() {
             type="submit"
             disabled={loading}
             className="w-full text-white py-2 px-4 rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-opacity"
-            style={{ backgroundColor: '#8B000' }}
+            style={{ backgroundColor: '#8B0000' }}
           >
             {loading ? "Loading..." : isSignUp ? "Sign Up" : "Sign In"}
           </button>
@@ -164,7 +164,7 @@ export function LoginForm() {
               setPassword("");
             }}
             className="w-full text-sm font-medium hover:underline"
-            style={{ color: '#ffffff' }}
+            style={{ color: '#2c2c2c' }}
           >
             {isSignUp
               ? "Already have an account? Sign in"

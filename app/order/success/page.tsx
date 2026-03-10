@@ -24,7 +24,7 @@ function OrderSuccessContent() {
         <div className="flex justify-center mb-6">
           <div
             className="w-20 h-20 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: '#ffffff' }}
+            style={{ backgroundColor: '#2c2c2c' }}
           >
             <CheckCircle className="w-12 h-12 text-white" />
           </div>
@@ -67,7 +67,7 @@ function OrderSuccessContent() {
           <Link href="/portal" className="flex-1">
             <button
               className="w-full px-6 py-3 rounded-md text-white font-medium hover:opacity-90 transition flex items-center justify-center gap-2"
-              style={{ backgroundColor: '#ffffff' }}
+              style={{ backgroundColor: '#2c2c2c' }}
             >
               View Orders
               <ArrowRight className="w-4 h-4" />

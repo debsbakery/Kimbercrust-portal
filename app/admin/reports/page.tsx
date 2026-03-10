@@ -14,7 +14,7 @@ export default async function ReportsPage() {
       description: 'Sales summary by week',
       href: '/admin/reports/weekly',
       icon: BarChart2,
-      color: '#ffffff',
+      color: '#2c2c2c',
     },
     {
   title: 'Sales History',
@@ -28,14 +28,14 @@ export default async function ReportsPage() {
       description: 'Stale returns by product and customer',
       href: '/admin/reports/stales',
       icon: TrendingDown,
-      color: '#8B000',
+      color: '#8B0000',
     },
     {
   title: 'Accountant Summary',
   description: 'Monthly sales, AR, costs, and stock',
   href: '/admin/reports/accountant',
   icon: FileText,
-  color: '#ffffff',
+  color: '#2c2c2c',
 },
     {
       title: 'GST Report',
@@ -51,7 +51,7 @@ export default async function ReportsPage() {
       <a
         href="/admin"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: '#8B000' }}
+        style={{ color: '#8B0000' }}
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Admin

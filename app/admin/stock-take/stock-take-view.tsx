@@ -224,7 +224,7 @@ export default function StockTakeView({ ingredients, initialStockTakes }: Props)
             onClick={handleCreateNew}
             disabled={saving}
             className="w-full py-3 rounded-lg text-white font-bold text-sm hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{ backgroundColor: '#ffffff' }}
+            style={{ backgroundColor: '#2c2c2c' }}
           ><Plus className="h-4 w-4" />
             {saving ? 'Creating...' : 'Create Stock Take Sheet'}
           </button>
@@ -251,7 +251,7 @@ export default function StockTakeView({ ingredients, initialStockTakes }: Props)
                 onClick={handleSaveCounts}
                 disabled={saving}
                 className="px-4 py-2 rounded-lg text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5"
-                style={{ backgroundColor: '#ffffff' }}
+                style={{ backgroundColor: '#2c2c2c' }}
               >
                 <Save className="h-4 w-4" />
                 {saving ? 'Saving...' : 'Save & Complete'}

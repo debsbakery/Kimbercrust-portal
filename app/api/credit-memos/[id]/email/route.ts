@@ -45,7 +45,7 @@ export async function POST(
     subject: `Credit Invoice ${memo.credit_number} — Kimbercrust Bakery`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #ffffff;">Credit Invoice</h2>
+        <h2 style="color: #2c2c2c;">Credit Invoice</h2>
         <p>Dear ${customerName},</p>
         <p>Please find attached your credit invoice for <strong>${creditType}</strong>.</p>
         <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
@@ -55,7 +55,7 @@ export async function POST(
           ${memo.notes ? `<p style="margin: 5px 0;"><strong>Notes:</strong> ${memo.notes}</p>` : ''}
         </div>
         <p>This credit has been applied to your account balance.</p>
-        <p>Thank you,<br/><strong style="color: #ffffff;">Kimbercrust Bakery</strong></p>
+        <p>Thank you,<br/><strong style="color: #2c2c2c;">Kimbercrust Bakery</strong></p>
       </div>
     `,
     attachments: [{

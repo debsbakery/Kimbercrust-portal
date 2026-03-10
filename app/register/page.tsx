@@ -53,8 +53,8 @@ export default function RegisterPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="bg-white rounded-xl shadow-lg p-10 max-w-md w-full text-center">
-          <CheckCircle className="h-16 w-16 mx-auto mb-4" style={{ color: '#ffffff' }} />
-          <h1 className="text-2xl font-bold mb-3" style={{ color: '#ffffff' }}>
+          <CheckCircle className="h-16 w-16 mx-auto mb-4" style={{ color: '#2c2c2c' }} />
+          <h1 className="text-2xl font-bold mb-3" style={{ color: '#2c2c2c' }}>
             Application Received!
           </h1>
           <p className="text-gray-600 mb-2">
@@ -81,12 +81,12 @@ export default function RegisterPage() {
           <div className="flex justify-center mb-3">
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: '#ffffff' }}
+              style={{ backgroundColor: '#2c2c2c' }}
             >
               <ShoppingBag className="h-7 w-7 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold" style={{ color: '#ffffff' }}>
+          <h1 className="text-3xl font-bold" style={{ color: '#2c2c2c' }}>
             Deb&apos;s Bakery
           </h1>
           <p className="text-gray-500 mt-1">Wholesale Account Application</p>
@@ -206,14 +206,14 @@ export default function RegisterPage() {
             type="submit"
             disabled={loading}
             className="w-full py-3 rounded-lg text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
-            style={{ backgroundColor: '#8B000' }}
+            style={{ backgroundColor: '#8B0000' }}
           >
             {loading ? 'Submitting...' : 'Submit Application'}
           </button>
 
           <p className="text-xs text-gray-400 text-center pt-1">
             Already a customer?{' '}
-            <a href="/portal" className="underline" style={{ color: '#ffffff' }}>
+            <a href="/portal" className="underline" style={{ color: '#2c2c2c' }}>
               Sign in to the portal
             </a>
           </p>

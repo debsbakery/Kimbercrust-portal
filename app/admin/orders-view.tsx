@@ -244,13 +244,13 @@ export default function OrdersView() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="bg-white rounded-lg shadow-md p-5 border-l-4" style={{ borderColor: '#8B000' }}>
+        <div className="bg-white rounded-lg shadow-md p-5 border-l-4" style={{ borderColor: '#8B0000' }}>
           <p className="text-sm text-gray-600">Total Orders</p>
           <p className="text-3xl font-bold">{stats.totalOrders}</p>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-5 border-l-4" style={{ borderColor: '#ffffff' }}>
+        <div className="bg-white rounded-lg shadow-md p-5 border-l-4" style={{ borderColor: '#2c2c2c' }}>
           <p className="text-sm text-gray-600">Pending</p>
-          <p className="text-3xl font-bold" style={{ color: '#8B000' }}>{stats.pendingOrders}</p>
+          <p className="text-3xl font-bold" style={{ color: '#8B0000' }}>{stats.pendingOrders}</p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-5 border-l-4 border-blue-500">
           <p className="text-sm text-gray-600">Delivering Today</p>
@@ -356,7 +356,7 @@ export default function OrdersView() {
                       {dayOrders.length} order{dayOrders.length !== 1 ? 's' : ''}
                     </span>
                   </div>
-                  <span className="font-bold text-lg" style={{ color: '#ffffff' }}>
+                  <span className="font-bold text-lg" style={{ color: '#2c2c2c' }}>
                     {formatCurrency(dayTotal)}
                   </span>
                 </button>
@@ -418,7 +418,7 @@ export default function OrdersView() {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded text-white hover:opacity-90"
-                                  style={{ backgroundColor: '#8B000' }}
+                                  style={{ backgroundColor: '#8B0000' }}
                                 >
                                   <FileDown className="h-3 w-3" />Inv
                                 </a>
@@ -427,7 +427,7 @@ export default function OrdersView() {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded text-white hover:opacity-90"
-                                  style={{ backgroundColor: '#ffffff' }}
+                                  style={{ backgroundColor: '#2c2c2c' }}
                                 >
                                   <Package className="h-3 w-3" />Slip
                                 </a>
@@ -457,7 +457,7 @@ export default function OrdersView() {
                             className="px-4 py-2 text-sm font-semibold text-gray-600 text-right">
                             Day Total
                           </td>
-                          <td className="px-4 py-2 text-right font-bold" style={{ color: '#ffffff' }}>
+                          <td className="px-4 py-2 text-right font-bold" style={{ color: '#2c2c2c' }}>
                             {formatCurrency(dayTotal)}
                           </td>
                           <td colSpan={2} />

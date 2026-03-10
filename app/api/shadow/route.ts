@@ -129,7 +129,7 @@ export async function POST(request: Request) {
           subject: 'Order Confirmation - Debs Bakery',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #ffffff;">Thank you for your order!</h1>
+              <h1 style="color: #2c2c2c;">Thank you for your order!</h1>
               <p><strong>Order #${newOrder.id.slice(0, 8).toUpperCase()}</strong></p>
               <p>Delivery Date: ${new Date(newOrder.delivery_date).toLocaleDateString('en-AU', { 
                 weekday: 'long', 
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
           subject: `🔔 New Shadow Order from ${customer.business_name || customer.email}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
-              <div style="background: #ffffff; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+              <div style="background: #2c2c2c; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
                 <h1 style="margin: 0; font-size: 24px;">🛒 New Order Received (Shadow Order)</h1>
                 <p style="margin: 5px 0 0 0; opacity: 0.9;">Order #${newOrder.id.slice(0, 8).toUpperCase()}</p>
               </div>
@@ -211,7 +211,7 @@ export async function POST(request: Request) {
                     <tfoot>
                       <tr style="background: #f5f5f5; font-weight: bold;">
                         <td colspan="3" style="padding: 12px; text-align: right; font-size: 1.1em;">Order Total:</td>
-                        <td style="padding: 12px; text-align: right; color: #8B000; font-size: 1.2em;">$${total.toFixed(2)}</td>
+                        <td style="padding: 12px; text-align: right; color: #8B0000; font-size: 1.2em;">$${total.toFixed(2)}</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -219,7 +219,7 @@ export async function POST(request: Request) {
 
                 <div style="text-align: center; margin-top: 30px;">
                   <a href="${siteUrl}/admin/orders" 
-                     style="display: inline-block; background: #8B000; color: white; padding: 14px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
+                     style="display: inline-block; background: #8B0000; color: white; padding: 14px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px;">
                     📋 View in Admin Portal
                   </a>
                 </div>

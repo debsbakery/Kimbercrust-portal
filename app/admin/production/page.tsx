@@ -16,7 +16,7 @@ export default async function ProductionDashboardPage() {
         <a
           href="/admin"
           className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-          style={{ color: "#8B000" }}
+          style={{ color: "#8B0000" }}
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Admin
@@ -24,7 +24,7 @@ export default async function ProductionDashboardPage() {
         <div className="flex justify-between items-start flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Package className="h-8 w-8" style={{ color: "#ffffff" }} />
+              <Package className="h-8 w-8" style={{ color: "#2c2c2c" }} />
               Production
             </h1>
             <p className="text-gray-600">

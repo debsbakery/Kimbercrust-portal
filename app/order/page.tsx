@@ -243,7 +243,7 @@ export default function OrderPage() {
   if (!supabase) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-12 w-12 animate-spin" style={{ color: "#8B000" }} />
+        <Loader2 className="h-12 w-12 animate-spin" style={{ color: "#8B0000" }} />
       </div>
     );
   }
@@ -251,7 +251,7 @@ export default function OrderPage() {
   if (pageLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-12 w-12 animate-spin" style={{ color: "#8B000" }} />
+        <Loader2 className="h-12 w-12 animate-spin" style={{ color: "#8B0000" }} />
       </div>
     );
   }
@@ -262,7 +262,7 @@ export default function OrderPage() {
         <Link href="/catalog">
           <button
             className="flex items-center hover:opacity-80 mb-6"
-            style={{ color: "#8B000" }}
+            style={{ color: "#8B0000" }}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Catalog
@@ -381,7 +381,7 @@ export default function OrderPage() {
                               style={
                                 deliveryDate &&
                                 date.toDateString() === deliveryDate.toDateString()
-                                  ? { backgroundColor: "#8B000" }
+                                  ? { backgroundColor: "#8B0000" }
                                   : {}
                               }
                             >
@@ -431,7 +431,7 @@ export default function OrderPage() {
                       <button
                         type="button"
                         className="mt-4 font-medium"
-                        style={{ color: "#8B000" }}
+                        style={{ color: "#8B0000" }}
                       >
                         Browse Catalog
                       </button>
@@ -532,7 +532,7 @@ export default function OrderPage() {
 
                       <div
                         className="flex justify-between items-center text-lg font-bold pt-2 border-t"
-                        style={{ color: "#8B000" }}
+                        style={{ color: "#8B0000" }}
                       >
                         <span>Total</span>
                         <span>{formatCurrency(orderTotals.total)}</span>
@@ -554,7 +554,7 @@ export default function OrderPage() {
                 type="submit"
                 disabled={loading || cart.length === 0}
                 className="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:opacity-50 font-medium flex items-center justify-center gap-2 shadow-md"
-                style={{ backgroundColor: "#8B000" }}
+                style={{ backgroundColor: "#8B0000" }}
               >
                 {loading ? (
                   <>

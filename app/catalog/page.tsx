@@ -182,7 +182,7 @@ const productsWithPricing = data.map((product: any) => ({
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="h-12 w-12 animate-spin" style={{ color: "#8B000" }} />
+        <Loader2 className="h-12 w-12 animate-spin" style={{ color: "#8B0000" }} />
       </div>
     );
   }
@@ -191,14 +191,14 @@ const productsWithPricing = data.map((product: any) => ({
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md bg-white rounded-lg shadow-lg p-8 text-center">
-          <h2 className="text-2xl font-bold mb-2" style={{ color: "#8B000" }}>
+          <h2 className="text-2xl font-bold mb-2" style={{ color: "#8B0000" }}>
             Error Loading Products
           </h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
             className="px-6 py-2 text-white rounded-md"
-            style={{ backgroundColor: "#8B000" }}
+            style={{ backgroundColor: "#8B0000" }}
           >
             Try Again
           </button>
@@ -213,7 +213,7 @@ const productsWithPricing = data.map((product: any) => ({
         <button
           onClick={() => router.push("/")}
           className="flex items-center mb-4"
-          style={{ color: "#8B000" }}
+          style={{ color: "#8B0000" }}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Home
@@ -252,7 +252,7 @@ const productsWithPricing = data.map((product: any) => ({
             <button
               onClick={() => router.push("/order")}
               className="relative text-white px-6 py-3 rounded-md font-medium flex items-center gap-2 shadow-md"
-              style={{ backgroundColor: "#8B000" }}
+              style={{ backgroundColor: "#8B0000" }}
             >
               <ShoppingCart className="h-5 w-5" />
               View Order
@@ -284,7 +284,7 @@ const productsWithPricing = data.map((product: any) => ({
               className={`px-4 py-2 rounded-md font-medium ${
                 !selectedCategory ? "text-white" : "bg-white text-gray-700 border"
               }`}
-              style={!selectedCategory ? { backgroundColor: "#ffffff" } : {}}
+              style={!selectedCategory ? { backgroundColor: "#2c2c2c" } : {}}
             >
               All
             </button>
@@ -297,7 +297,7 @@ const productsWithPricing = data.map((product: any) => ({
                     ? "text-white"
                     : "bg-white text-gray-700 border"
                 }`}
-                style={selectedCategory === cat ? { backgroundColor: "#ffffff" } : {}}
+                style={selectedCategory === cat ? { backgroundColor: "#2c2c2c" } : {}}
               >
                 {cat}
               </button>
@@ -395,7 +395,7 @@ function ProductCard({
           {product.category && (
             <span
               className="text-xs px-2 py-1 rounded-full text-white"
-              style={{ backgroundColor: "#ffffff" }}
+              style={{ backgroundColor: "#2c2c2c" }}
             >
               {product.category}
             </span>
@@ -411,7 +411,7 @@ function ProductCard({
             className={`text-2xl font-bold ${
               product.isContractPrice ? "text-blue-600" : ""
             }`}
-            style={!product.isContractPrice ? { color: "#8B000" } : {}}
+            style={!product.isContractPrice ? { color: "#8B0000" } : {}}
           >
             {formatCurrency(displayPrice)}
           </span>
@@ -425,14 +425,14 @@ function ProductCard({
         <div className="flex gap-2">
           <div
             className="flex items-center border-2 rounded-md"
-            style={{ borderColor: "#ffffff" }}
+            style={{ borderColor: "#2c2c2c" }}
           >
             <button
               onClick={() => handleQuantityChange(quantity - 1)}
               disabled={quantity <= product.min_quantity}
               className="p-2 hover:bg-gray-100 disabled:opacity-50"
             >
-              <Minus className="h-4 w-4" style={{ color: "#ffffff" }} />
+              <Minus className="h-4 w-4" style={{ color: "#2c2c2c" }} />
             </button>
             <input
               type="number"
@@ -451,14 +451,14 @@ function ProductCard({
               disabled={quantity >= product.max_quantity}
               className="p-2 hover:bg-gray-100 disabled:opacity-50"
             >
-              <Plus className="h-4 w-4" style={{ color: "#ffffff" }} />
+              <Plus className="h-4 w-4" style={{ color: "#2c2c2c" }} />
             </button>
           </div>
 
           <button
             onClick={() => onAddToCart(product, quantity)}
             className="flex-1 text-white px-4 py-2 rounded-md font-medium flex items-center justify-center gap-2 shadow-md"
-            style={{ backgroundColor: "#8B000" }}
+            style={{ backgroundColor: "#8B0000" }}
           >
             <ShoppingCart className="h-4 w-4" />
             Add

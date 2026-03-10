@@ -111,7 +111,7 @@ export default function LoginForm() {
           type="submit"
           disabled={isLoading}
           className="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-green-700 hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ backgroundColor: isLoading ? '#9CA3AF' : '#ffffff' }}
+          style={{ backgroundColor: isLoading ? '#9CA3AF' : '#2c2c2c' }}
         >
           {isLoading ? 'Signing in...' : 'Sign In'}
         </button>

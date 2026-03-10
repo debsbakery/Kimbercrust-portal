@@ -170,7 +170,7 @@ export default function ContractPricingPage() {
       <div className="mb-8">
         <h1
           className="text-3xl font-bold flex items-center gap-2"
-          style={{ color: '#ffffff' }}
+          style={{ color: '#2c2c2c' }}
         >
           <DollarSign className="h-8 w-8" />
           Contract Pricing
@@ -207,7 +207,7 @@ export default function ContractPricingPage() {
             <button
               onClick={() => { setShowForm(!showForm); setFormError('') }}
               className="flex items-center gap-2 px-4 py-2 rounded text-white hover:opacity-90"
-              style={{ backgroundColor: '#ffffff' }}
+              style={{ backgroundColor: '#2c2c2c' }}
             >
               <Plus className="h-4 w-4" />
               Add Contract Price
@@ -310,7 +310,7 @@ export default function ContractPricingPage() {
                 <button
                   type="submit"
                   className="px-5 py-2 rounded text-white font-medium hover:opacity-90"
-                  style={{ backgroundColor: '#ffffff' }}
+                  style={{ backgroundColor: '#2c2c2c' }}
                 >
                   Save Contract Price
                 </button>
@@ -363,7 +363,7 @@ export default function ContractPricingPage() {
                         </td>
                         <td
                           className="text-right py-2 px-3 font-bold text-sm"
-                          style={{ color: '#ffffff' }}
+                          style={{ color: '#2c2c2c' }}
                         >
                           {formatCurrency(contract.contract_price)}
                         </td>

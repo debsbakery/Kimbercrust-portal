@@ -14,7 +14,7 @@ export default async function BatchInvoicePage() {
       <a
         href="/admin"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: "#8B000" }}
+        style={{ color: "#8B0000" }}
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Admin

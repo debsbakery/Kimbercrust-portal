@@ -45,8 +45,8 @@ export function Header() {
     className="h-14 w-auto"
   />
   <div className="flex flex-col leading-none">
-    <span className="font-bold text-xl" style={{ color: '#8B000' }}>Deb's</span>
-    <span className="font-semibold text-sm" style={{ color: '#ffffff' }}>Bakery</span>
+    <span className="font-bold text-xl" style={{ color: '#8B0000' }}>Deb's</span>
+    <span className="font-semibold text-sm" style={{ color: '#2c2c2c' }}>Bakery</span>
   </div>
 </Link>
         {/* Navigation */}
@@ -70,7 +70,7 @@ export function Header() {
               </span>
               {isAdmin && (
                 <Link href="/admin">
-                  <Button variant="outline" size="sm" className="border-2" style={{ borderColor: '#ffffff', color: '#ffffff' }}>
+                  <Button variant="outline" size="sm" className="border-2" style={{ borderColor: '#2c2c2c', color: '#2c2c2c' }}>
                     <Settings className="h-4 w-4 mr-1" />
                     Admin
                   </Button>
@@ -83,7 +83,7 @@ export function Header() {
             </>
           ) : (
             <Link href="/auth/login">
-              <Button size="sm" className="text-white" style={{ backgroundColor: '#8B000' }}>
+              <Button size="sm" className="text-white" style={{ backgroundColor: '#8B0000' }}>
                 Login
               </Button>
             </Link>

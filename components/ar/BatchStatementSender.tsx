@@ -71,7 +71,7 @@ export default function BatchStatementSender() {
           <Button
             onClick={handleSendAll}
             disabled={isSending}
-            style={{ backgroundColor: '#ffffff', color: 'white' }}
+            style={{ backgroundColor: '#2c2c2c', color: 'white' }}
             className="gap-2"
           >
             {isSending ? (

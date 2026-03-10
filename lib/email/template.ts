@@ -46,7 +46,7 @@ export function orderConfirmationTemplate(data: OrderConfirmationData): string {
                 
                 <!-- Header -->
                 <tr>
-                  <td style="background: linear-gradient(135deg, #ffffff 0%, #004d38 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+                  <td style="background: linear-gradient(135deg, #2c2c2c 0%, #004d38 100%); padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
                     <h1 style="color: white; margin: 0; font-size: 28px;">🥖 Debs Bakery</h1>
                   </td>
                 </tr>
@@ -81,10 +81,10 @@ export function orderConfirmationTemplate(data: OrderConfirmationData): string {
                       </tr>
                       <tr>
                         <td style="padding: 15px; text-align: right; background-color: #f9fafb; border-top: 2px solid #e5e7eb; font-size: 18px;">
-                          <strong style="color: #ffffff;">Total</strong>
+                          <strong style="color: #2c2c2c;">Total</strong>
                         </td>
                         <td style="padding: 15px; text-align: right; background-color: #f9fafb; border-top: 2px solid #e5e7eb; font-size: 18px;">
-                          <strong style="color: #ffffff;">$${data.total.toFixed(2)}</strong>
+                          <strong style="color: #2c2c2c;">$${data.total.toFixed(2)}</strong>
                         </td>
                       </tr>
                     </table>
@@ -94,8 +94,8 @@ export function orderConfirmationTemplate(data: OrderConfirmationData): string {
                 <!-- Delivery Info -->
                 <tr>
                   <td style="padding: 20px 30px;">
-                    <div style="background-color: #ecfdf5; border-left: 4px solid #ffffff; padding: 15px; border-radius: 4px;">
-                      <strong style="color: #ffffff;">📅 Delivery Date:</strong>
+                    <div style="background-color: #ecfdf5; border-left: 4px solid #2c2c2c; padding: 15px; border-radius: 4px;">
+                      <strong style="color: #2c2c2c;">📅 Delivery Date:</strong>
                       <span style="color: #374151;">${data.deliveryDate}</span>
                     </div>
                   </td>
@@ -104,7 +104,7 @@ export function orderConfirmationTemplate(data: OrderConfirmationData): string {
                 <!-- CTA Button -->
                 <tr>
                   <td style="padding: 20px 30px; text-align: center;">
-                    <a href="${data.portalLink}" style="display: inline-block; background-color: #ffffff; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                    <a href="${data.portalLink}" style="display: inline-block; background-color: #2c2c2c; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold;">
                       View Order Details
                     </a>
                   </td>
@@ -195,10 +195,10 @@ export function newOrderNotificationTemplate(data: NewOrderNotificationData): st
                       </tr>
                       <tr>
                         <td style="padding: 12px 0 0 0; border-top: 2px solid #e5e7eb; font-size: 18px;">
-                          <strong style="color: #ffffff;">Total:</strong>
+                          <strong style="color: #2c2c2c;">Total:</strong>
                         </td>
                         <td style="padding: 12px 0 0 0; border-top: 2px solid #e5e7eb; text-align: right; font-size: 18px;">
-                          <strong style="color: #ffffff;">$${data.total.toFixed(2)}</strong>
+                          <strong style="color: #2c2c2c;">$${data.total.toFixed(2)}</strong>
                         </td>
                       </tr>
                     </table>

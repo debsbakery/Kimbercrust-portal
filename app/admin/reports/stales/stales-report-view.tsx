@@ -127,7 +127,7 @@ export default function StalesReportView({
           <button
             onClick={applyFilter}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-white hover:opacity-90"
-            style={{ backgroundColor: '#ffffff' }}
+            style={{ backgroundColor: '#2c2c2c' }}
           >
             Apply
           </button>

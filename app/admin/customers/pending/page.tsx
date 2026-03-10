@@ -74,7 +74,7 @@ export default async function PendingCustomersPage() {
       <Link
         href="/admin"
         className="flex items-center gap-1 text-sm mb-5 hover:opacity-80"
-        style={{ color: '#8B000' }}
+        style={{ color: '#8B0000' }}
       >
         <ArrowLeft className="h-4 w-4" /> Back to Admin
       </Link>
@@ -304,7 +304,7 @@ function CustomerCard({
               <button
                 type="submit"
                 className="flex items-center gap-1.5 px-4 py-2 text-sm text-white rounded-lg hover:opacity-90 w-full justify-center"
-                style={{ backgroundColor: '#ffffff' }}
+                style={{ backgroundColor: '#2c2c2c' }}
               >
                 <CheckCircle className="h-4 w-4" /> Approve
               </button>

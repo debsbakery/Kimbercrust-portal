@@ -250,7 +250,7 @@ export default function OrderEditView({ order, products }: OrderEditViewProps) {
                   onClick={saveChanges}
                   disabled={saving || items.length === 0}
                   className="w-full flex items-center justify-center gap-2 px-4 py-3 text-white rounded-lg font-medium transition-all disabled:bg-gray-300 disabled:cursor-not-allowed"
-                  style={{ backgroundColor: items.length > 0 && !saving ? '#ffffff' : undefined }}
+                  style={{ backgroundColor: items.length > 0 && !saving ? '#2c2c2c' : undefined }}
                 >
                   <Save className="h-4 w-4" />
                   {saving ? 'Saving...' : 'Save Changes'}

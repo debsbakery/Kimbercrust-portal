@@ -29,14 +29,14 @@ const supabase = await createServiceClient()
       <Link
         href="/admin"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: "#8B000" }}
+        style={{ color: "#8B0000" }}
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Admin Dashboard
       </Link>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold flex items-center gap-3" style={{ color: "#ffffff" }}>
+        <h1 className="text-3xl font-bold flex items-center gap-3" style={{ color: "#2c2c2c" }}>
           <FileText className="h-8 w-8" />
           Batch Invoice Generator
         </h1>

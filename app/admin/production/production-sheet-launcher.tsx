@@ -195,7 +195,7 @@ export default function ProductionSheetLauncher({ inline = false }: { inline?: b
           onClick={handleView}
           disabled={dayCount === 0}
           className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-semibold text-sm border-2 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-          style={{ borderColor: '#ffffff', color: '#ffffff' }}
+          style={{ borderColor: '#2c2c2c', color: '#2c2c2c' }}
         >
           <Eye className="h-4 w-4" />
           View Sheet
@@ -204,7 +204,7 @@ export default function ProductionSheetLauncher({ inline = false }: { inline?: b
           onClick={handlePrint}
           disabled={dayCount === 0}
           className="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-white font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
-          style={{ backgroundColor: '#8B000' }}
+          style={{ backgroundColor: '#8B0000' }}
         >
           <Printer className="h-4 w-4" />
           Print Sheet
@@ -229,7 +229,7 @@ export default function ProductionSheetLauncher({ inline = false }: { inline?: b
       <button
         onClick={() => setOpen(o => !o)}
         className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white font-semibold hover:opacity-90 transition-opacity"
-        style={{ backgroundColor: '#ffffff' }}
+        style={{ backgroundColor: '#2c2c2c' }}
       >
         <Printer className="h-4 w-4" />
         Production Sheet

@@ -161,7 +161,7 @@ function buildManualAllocations() {
         <button
           onClick={() => setShowPayment(true)}
           className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg"
-          style={{ backgroundColor: '#ffffff' }}
+          style={{ backgroundColor: '#2c2c2c' }}
         >
           <Plus className="h-4 w-4" /> Record Payment
         </button>
@@ -262,7 +262,7 @@ function buildManualAllocations() {
                     </td>
                     <td
                       className="px-4 py-3 text-right font-mono font-semibold"
-                      style={{ color: entry.balance > 0 ? '#8B000' : '#ffffff' }}
+                      style={{ color: entry.balance > 0 ? '#8B0000' : '#2c2c2c' }}
                     >
                       {formatCurrency(entry.balance)}
                     </td>
@@ -494,7 +494,7 @@ onChange={e => setManualAlloc(prev => ({
                 onClick={handleRecordPayment}
                 disabled={saving}
                 className="flex-1 px-4 py-2 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
-                style={{ backgroundColor: '#ffffff' }}
+                style={{ backgroundColor: '#2c2c2c' }}
               >
                 {saving ? (
                   <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>

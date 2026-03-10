@@ -175,7 +175,7 @@ export default function CustomerAssignmentView({ routeNumber, initialCustomers }
       <div className="bg-white rounded-lg shadow-md">
         <div className="p-6 border-b">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <Users className="h-5 w-5" style={{ color: "#ffffff" }} />
+            <Users className="h-5 w-5" style={{ color: "#2c2c2c" }} />
             Assigned Customers ({assignedCustomers.length})
           </h2>
           <p className="text-sm text-gray-600 mt-1">
@@ -201,7 +201,7 @@ export default function CustomerAssignmentView({ routeNumber, initialCustomers }
                 >
                   <div
                     className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                    style={{ backgroundColor: "#ffffff" }}
+                    style={{ backgroundColor: "#2c2c2c" }}
                   >
                     {index + 1}
                   </div>
@@ -247,7 +247,7 @@ export default function CustomerAssignmentView({ routeNumber, initialCustomers }
       <div className="bg-white rounded-lg shadow-md">
         <div className="p-6 border-b">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <Plus className="h-5 w-5" style={{ color: "#8B000" }} />
+            <Plus className="h-5 w-5" style={{ color: "#8B0000" }} />
             Available Customers ({availableCustomers.length})
           </h2>
 
@@ -310,7 +310,7 @@ export default function CustomerAssignmentView({ routeNumber, initialCustomers }
           onClick={handleSave}
           disabled={saving}
           className="flex-1 px-6 py-3 rounded-md text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          style={{ backgroundColor: "#ffffff" }}
+          style={{ backgroundColor: "#2c2c2c" }}
         >
           {saving ? (
             <>
