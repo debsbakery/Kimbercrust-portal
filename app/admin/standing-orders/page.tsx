@@ -147,7 +147,7 @@ export default async function StandingOrdersPage() {
         <a
           href="/admin"
           className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-          style={{ color: "#CE1126" }}
+          style={{ color: "#8B000" }}
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Admin
@@ -155,7 +155,7 @@ export default async function StandingOrdersPage() {
         <div className="flex justify-between items-start flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Calendar className="h-8 w-8" style={{ color: "#006A4E" }} />
+              <Calendar className="h-8 w-8" style={{ color: "#1a1a1a" }} />
               Standing Orders
             </h1>
             <p className="text-gray-600">Manage recurring weekly orders</p>
@@ -171,7 +171,7 @@ export default async function StandingOrdersPage() {
             <Link
               href="/admin/standing-orders/create"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white font-semibold hover:opacity-90"
-              style={{ backgroundColor: "#006A4E" }}
+              style={{ backgroundColor: "#1a1a1a" }}
             >
               <Plus className="h-5 w-5" />
               Create Standing Order
@@ -182,13 +182,13 @@ export default async function StandingOrdersPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#006A4E" }}>
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#1a1a1a" }}>
           <p className="text-sm text-gray-600">Active Orders</p>
-          <p className="text-3xl font-bold" style={{ color: "#006A4E" }}>{activeOrders}</p>
+          <p className="text-3xl font-bold" style={{ color: "#1a1a1a" }}>{activeOrders}</p>
         </div>
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#CE1126" }}>
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#8B000" }}>
           <p className="text-sm text-gray-600">Customers</p>
-          <p className="text-3xl font-bold" style={{ color: "#CE1126" }}>{totalCustomers}</p>
+          <p className="text-3xl font-bold" style={{ color: "#8B000" }}>{totalCustomers}</p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
           <p className="text-sm text-gray-600">Total Orders</p>
@@ -348,7 +348,7 @@ export default async function StandingOrdersPage() {
                         <Link
                           href={`/admin/standing-orders/edit/${order.id}`}
                           className="text-sm px-3 py-1.5 rounded-md text-white hover:opacity-90"
-                          style={{ backgroundColor: "#006A4E" }}
+                          style={{ backgroundColor: "#1a1a1a" }}
                         >
                           Edit
                         </Link>

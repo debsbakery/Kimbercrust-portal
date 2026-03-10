@@ -208,7 +208,7 @@ export default async function CustomerLedgerPage({
       <Link
         href="/admin/ar"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: '#CE1126' }}
+        style={{ color: '#8B000' }}
       >
         <ArrowLeft className="h-4 w-4" /> Back to AR
       </Link>
@@ -216,7 +216,7 @@ export default async function CustomerLedgerPage({
       <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: '#006A4E' }}>
+            <h1 className="text-2xl font-bold" style={{ color: '#1a1a1a' }}>
               {customer.business_name || customer.contact_name}
             </h1>
             <p className="text-gray-500 text-sm mt-0.5">{customer.email}</p>
@@ -228,7 +228,7 @@ export default async function CustomerLedgerPage({
             <p className="text-xs text-gray-500 mb-1">Current Balance</p>
             <p
               className="text-3xl font-bold"
-              style={{ color: currentBalance > 0 ? '#CE1126' : '#006A4E' }}
+              style={{ color: currentBalance > 0 ? '#8B000' : '#1a1a1a' }}
             >
               {formatCurrency(Math.abs(currentBalance))}
             </p>
@@ -261,7 +261,7 @@ export default async function CustomerLedgerPage({
             <p className="text-xs text-gray-500">Balance Due</p>
             <p
               className="text-lg font-bold"
-              style={{ color: currentBalance > 0 ? '#CE1126' : '#006A4E' }}
+              style={{ color: currentBalance > 0 ? '#8B000' : '#1a1a1a' }}
             >
               {formatCurrency(currentBalance)}
             </p>

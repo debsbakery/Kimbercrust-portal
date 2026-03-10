@@ -5,7 +5,7 @@ export async function generateBatchPackingSlips(orders: any[]): Promise<Buffer> 
   const mergedPdf = await PDFDocument.create()
 
   const bakeryInfo = {
-    name:    process.env.BAKERY_NAME    ?? "Deb's Bakery",
+    name:    process.env.BAKERY_NAME    ?? "Kimbercrust Bakery",
     phone:   process.env.BAKERY_PHONE   ?? '(07) 4632 9475',
     address: process.env.BAKERY_ADDRESS ?? '20 Mann St, Toowoomba QLD 4350',
   }

@@ -8,7 +8,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2" style={{ color: "#006A4E" }}>
+          <h1 className="text-4xl font-bold mb-2" style={{ color: "#1a1a1a" }}>
             Customer Portal
           </h1>
           <p className="text-gray-600">Sign in to manage your account</p>

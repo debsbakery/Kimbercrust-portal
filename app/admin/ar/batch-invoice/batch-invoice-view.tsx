@@ -89,7 +89,7 @@ const [sendEmails, setSendEmails] = useState(false)
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <FileText className="h-6 w-6" style={{ color: '#CE1126' }} />
+              <FileText className="h-6 w-6" style={{ color: '#8B000' }} />
               Batch Invoice
             </h1>
             <p className="text-gray-600 mt-1">
@@ -167,7 +167,7 @@ Invoice with emails
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-medium" style={{ color: '#CE1126' }}>
+                    <span className="text-sm font-medium" style={{ color: '#8B000' }}>
                       ${batch.total_amount.toFixed(2)}
                     </span>
                   </td>
@@ -176,7 +176,7 @@ Invoice with emails
                       onClick={() => handleBatchInvoice(batch.delivery_date)}
                       disabled={processing === batch.delivery_date}
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-                      style={{ backgroundColor: '#CE1126' }}
+                      style={{ backgroundColor: '#8B000' }}
                     >
                       {processing === batch.delivery_date ? (
                         <>

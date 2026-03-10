@@ -41,12 +41,12 @@ export function Header() {
 <Link href="/" className="flex items-center space-x-3">
   <img 
     src="/logo.svg"
-    alt="Deb's Bakery" 
+    alt="Kimbercrust Bakery" 
     className="h-14 w-auto"
   />
   <div className="flex flex-col leading-none">
-    <span className="font-bold text-xl" style={{ color: '#CE1126' }}>Deb's</span>
-    <span className="font-semibold text-sm" style={{ color: '#006A4E' }}>Bakery</span>
+    <span className="font-bold text-xl" style={{ color: '#8B000' }}>Deb's</span>
+    <span className="font-semibold text-sm" style={{ color: '#1a1a1a' }}>Bakery</span>
   </div>
 </Link>
         {/* Navigation */}
@@ -70,7 +70,7 @@ export function Header() {
               </span>
               {isAdmin && (
                 <Link href="/admin">
-                  <Button variant="outline" size="sm" className="border-2" style={{ borderColor: '#006A4E', color: '#006A4E' }}>
+                  <Button variant="outline" size="sm" className="border-2" style={{ borderColor: '#1a1a1a', color: '#1a1a1a' }}>
                     <Settings className="h-4 w-4 mr-1" />
                     Admin
                   </Button>
@@ -83,7 +83,7 @@ export function Header() {
             </>
           ) : (
             <Link href="/auth/login">
-              <Button size="sm" className="text-white" style={{ backgroundColor: '#CE1126' }}>
+              <Button size="sm" className="text-white" style={{ backgroundColor: '#8B000' }}>
                 Login
               </Button>
             </Link>

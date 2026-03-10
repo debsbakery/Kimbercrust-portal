@@ -42,7 +42,7 @@ export default async function CreateStandingOrderPage() {
       <a
         href="/admin/standing-orders"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: '#CE1126' }}
+        style={{ color: '#8B000' }}
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Standing Orders

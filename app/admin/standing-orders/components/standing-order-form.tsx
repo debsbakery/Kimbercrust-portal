@@ -534,7 +534,7 @@ export default function StandingOrderForm({ customers, products, standingOrder }
                   <td colSpan={5} className="px-4 py-3 text-sm font-semibold text-right text-gray-600">
                     Value per delivery
                   </td>
-                  <td className="px-4 py-3 text-right font-bold text-lg" style={{ color: '#006A4E' }}>
+                  <td className="px-4 py-3 text-right font-bold text-lg" style={{ color: '#1a1a1a' }}>
                     {formatCurrency(calculateTotal())}
                   </td>
                   <td />
@@ -567,7 +567,7 @@ export default function StandingOrderForm({ customers, products, standingOrder }
           type="submit"
           disabled={submitting || done}
           className="flex-1 py-3 rounded-lg text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ backgroundColor: '#006A4E' }}
+          style={{ backgroundColor: '#1a1a1a' }}
         >
           {submitting
             ? 'Saving...'

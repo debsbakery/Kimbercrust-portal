@@ -125,7 +125,7 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
       x: 0, y: h - 75, width, height: 75,
       color: rgb(...GREEN),
     })
-    pageRef.drawText("Deb's Bakery", {
+    pageRef.drawText("Kimbercrust Bakery", {
       x: 50, y: h - 35, size: 22, font: fontBold, color: rgb(1, 1, 1),
     })
     pageRef.drawText('ACCOUNT STATEMENT', {
@@ -305,7 +305,7 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
     { size: 8, color: GREY }
   )
   drawText(
-    "Deb's Bakery  |  noreply@debsbakery.store",
+    "Kimbercrust Bakery  |  noreply@debsbakery.store",
     RIGHT_MARGIN - 250, y,
     { size: 8, color: GREY }
   )

@@ -312,7 +312,7 @@ export default function ProductsView() {
                           setIsEditing(product.id)
                           setEditForm(product)
                         }}
-                        className="text-[#006A4E] hover:text-[#004d38] font-medium text-sm"
+                        className="text-[#1a1a1a] hover:text-[#004d38] font-medium text-sm"
                       >
                         Edit
                       </button>

@@ -163,7 +163,7 @@ export function SearchableSelect({
           ${disabled ? 'bg-gray-50 cursor-not-allowed text-gray-400' : 'cursor-pointer'}
           ${open ? 'border-green-600 ring-2 ring-green-200' : 'border-gray-300'}
         `}
-        style={open ? { borderColor: '#006A4E' } : {}}
+        style={open ? { borderColor: '#1a1a1a' } : {}}
       >
         <span className="flex-1 truncate">
           {selected ? (

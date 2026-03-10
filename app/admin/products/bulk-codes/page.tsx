@@ -163,7 +163,7 @@ export default function BulkCodesPage() {
       <a
         href="/admin/products"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: '#CE1126' }}
+        style={{ color: '#8B000' }}
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Products
@@ -179,7 +179,7 @@ export default function BulkCodesPage() {
         <button
           onClick={saveAll}
           className="flex items-center gap-2 px-4 py-2 rounded-md text-white font-semibold hover:opacity-90"
-          style={{ backgroundColor: '#006A4E' }}
+          style={{ backgroundColor: '#1a1a1a' }}
         >
           <Save className="h-4 w-4" />
           Save All
@@ -383,7 +383,7 @@ export default function BulkCodesPage() {
           <button
             onClick={saveAll}
             className="flex items-center gap-2 px-6 py-3 rounded-md text-white font-semibold hover:opacity-90"
-            style={{ backgroundColor: '#006A4E' }}
+            style={{ backgroundColor: '#1a1a1a' }}
           >
             <Save className="h-4 w-4" />
             Save All Unsaved

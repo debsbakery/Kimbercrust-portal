@@ -49,7 +49,7 @@ export default async function EditRoutePage({
       <a
         href="/admin/routes"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: "#CE1126" }}
+        style={{ color: "#8B000" }}
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Routes
@@ -66,10 +66,10 @@ export default async function EditRoutePage({
         {/* Customer Assignment Section */}
         <div 
           className="p-6 bg-white rounded-lg shadow-md border-l-4" 
-          style={{ borderColor: "#006A4E" }}
+          style={{ borderColor: "#1a1a1a" }}
         >
           <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
-            <Users className="h-5 w-5" style={{ color: "#006A4E" }} />
+            <Users className="h-5 w-5" style={{ color: "#1a1a1a" }} />
             Customer Assignments
           </h3>
           <p className="text-sm text-gray-600 mb-4">
@@ -98,7 +98,7 @@ export default async function EditRoutePage({
           <Link
             href={`/admin/routes/${route.route_number}/assign`}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white font-semibold hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: "#006A4E" }}
+            style={{ backgroundColor: "#1a1a1a" }}
           >
             <Users className="h-4 w-4" />
             Manage Customer Assignments
@@ -107,7 +107,7 @@ export default async function EditRoutePage({
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 bg-white rounded-lg shadow-md border-l-4" style={{ borderColor: "#CE1126" }}>
+          <div className="p-4 bg-white rounded-lg shadow-md border-l-4" style={{ borderColor: "#8B000" }}>
             <p className="text-sm text-gray-600">Total Stops</p>
             <p className="text-2xl font-bold">{route.customers?.length || 0}</p>
           </div>

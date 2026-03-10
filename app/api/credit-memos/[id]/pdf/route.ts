@@ -59,7 +59,7 @@ export async function GET(
   }
 
   // ── Header ───────────────────────────────────────────────
-  drawText("Deb's Bakery", 50, y, { size: 24, bold: true, color: [0, 0.416, 0.306] })
+  drawText("Kimbercrust Bakery", 50, y, { size: 24, bold: true, color: [0, 0.416, 0.306] })
   y -= 22
   drawText('TAX CREDIT NOTE', 50, y, { size: 12, bold: true, color: [0.808, 0.067, 0.149] })
 
@@ -135,7 +135,7 @@ export async function GET(
   }
 
   // ── Footer ───────────────────────────────────────────────
-  drawText("Deb's Bakery | ABN: [Your ABN]", width / 2 - 80, 30, {
+  drawText("Kimbercrust Bakery | ABN: [Your ABN]", width / 2 - 80, 30, {
     size: 8, color: [0.5, 0.5, 0.5]
   })
 

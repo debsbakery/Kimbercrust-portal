@@ -175,7 +175,7 @@ export default function StatementsView({ customers, customersWithBalance }: Prop
         <Link
           href="/admin"
           className="flex items-center gap-1 text-sm hover:opacity-80 w-fit"
-          style={{ color: '#CE1126' }}
+          style={{ color: '#8B000' }}
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Admin

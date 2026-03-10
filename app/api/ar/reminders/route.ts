@@ -87,8 +87,8 @@ export async function POST() {
           subject: `Overdue Payment Reminder â€” $${totalOverdue.toFixed(2)} Outstanding`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="background-color: #CE1126; color: white; padding: 20px; text-align: center;">
-                <h1 style="margin: 0;">Deb's Bakery</h1>
+              <div style="background-color: #8B000; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0;">Kimbercrust Bakery</h1>
                 <p style="margin: 5px 0 0 0;">Payment Reminder</p>
               </div>
               
@@ -96,7 +96,7 @@ export async function POST() {
                 <p>Dear ${customer.contact_name || customer.business_name || 'Valued Customer'},</p>
                 
                 <p>This is a friendly reminder that you have outstanding invoices totalling 
-                <strong style="color: #CE1126;">$${totalOverdue.toFixed(2)}</strong>.</p>
+                <strong style="color: #8B000;">$${totalOverdue.toFixed(2)}</strong>.</p>
                 
                 <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
                   <h3 style="margin-top: 0;">Overdue Invoices:</h3>
@@ -113,7 +113,7 @@ export async function POST() {
                 </ul>
                 
                 <p>Thank you for your business!</p>
-                <p><strong>Deb's Bakery</strong><br/>
+                <p><strong>Kimbercrust Bakery</strong><br/>
                 ${process.env.BAKERY_ADDRESS}</p>
               </div>
             </div>

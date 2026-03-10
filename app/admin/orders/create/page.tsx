@@ -283,13 +283,13 @@ export default function AdminCreateOrderPage() {
         <a
           href="/admin"
           className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-          style={{ color: '#CE1126' }}
+          style={{ color: '#8B000' }}
         >
           <ArrowLeft className="h-4 w-4" /> Back to Admin
         </a>
 
         <div className="mb-6">
-          <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: '#006A4E' }}>
+          <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: '#1a1a1a' }}>
             <ClipboardList className="h-8 w-8" /> Create Order
           </h1>
           <p className="text-gray-600 mt-1">Enter phone, email or walk-in orders</p>
@@ -418,7 +418,7 @@ export default function AdminCreateOrderPage() {
                 type="button"
                 onClick={addLineItem}
                 className="flex items-center gap-2 px-4 py-2 rounded-md text-white text-sm font-medium hover:opacity-90"
-                style={{ backgroundColor: '#006A4E' }}
+                style={{ backgroundColor: '#1a1a1a' }}
               >
                 <Plus className="h-4 w-4" /> Add Product
               </button>
@@ -545,7 +545,7 @@ export default function AdminCreateOrderPage() {
                   <div className="text-sm text-gray-600">
                     GST (10%): <span className="font-mono font-medium ml-2">{fmt(gstTotal)}</span>
                   </div>
-                  <div className="text-xl font-bold mt-1" style={{ color: '#006A4E' }}>
+                  <div className="text-xl font-bold mt-1" style={{ color: '#1a1a1a' }}>
                     Total (inc GST): {fmt(grandTotal)}
                   </div>
                 </div>
@@ -559,7 +559,7 @@ export default function AdminCreateOrderPage() {
               type="submit"
               disabled={loading || !lineItems.length || !form.customerId || !form.deliveryDate}
               className="flex-1 py-3 rounded-md text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-              style={{ backgroundColor: '#006A4E' }}
+              style={{ backgroundColor: '#1a1a1a' }}
             >
               {loading ? 'Creating Order...' : 'Create Order'}
             </button>

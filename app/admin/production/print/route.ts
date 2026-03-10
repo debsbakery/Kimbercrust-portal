@@ -253,10 +253,10 @@ export async function GET(request: NextRequest) {
       padding: 4px 10px; font-size: 9pt; border: 1px solid #ccc;
       border-radius: 4px; background: white; cursor: pointer;
     }
-    .preset-btn:hover { background: #e8f5e9; border-color: #006A4E; }
+    .preset-btn:hover { background: #e8f5e9; border-color: #1a1a1a; }
     .cat-active {
-      background: #006A4E !important; color: white !important;
-      border-color: #006A4E !important;
+      background: #1a1a1a !important; color: white !important;
+      border-color: #1a1a1a !important;
     }
     .custom-range-row {
       display: flex; align-items: center; gap: 8px;
@@ -276,18 +276,18 @@ export async function GET(request: NextRequest) {
       cursor: pointer; font-weight: bold; font-size: 10pt;
       text-decoration: none; display: inline-block;
     }
-    .btn-view  { background: white; color: #006A4E; border: 2px solid #006A4E; }
-    .btn-print { background: #CE1126; color: white; }
+    .btn-view  { background: white; color: #1a1a1a; border: 2px solid #1a1a1a; }
+    .btn-print { background: #8B000; color: white; }
     .btn-back  { background: #666; color: white; }
 
     .page-header {
       margin-bottom: 10px; padding-bottom: 6px;
-      border-bottom: 2px solid #006A4E;
+      border-bottom: 2px solid #1a1a1a;
     }
-    .page-header h1 { color: #006A4E; font-size: 16pt; margin-bottom: 2px; }
+    .page-header h1 { color: #1a1a1a; font-size: 16pt; margin-bottom: 2px; }
     .page-header .subtitle { font-size: 12pt; font-weight: bold; margin-bottom: 2px; }
     .page-header .filter-badge {
-      display: inline-block; background: #006A4E; color: white;
+      display: inline-block; background: #1a1a1a; color: white;
       font-size: 8pt; font-weight: bold; padding: 2px 8px;
       border-radius: 10px; margin-top: 3px;
     }
@@ -296,7 +296,7 @@ export async function GET(request: NextRequest) {
     table { width: 100%; border-collapse: collapse; margin-top: 4px; }
     th, td { border: 1px solid #555; padding: 4px 6px; }
     th {
-      background: #006A4E; color: white;
+      background: #1a1a1a; color: white;
       font-weight: bold; text-transform: uppercase; font-size: 8pt;
     }
     tr:nth-child(even) { background: #f5f5f5; }

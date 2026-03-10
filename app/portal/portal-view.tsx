@@ -131,7 +131,7 @@ export default function CustomerPortalView({ data }: { data: PortalData }) {
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: '#006A4E' }}>
+              <h1 className="text-2xl font-bold" style={{ color: '#1a1a1a' }}>
                 Customer Portal
               </h1>
               <p className="text-sm text-gray-600">{data.customer.business_name}</p>
@@ -216,7 +216,7 @@ function OverviewTab({ data, totalOverdue }: { data: PortalData; totalOverdue: n
         <a href="/catalog" className="block">
           <button
             className="w-full px-6 py-4 text-white font-semibold rounded-lg shadow-md hover:opacity-90 transition flex items-center justify-center gap-2"
-            style={{ backgroundColor: '#006A4E' }}
+            style={{ backgroundColor: '#1a1a1a' }}
           >
             Browse Products and Place Order
           </button>
@@ -234,28 +234,28 @@ function OverviewTab({ data, totalOverdue }: { data: PortalData; totalOverdue: n
           label="Standing Orders"
           value={String(data.standingOrders.filter((o) => o.active).length)}
           sub="Active"
-          color="#006A4E"
+          color="#1a1a1a"
           icon={<Package className="h-8 w-8 text-green-600" />}
         />
         <StatCard
           label="Account Balance"
           value={fmt(data.customer.balance)}
           sub={`${data.customer.payment_terms} day terms`}
-          color={data.customer.balance > 0 ? '#CE1126' : '#006A4E'}
+          color={data.customer.balance > 0 ? '#8B000' : '#1a1a1a'}
           icon={<DollarSign className={`h-8 w-8 ${data.customer.balance > 0 ? 'text-red-600' : 'text-green-600'}`} />}
         />
         <StatCard
           label="Overdue"
           value={fmt(totalOverdue)}
           sub={totalOverdue > 0 ? 'Payment required' : 'All current'}
-          color={totalOverdue > 0 ? '#CE1126' : '#006A4E'}
+          color={totalOverdue > 0 ? '#8B000' : '#1a1a1a'}
           icon={<AlertCircle className={`h-8 w-8 ${totalOverdue > 0 ? 'text-red-600' : 'text-green-600'}`} />}
         />
         <StatCard
           label="Recent Orders"
           value={String(data.recentOrders.length)}
           sub="Last 30 days"
-          color="#006A4E"
+          color="#1a1a1a"
           icon={<TrendingUp className="h-8 w-8 text-green-600" />}
         />
       </div>
@@ -267,7 +267,7 @@ function OverviewTab({ data, totalOverdue }: { data: PortalData; totalOverdue: n
           <div>
             <p className="font-semibold text-red-800">Overdue Balance: {fmt(totalOverdue)}</p>
             <p className="text-sm text-red-600 mt-1">
-              Please contact Deb's Bakery to arrange payment. Ph: (03) 9000 0000
+              Please contact Kimbercrust Bakery to arrange payment. Ph: (03) 9000 0000
             </p>
           </div>
         </div>
@@ -343,7 +343,7 @@ function StandingOrdersTab({ orders }: { orders: any[] }) {
         <div className="text-center py-12">
           <Package className="h-16 w-16 mx-auto text-gray-300 mb-4" />
           <p className="text-gray-500 text-lg">No standing orders set up</p>
-          <p className="text-gray-400 text-sm mt-2">Contact Deb's Bakery to set up a standing order</p>
+          <p className="text-gray-400 text-sm mt-2">Contact Kimbercrust Bakery to set up a standing order</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -409,7 +409,7 @@ function StandingOrdersTab({ orders }: { orders: any[] }) {
                       <tfoot className="bg-gray-50">
                         <tr>
                           <td colSpan={3} className="py-2 px-4 font-semibold text-right">Total</td>
-                          <td className="py-2 px-4 font-bold text-right" style={{ color: '#006A4E' }}>
+                          <td className="py-2 px-4 font-bold text-right" style={{ color: '#1a1a1a' }}>
                             {fmt(total)}
                           </td>
                         </tr>
@@ -424,7 +424,7 @@ function StandingOrdersTab({ orders }: { orders: any[] }) {
       )}
 
       <p className="mt-6 text-sm text-gray-500">
-        To add, change or pause standing orders please contact Deb's Bakery directly.
+        To add, change or pause standing orders please contact Kimbercrust Bakery directly.
       </p>
     </div>
   );
@@ -485,7 +485,7 @@ function RecentOrdersTab({
                   </div>
 
                   <div className="text-right ml-4">
-                    <p className="text-xl font-bold" style={{ color: '#006A4E' }}>
+                    <p className="text-xl font-bold" style={{ color: '#1a1a1a' }}>
                       {fmt(order.total_amount)}
                     </p>
                     <p className="text-xs text-gray-500">{order.order_items?.length ?? 0} items</p>
@@ -494,7 +494,7 @@ function RecentOrdersTab({
                         <button
                           onClick={() => router.push(`/portal/orders/${order.id}/edit`)}
                           className="flex items-center gap-1 px-3 py-1.5 text-white rounded text-sm"
-                          style={{ backgroundColor: '#006A4E' }}
+                          style={{ backgroundColor: '#1a1a1a' }}
                         >
                           <Edit className="h-3.5 w-3.5" />
                           Edit
@@ -534,7 +534,7 @@ function RecentOrdersTab({
                       <tfoot className="bg-gray-50">
                         <tr>
                           <td colSpan={3} className="py-2 px-3 font-semibold text-right">Total</td>
-                          <td className="py-2 px-3 font-bold text-right" style={{ color: '#006A4E' }}>
+                          <td className="py-2 px-3 font-bold text-right" style={{ color: '#1a1a1a' }}>
                             {fmt(order.total_amount)}
                           </td>
                         </tr>
@@ -595,7 +595,7 @@ function InvoicesTab({ invoices }: { invoices: any[] }) {
 
                   <div className="flex items-center gap-3">
                     <div className="text-right">
-                      <p className="text-xl font-bold" style={{ color: '#006A4E' }}>
+                      <p className="text-xl font-bold" style={{ color: '#1a1a1a' }}>
                         {fmt(inv.total_amount)}
                       </p>
                       {gstTotal > 0 && (
@@ -670,7 +670,7 @@ function InvoicesTab({ invoices }: { invoices: any[] }) {
                           )}
                           <tr>
                             <td colSpan={4} className="py-2 px-3 text-right font-bold">Total</td>
-                            <td className="py-2 px-3 text-right font-bold" style={{ color: '#006A4E' }}>
+                            <td className="py-2 px-3 text-right font-bold" style={{ color: '#1a1a1a' }}>
                               {fmt(inv.total_amount)}
                             </td>
                           </tr>
@@ -723,7 +723,7 @@ function AccountTab({
           )}
         </dl>
         <p className="mt-6 text-sm text-gray-500">
-          To update your account details please contact Deb's Bakery directly.
+          To update your account details please contact Kimbercrust Bakery directly.
         </p>
       </div>
 
@@ -750,7 +750,7 @@ function AccountTab({
             <tfoot className="border-t">
               <tr className="font-bold">
                 <td className="py-2 px-3">Total Outstanding</td>
-                <td className="py-2 px-3 text-right" style={{ color: arBalance.total_due > 0 ? '#CE1126' : '#006A4E' }}>
+                <td className="py-2 px-3 text-right" style={{ color: arBalance.total_due > 0 ? '#8B000' : '#1a1a1a' }}>
                   {fmt(arBalance.total_due)}
                 </td>
               </tr>

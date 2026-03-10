@@ -34,7 +34,7 @@ export default async function EditCustomerPage({ params }: Props) {
       <Link
         href="/admin/customers"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: '#CE1126' }}
+        style={{ color: '#8B000' }}
       >
         <ArrowLeft className="h-4 w-4" />
         Back to Customers

@@ -136,7 +136,7 @@ export default function ProductionForecastView() {
           <button
             onClick={fetchForecast}
             className="px-6 py-2 text-white rounded-md hover:opacity-90"
-            style={{ backgroundColor: '#006A4E' }}
+            style={{ backgroundColor: '#1a1a1a' }}
           >
             🔄 Refresh
           </button>
@@ -151,9 +151,9 @@ export default function ProductionForecastView() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: '#006A4E' }}>
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: '#1a1a1a' }}>
           <p className="text-sm text-gray-600">Confirmed Orders</p>
-          <p className="text-3xl font-bold" style={{ color: '#006A4E' }}>
+          <p className="text-3xl font-bold" style={{ color: '#1a1a1a' }}>
             {stats.totalConfirmedOrders}
           </p>
           <p className="text-xs text-gray-500 mt-1">Actual orders placed</p>
@@ -177,9 +177,9 @@ export default function ProductionForecastView() {
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: '#CE1126' }}>
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: '#8B000' }}>
           <p className="text-sm text-gray-600">Total Products</p>
-          <p className="text-3xl font-bold" style={{ color: '#CE1126' }}>
+          <p className="text-3xl font-bold" style={{ color: '#8B000' }}>
             {stats.totalProducts}
           </p>
           <p className="text-xs text-gray-500 mt-1">Unique items</p>
@@ -219,7 +219,7 @@ export default function ProductionForecastView() {
       <div className="bg-white rounded-lg shadow-md">
         <div className="p-6 border-b">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <Calendar className="h-5 w-5" style={{ color: '#006A4E' }} />
+            <Calendar className="h-5 w-5" style={{ color: '#1a1a1a' }} />
             Daily Production Forecast
           </h2>
         </div>
@@ -347,7 +347,7 @@ export default function ProductionForecastView() {
       <div className="bg-white rounded-lg shadow-md">
         <div className="p-6 border-b">
           <h2 className="text-xl font-bold flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" style={{ color: '#CE1126' }} />
+            <TrendingUp className="h-5 w-5" style={{ color: '#8B000' }} />
             Product Summary ({productSummary.length} products)
           </h2>
         </div>

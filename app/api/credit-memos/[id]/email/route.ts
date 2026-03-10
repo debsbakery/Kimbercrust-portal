@@ -40,12 +40,12 @@ export async function POST(
   const total        = Math.abs(parseFloat(memo.total_amount || memo.amount || '0'))
 
   const { error: emailError } = await resend.emails.send({
-    from: "Deb's Bakery <noreply@debsbakery.store>",
+    from: "Kimbercrust Bakery <noreply@debsbakery.store>",
     to:   memo.customer.email,
-    subject: `Credit Invoice ${memo.credit_number} — Deb's Bakery`,
+    subject: `Credit Invoice ${memo.credit_number} — Kimbercrust Bakery`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #006A4E;">Credit Invoice</h2>
+        <h2 style="color: #1a1a1a;">Credit Invoice</h2>
         <p>Dear ${customerName},</p>
         <p>Please find attached your credit invoice for <strong>${creditType}</strong>.</p>
         <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
@@ -55,7 +55,7 @@ export async function POST(
           ${memo.notes ? `<p style="margin: 5px 0;"><strong>Notes:</strong> ${memo.notes}</p>` : ''}
         </div>
         <p>This credit has been applied to your account balance.</p>
-        <p>Thank you,<br/><strong style="color: #006A4E;">Deb's Bakery</strong></p>
+        <p>Thank you,<br/><strong style="color: #1a1a1a;">Kimbercrust Bakery</strong></p>
       </div>
     `,
     attachments: [{
