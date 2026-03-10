@@ -184,7 +184,7 @@ export default function BatchInvoiceGenerator({ availableDates }: BatchInvoiceGe
         disabled={!activeDate || isGenerating}
         className={`w-full py-3 rounded-lg text-white font-semibold transition-opacity
           disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
-        style={{ backgroundColor: emailOnly ? '#d97706' : '#1a1a1a' }}
+        style={{ backgroundColor: emailOnly ? '#d97706' : '#ffffff' }}
       >
         {isGenerating ? (
           <><Loader2 className="h-4 w-4 animate-spin" />Processing...</>

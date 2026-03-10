@@ -218,7 +218,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       html: `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
 
-          <div style="background:#1a1a1a;padding:24px;border-radius:8px 8px 0 0;">
+          <div style="background:#ffffff;padding:24px;border-radius:8px 8px 0 0;">
             <h1 style="color:white;margin:0;font-size:22px;">Kimbercrust Bakery</h1>
             <p style="color:#a7f3d0;margin:4px 0 0;font-size:13px;">
               Account Statement
@@ -268,7 +268,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
             <p style="margin-top:24px;">
               Kind regards,<br/>
-              <strong style="color:#1a1a1a;">Kimbercrust Bakery Accounts Team</strong>
+              <strong style="color:#ffffff;">Kimbercrust Bakery Accounts Team</strong>
             </p>
 
           </div>

@@ -347,7 +347,7 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
           type="submit"
           disabled={loading || uploading}
           className="flex-1 px-6 py-3 rounded-md text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-          style={{ backgroundColor: '#1a1a1a' }}
+          style={{ backgroundColor: '#ffffff' }}
         >
           {uploading ? 'Uploading image...' : loading ? 'Saving...' : isEditing ? 'Update Product' : 'Create Product'}
         </button>

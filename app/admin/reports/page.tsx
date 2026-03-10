@@ -14,7 +14,7 @@ export default async function ReportsPage() {
       description: 'Sales summary by week',
       href: '/admin/reports/weekly',
       icon: BarChart2,
-      color: '#1a1a1a',
+      color: '#ffffff',
     },
     {
   title: 'Sales History',
@@ -35,7 +35,7 @@ export default async function ReportsPage() {
   description: 'Monthly sales, AR, costs, and stock',
   href: '/admin/reports/accountant',
   icon: FileText,
-  color: '#1a1a1a',
+  color: '#ffffff',
 },
     {
       title: 'GST Report',

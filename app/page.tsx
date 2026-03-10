@@ -5,7 +5,7 @@ export default function HomePage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-red-50">
       <div className="text-center space-y-8 p-8">
         <div>
-          <h1 className="text-6xl font-bold mb-2" style={{ color: "#1a1a1a" }}>
+          <h1 className="text-6xl font-bold mb-2" style={{ color: "#ffffff" }}>
             Kimbercrust Bakery
           </h1>
           <p className="text-xl text-gray-600">
@@ -16,7 +16,7 @@ export default function HomePage() {
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
          <Link href="/catalog"
             className="px-8 py-4 rounded-lg text-white font-semibold text-lg shadow-lg hover:shadow-xl transition-shadow w-64"
-            style={{ backgroundColor: "#1a1a1a" }}
+            style={{ backgroundColor: "#ffffff" }}
           >
             🛒 Browse Products
           </Link>
@@ -30,7 +30,7 @@ export default function HomePage() {
           <Link
             href="/login"
             className="px-8 py-4 rounded-lg border-2 font-semibold text-lg shadow-lg hover:shadow-xl transition-shadow w-64"
-            style={{ borderColor: "#1a1a1a", color: "#1a1a1a" }}
+            style={{ borderColor: "#ffffff", color: "#ffffff" }}
           >
             🔐 Admin Login
           </Link>

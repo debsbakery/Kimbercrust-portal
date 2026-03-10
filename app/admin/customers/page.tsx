@@ -43,7 +43,7 @@ const supabase = createAdminClient()
           <Link
             href="/admin/customers/create"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white font-semibold hover:opacity-90"
-            style={{ backgroundColor: '#1a1a1a' }}
+            style={{ backgroundColor: '#ffffff' }}
           >
             <Plus className="h-5 w-5" />
             Add Customer
@@ -117,7 +117,7 @@ const supabase = createAdminClient()
                       <Link
                         href={`/admin/customers/${c.id}/edit`}
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded text-white text-xs font-semibold hover:opacity-90"
-                        style={{ backgroundColor: '#1a1a1a' }}
+                        style={{ backgroundColor: '#ffffff' }}
                       >
                         <Edit className="h-3 w-3" />
                         Edit

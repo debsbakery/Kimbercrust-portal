@@ -284,7 +284,7 @@ const productsWithPricing = data.map((product: any) => ({
               className={`px-4 py-2 rounded-md font-medium ${
                 !selectedCategory ? "text-white" : "bg-white text-gray-700 border"
               }`}
-              style={!selectedCategory ? { backgroundColor: "#1a1a1a" } : {}}
+              style={!selectedCategory ? { backgroundColor: "#ffffff" } : {}}
             >
               All
             </button>
@@ -297,7 +297,7 @@ const productsWithPricing = data.map((product: any) => ({
                     ? "text-white"
                     : "bg-white text-gray-700 border"
                 }`}
-                style={selectedCategory === cat ? { backgroundColor: "#1a1a1a" } : {}}
+                style={selectedCategory === cat ? { backgroundColor: "#ffffff" } : {}}
               >
                 {cat}
               </button>
@@ -395,7 +395,7 @@ function ProductCard({
           {product.category && (
             <span
               className="text-xs px-2 py-1 rounded-full text-white"
-              style={{ backgroundColor: "#1a1a1a" }}
+              style={{ backgroundColor: "#ffffff" }}
             >
               {product.category}
             </span>
@@ -425,14 +425,14 @@ function ProductCard({
         <div className="flex gap-2">
           <div
             className="flex items-center border-2 rounded-md"
-            style={{ borderColor: "#1a1a1a" }}
+            style={{ borderColor: "#ffffff" }}
           >
             <button
               onClick={() => handleQuantityChange(quantity - 1)}
               disabled={quantity <= product.min_quantity}
               className="p-2 hover:bg-gray-100 disabled:opacity-50"
             >
-              <Minus className="h-4 w-4" style={{ color: "#1a1a1a" }} />
+              <Minus className="h-4 w-4" style={{ color: "#ffffff" }} />
             </button>
             <input
               type="number"
@@ -451,7 +451,7 @@ function ProductCard({
               disabled={quantity >= product.max_quantity}
               className="p-2 hover:bg-gray-100 disabled:opacity-50"
             >
-              <Plus className="h-4 w-4" style={{ color: "#1a1a1a" }} />
+              <Plus className="h-4 w-4" style={{ color: "#ffffff" }} />
             </button>
           </div>
 

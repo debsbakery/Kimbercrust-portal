@@ -85,7 +85,7 @@ export function LoginForm() {
           />
           <h2 className="text-2xl font-bold mb-1">
             <span style={{ color: '#8B000' }}>Deb's</span>{" "}
-            <span style={{ color: '#1a1a1a' }}>Bakery</span>
+            <span style={{ color: '#ffffff' }}>Bakery</span>
           </h2>
           <p className="text-gray-600 mt-2">
             {isSignUp ? "Create your account" : "Welcome back"}
@@ -164,7 +164,7 @@ export function LoginForm() {
               setPassword("");
             }}
             className="w-full text-sm font-medium hover:underline"
-            style={{ color: '#1a1a1a' }}
+            style={{ color: '#ffffff' }}
           >
             {isSignUp
               ? "Already have an account? Sign in"

@@ -37,7 +37,7 @@ export default async function ProductsPage() {
           <Link
             href="/admin/products/create"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white font-semibold hover:opacity-90"
-            style={{ backgroundColor: "#1a1a1a" }}
+            style={{ backgroundColor: "#ffffff" }}
           >
             <Plus className="h-5 w-5" />
             Add Product

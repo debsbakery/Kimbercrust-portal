@@ -129,7 +129,7 @@ export async function POST(request: Request) {
           subject: 'Order Confirmation - Debs Bakery',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #1a1a1a;">Thank you for your order!</h1>
+              <h1 style="color: #ffffff;">Thank you for your order!</h1>
               <p><strong>Order #${newOrder.id.slice(0, 8).toUpperCase()}</strong></p>
               <p>Delivery Date: ${new Date(newOrder.delivery_date).toLocaleDateString('en-AU', { 
                 weekday: 'long', 
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
           subject: `🔔 New Shadow Order from ${customer.business_name || customer.email}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
-              <div style="background: #1a1a1a; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+              <div style="background: #ffffff; color: white; padding: 20px; border-radius: 8px 8px 0 0;">
                 <h1 style="margin: 0; font-size: 24px;">🛒 New Order Received (Shadow Order)</h1>
                 <p style="margin: 5px 0 0 0; opacity: 0.9;">Order #${newOrder.id.slice(0, 8).toUpperCase()}</p>
               </div>

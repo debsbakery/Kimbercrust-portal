@@ -63,7 +63,7 @@ async function generateStandingOrders() {
   return (
     <div className="min-h-screen bg-gray-50"><div className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="container mx-auto px-4"><div className="flex justify-between items-start py-4 gap-4"><div className="shrink-0">
-              <h1 className="text-2xl font-bold" style={{ color: '#1a1a1a' }}>
+              <h1 className="text-2xl font-bold" style={{ color: '#ffffff' }}>
                 Admin Dashboard
               </h1>
               <p className="text-sm text-gray-500 mt-0.5">
@@ -111,13 +111,13 @@ async function generateStandingOrders() {
 
               <a href="/admin/production"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
-                style={{ backgroundColor: '#1a1a1a' }}>
+                style={{ backgroundColor: '#ffffff' }}>
                 <ChefHat className="h-4 w-4" />Production
               </a>
 
               <a href="/admin/orders/create"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
-                style={{ backgroundColor: '#1a1a1a' }}>
+                style={{ backgroundColor: '#ffffff' }}>
                 <ClipboardList className="h-4 w-4" />New Order
               </a>
 
@@ -278,7 +278,7 @@ async function generateStandingOrders() {
               </div>
               <a href="/admin/standing-orders"
                 className="flex items-center gap-2 px-6 py-3 rounded-lg text-white font-semibold hover:opacity-90"
-                style={{ backgroundColor: '#1a1a1a' }}>
+                style={{ backgroundColor: '#ffffff' }}>
                 <RefreshCw className="h-5 w-5" />Open Standing Orders
               </a>
             </div>
@@ -299,7 +299,7 @@ async function generateStandingOrders() {
             <div className="text-center">
               <a href="/admin/standing-orders"
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-lg text-white font-semibold hover:opacity-90 text-lg"
-                style={{ backgroundColor: '#1a1a1a' }}>
+                style={{ backgroundColor: '#ffffff' }}>
                 <RefreshCw className="h-6 w-6" />Go to Standing Orders
               </a>
             </div>

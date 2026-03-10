@@ -181,7 +181,7 @@ export default function SalesHistoryView({ products, customers }: Props) {
           <button
             onClick={handleSearch}
             disabled={loading}
-            className="px-6 py-2.5 rounded-lg text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"style={{ backgroundColor: '#1a1a1a' }}
+            className="px-6 py-2.5 rounded-lg text-white font-semibold text-sm hover:opacity-90 disabled:opacity-50 flex items-center gap-2"style={{ backgroundColor: '#ffffff' }}
           >
             <Search className="h-4 w-4" />
             {loading ? 'Searching...' : 'Search'}

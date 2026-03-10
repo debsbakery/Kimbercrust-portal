@@ -62,7 +62,7 @@ export default async function ARSummaryPage() {
       </Link>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold" style={{ color: "#1a1a1a" }}>
+        <h1 className="text-3xl font-bold" style={{ color: "#ffffff" }}>
           Accounts Receivable
         </h1>
         <p className="text-gray-600 mt-2">
@@ -77,9 +77,9 @@ export default async function ARSummaryPage() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-4 border-l-4" style={{ borderColor: "#1a1a1a" }}>
+        <div className="bg-white rounded-lg shadow-md p-4 border-l-4" style={{ borderColor: "#ffffff" }}>
           <p className="text-xs text-gray-600">Current</p>
-          <p className="text-xl font-bold" style={{ color: "#1a1a1a" }}>
+          <p className="text-xl font-bold" style={{ color: "#ffffff" }}>
             {formatCurrency(totals.current)}
           </p>
         </div>
@@ -187,7 +187,7 @@ export default async function ARSummaryPage() {
                           href={`/admin/ar/${customer.customer_id}`}
                           className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium hover:opacity-80"
                           style={{ 
-                            backgroundColor: hasBalance ? "#1a1a1a" : "#9CA3AF",
+                            backgroundColor: hasBalance ? "#ffffff" : "#9CA3AF",
                             color: "white" 
                           }}
                         >

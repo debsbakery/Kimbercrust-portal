@@ -258,7 +258,7 @@ export default function CustomerForm({ customer, isEditing = false }: Props) {
           type="submit"
           disabled={loading}
           className="flex-1 py-3 rounded-md text-white font-semibold hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: '#1a1a1a' }}
+          style={{ backgroundColor: '#ffffff' }}
         >
           {loading ? 'Saving...' : isEditing ? 'Update Customer' : 'Add Customer'}
         </button>

@@ -36,7 +36,7 @@ const supabase = await createServiceClient()
       </Link>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold flex items-center gap-3" style={{ color: "#1a1a1a" }}>
+        <h1 className="text-3xl font-bold flex items-center gap-3" style={{ color: "#ffffff" }}>
           <FileText className="h-8 w-8" />
           Batch Invoice Generator
         </h1>

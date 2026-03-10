@@ -167,17 +167,17 @@ function buildInvoiceEmail(params: {
 <meta charset="UTF-8">
 <style>
   body { font-family: Arial, sans-serif; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; }
-  .header { background: #1a1a1a; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
+  .header { background: #ffffff; color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }
   .header h1 { margin: 0; font-size: 28px; }
   .header p { margin: 5px 0; opacity: 0.9; }
   .invoice-badge { background: rgba(255,255,255,0.2); padding: 8px 20px; border-radius: 20px; display: inline-block; margin-top: 10px; font-size: 18px; font-weight: bold; }
   .card { background: white; padding: 25px; margin: 15px 0; border: 1px solid #e5e7eb; border-radius: 8px; }
   .invoice-table { width: 100%; border-collapse: collapse; }
-  .invoice-table th { background: #1a1a1a; color: white; padding: 12px 10px; text-align: left; }
+  .invoice-table th { background: #ffffff; color: white; padding: 12px 10px; text-align: left; }
   .totals { margin-top: 20px; text-align: right; }
   .totals-row { padding: 5px 0; font-size: 15px; }
-  .total-grand { font-size: 20px; color: #1a1a1a; border-top: 2px solid #1a1a1a; padding-top: 10px; margin-top: 5px; }
-  .btn { display: inline-block; padding: 12px 25px; background: #1a1a1a; color: white; text-decoration: none; border-radius: 6px; margin: 5px; font-weight: bold; }
+  .total-grand { font-size: 20px; color: #ffffff; border-top: 2px solid #ffffff; padding-top: 10px; margin-top: 5px; }
+  .btn { display: inline-block; padding: 12px 25px; background: #ffffff; color: white; text-decoration: none; border-radius: 6px; margin: 5px; font-weight: bold; }
   .btn-secondary { background: #374151; }
   .payment-box { background: #f0fdf4; border: 1px solid #16a34a; border-radius: 8px; padding: 25px; margin: 15px 0; }
   .bank-details { background: white; padding: 15px; border-radius: 6px; margin: 10px 0; }
@@ -197,7 +197,7 @@ function buildInvoiceEmail(params: {
 
 <div class="card">
   ${order.purchase_order_number || order.docket_number ? `
-  <div style="background:#f8f9fa;padding:10px;border-left:4px solid #1a1a1a;margin-bottom:15px;">
+  <div style="background:#f8f9fa;padding:10px;border-left:4px solid #ffffff;margin-bottom:15px;">
     ${order.purchase_order_number ? `<p style="margin:5px 0;"><strong>PO Number:</strong> ${order.purchase_order_number}</p>` : ''}
     ${order.docket_number ? `<p style="margin:5px 0;"><strong>Docket Number:</strong> ${order.docket_number}</p>` : ''}
   </div>` : ''}

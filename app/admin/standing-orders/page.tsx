@@ -155,7 +155,7 @@ export default async function StandingOrdersPage() {
         <div className="flex justify-between items-start flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Calendar className="h-8 w-8" style={{ color: "#1a1a1a" }} />
+              <Calendar className="h-8 w-8" style={{ color: "#ffffff" }} />
               Standing Orders
             </h1>
             <p className="text-gray-600">Manage recurring weekly orders</p>
@@ -171,7 +171,7 @@ export default async function StandingOrdersPage() {
             <Link
               href="/admin/standing-orders/create"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white font-semibold hover:opacity-90"
-              style={{ backgroundColor: "#1a1a1a" }}
+              style={{ backgroundColor: "#ffffff" }}
             >
               <Plus className="h-5 w-5" />
               Create Standing Order
@@ -182,9 +182,9 @@ export default async function StandingOrdersPage() {
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-4 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#1a1a1a" }}>
+        <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#ffffff" }}>
           <p className="text-sm text-gray-600">Active Orders</p>
-          <p className="text-3xl font-bold" style={{ color: "#1a1a1a" }}>{activeOrders}</p>
+          <p className="text-3xl font-bold" style={{ color: "#ffffff" }}>{activeOrders}</p>
         </div>
         <div className="bg-white rounded-lg shadow-md p-6 border-l-4" style={{ borderColor: "#8B000" }}>
           <p className="text-sm text-gray-600">Customers</p>
@@ -348,7 +348,7 @@ export default async function StandingOrdersPage() {
                         <Link
                           href={`/admin/standing-orders/edit/${order.id}`}
                           className="text-sm px-3 py-1.5 rounded-md text-white hover:opacity-90"
-                          style={{ backgroundColor: "#1a1a1a" }}
+                          style={{ backgroundColor: "#ffffff" }}
                         >
                           Edit
                         </Link>

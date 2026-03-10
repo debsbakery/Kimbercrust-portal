@@ -108,7 +108,7 @@ export default function RunSheetView({ data }: { data: RunSheetData }) {
               onClick={handlePrint}
               disabled={activeStops === 0}
               className="flex items-center gap-2 px-4 py-2 rounded-md text-white font-semibold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "#1a1a1a" }}
+              style={{ backgroundColor: "#ffffff" }}
             >
               <Printer className="h-5 w-5" />
               Print
@@ -118,7 +118,7 @@ export default function RunSheetView({ data }: { data: RunSheetData }) {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-4 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg shadow-md border-l-4" style={{ borderColor: "#1a1a1a" }}>
+          <div className="bg-white p-4 rounded-lg shadow-md border-l-4" style={{ borderColor: "#ffffff" }}>
             <p className="text-sm text-gray-600">Total Customers</p>
             <p className="text-2xl font-bold">{totalStops}</p>
           </div>
@@ -130,7 +130,7 @@ export default function RunSheetView({ data }: { data: RunSheetData }) {
             <p className="text-sm text-gray-600">Start Time</p>
             <p className="text-2xl font-bold">{data.route.start_time || 'N/A'}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow-md border-l-4" style={{ borderColor: "#1a1a1a" }}>
+          <div className="bg-white p-4 rounded-lg shadow-md border-l-4" style={{ borderColor: "#ffffff" }}>
             <p className="text-sm text-gray-600">Total Value</p>
             <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
           </div>
@@ -199,7 +199,7 @@ export default function RunSheetView({ data }: { data: RunSheetData }) {
                       <div className="flex items-center gap-3">
                         <div 
                           className="w-12 h-12 border-2 border-gray-800 rounded-full flex items-center justify-center text-2xl font-bold"
-                          style={{ backgroundColor: "#1a1a1a", color: "white" }}
+                          style={{ backgroundColor: "#ffffff", color: "white" }}
                         >
                           {index + 1}
                         </div>
@@ -212,7 +212,7 @@ export default function RunSheetView({ data }: { data: RunSheetData }) {
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-gray-600">Order Value</p>
-                        <p className="text-xl font-bold" style={{ color: "#1a1a1a" }}>
+                        <p className="text-xl font-bold" style={{ color: "#ffffff" }}>
                           {formatCurrency(customerTotal)}
                         </p>
                       </div>

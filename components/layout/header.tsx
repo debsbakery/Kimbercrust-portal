@@ -46,7 +46,7 @@ export function Header() {
   />
   <div className="flex flex-col leading-none">
     <span className="font-bold text-xl" style={{ color: '#8B000' }}>Deb's</span>
-    <span className="font-semibold text-sm" style={{ color: '#1a1a1a' }}>Bakery</span>
+    <span className="font-semibold text-sm" style={{ color: '#ffffff' }}>Bakery</span>
   </div>
 </Link>
         {/* Navigation */}
@@ -70,7 +70,7 @@ export function Header() {
               </span>
               {isAdmin && (
                 <Link href="/admin">
-                  <Button variant="outline" size="sm" className="border-2" style={{ borderColor: '#1a1a1a', color: '#1a1a1a' }}>
+                  <Button variant="outline" size="sm" className="border-2" style={{ borderColor: '#ffffff', color: '#ffffff' }}>
                     <Settings className="h-4 w-4 mr-1" />
                     Admin
                   </Button>

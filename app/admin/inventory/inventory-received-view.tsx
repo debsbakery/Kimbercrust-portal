@@ -377,7 +377,7 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
               type="submit"
               disabled={saving}
               className="w-full py-3 rounded-lg text-white font-bold text-sm hover:opacity-90 disabled:opacity-50 transition-opacity"
-              style={{ backgroundColor: '#1a1a1a' }}
+              style={{ backgroundColor: '#ffffff' }}
             >
               {saving ? 'Saving...' : 'Record Delivery'}
             </button>

@@ -127,7 +127,7 @@ export default function StatementActions({ customer }: StatementActionsProps) {
   if (!mounted) {
     return (
       <div className="bg-white rounded-lg shadow-md p-6 border">
-        <h3 className="text-lg font-semibold mb-4" style={{ color: '#1a1a1a' }}>
+        <h3 className="text-lg font-semibold mb-4" style={{ color: '#ffffff' }}>
           Statement Actions
         </h3>
         <div className="h-24 animate-pulse bg-gray-100 rounded" />
@@ -139,7 +139,7 @@ export default function StatementActions({ customer }: StatementActionsProps) {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6 border">
-      <h3 className="text-lg font-semibold mb-4" style={{ color: '#1a1a1a' }}>
+      <h3 className="text-lg font-semibold mb-4" style={{ color: '#ffffff' }}>
         Statement Actions
       </h3>
 
@@ -173,7 +173,7 @@ export default function StatementActions({ customer }: StatementActionsProps) {
           onClick={handlePrintStatement}
           disabled={isGenerating}
           className="gap-2"
-          style={{ backgroundColor: '#1a1a1a', color: 'white' }}
+          style={{ backgroundColor: '#ffffff', color: 'white' }}
         >
           {isGenerating ? (
             <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>

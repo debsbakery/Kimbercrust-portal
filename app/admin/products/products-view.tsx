@@ -168,7 +168,7 @@ export default function ProductsView() {
               {product.description}
             </p>
           )}
-          <p className="text-2xl font-bold" style={{ color: "#1a1a1a" }}>
+          <p className="text-2xl font-bold" style={{ color: "#ffffff" }}>
             {formatCurrency(product.price)}
           </p>
         </div>
@@ -178,7 +178,7 @@ export default function ProductsView() {
           <Link
             href={`/admin/products/${product.id}`}
             className="flex-1 text-center px-3 py-2 rounded-md text-white text-sm font-semibold hover:opacity-90"
-            style={{ backgroundColor: "#1a1a1a" }}
+            style={{ backgroundColor: "#ffffff" }}
           >
             <Edit className="h-4 w-4 inline mr-1" />
             Edit
@@ -203,7 +203,7 @@ export default function ProductsView() {
         <Link
           href="/admin/products/create"
           className="inline-block mt-4 px-6 py-2 rounded-md text-white font-semibold hover:opacity-90"
-          style={{ backgroundColor: "#1a1a1a" }}
+          style={{ backgroundColor: "#ffffff" }}
         >
           + Add First Product
         </Link>

@@ -140,7 +140,7 @@ export default function BulkWeightsView({ products }: { products: Product[] }) {
         <button
           onClick={saveAll}
           className="flex items-center gap-2 px-4 py-2 rounded-md text-white font-semibold hover:opacity-90"
-          style={{ backgroundColor: '#1a1a1a' }}
+          style={{ backgroundColor: '#ffffff' }}
         >
           <Save className="h-4 w-4" /> Save All
         </button>
@@ -316,7 +316,7 @@ export default function BulkWeightsView({ products }: { products: Product[] }) {
           <button
             onClick={saveAll}
             className="flex items-center gap-2 px-6 py-3 rounded-md text-white font-semibold hover:opacity-90"
-            style={{ backgroundColor: '#1a1a1a' }}
+            style={{ backgroundColor: '#ffffff' }}
           >
             <Save className="h-4 w-4" /> Save All
           </button>

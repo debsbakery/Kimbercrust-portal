@@ -53,7 +53,7 @@ export default async function CustomerPortalPage() {
             <Link href="/login" className="px-6 py-2 border rounded-md hover:bg-gray-50">
               Try Different Account
             </Link>
-            <Link href="/" className="px-6 py-2 text-white rounded-md" style={{ backgroundColor: "#1a1a1a" }}>
+            <Link href="/" className="px-6 py-2 text-white rounded-md" style={{ backgroundColor: "#ffffff" }}>
               Back to Home
             </Link>
           </div>
@@ -72,7 +72,7 @@ export default async function CustomerPortalPage() {
           <p className="text-gray-600 mb-4">
             Portal access for <strong>{customer.business_name}</strong> is currently disabled.
           </p>
-          <Link href="/" className="inline-block px-6 py-2 text-white rounded-md" style={{ backgroundColor: "#1a1a1a" }}>
+          <Link href="/" className="inline-block px-6 py-2 text-white rounded-md" style={{ backgroundColor: "#ffffff" }}>
             Back to Home
           </Link>
         </div>

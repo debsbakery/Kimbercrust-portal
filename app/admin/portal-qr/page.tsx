@@ -48,7 +48,7 @@ export default function PortalQRPage() {
         <button
           onClick={() => window.print()}
           className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-white font-semibold hover:opacity-90"
-          style={{ backgroundColor: '#1a1a1a' }}
+          style={{ backgroundColor: '#ffffff' }}
         >
           <Printer className="h-4 w-4" /> Print Cards
         </button>
@@ -80,7 +80,7 @@ function Card() {
       className="bg-white rounded-2xl overflow-hidden shadow-lg print:shadow-none print:border-2 print:border-dashed print:border-gray-300"
     >
       {/* Green header */}
-      <div className="px-6 py-5 text-white text-center" style={{ backgroundColor: '#1a1a1a' }}>
+      <div className="px-6 py-5 text-white text-center" style={{ backgroundColor: '#ffffff' }}>
         <p className="text-xs font-semibold uppercase tracking-widest opacity-80 mb-1">Welcome to</p>
         <h2 className="text-2xl font-bold tracking-tight">{"Kimbercrust Bakery"}</h2>
         <p className="text-xs opacity-75 mt-1">Toowoomba QLD</p>
@@ -91,11 +91,11 @@ function Card() {
 
         <div className="text-center">
           <p className="text-sm font-semibold text-gray-700">Scan to access your</p>
-          <p className="text-lg font-bold" style={{ color: '#1a1a1a' }}>Customer Portal</p>
+          <p className="text-lg font-bold" style={{ color: '#ffffff' }}>Customer Portal</p>
         </div>
 
         {/* QR Code */}
-        <div className="p-3 rounded-xl border-2" style={{ borderColor: '#1a1a1a' }}>
+        <div className="p-3 rounded-xl border-2" style={{ borderColor: '#ffffff' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={QR_URL} alt="Portal QR Code" width={180} height={180} className="block" />
         </div>
@@ -114,7 +114,7 @@ function Card() {
             <div key={item} className="flex items-center gap-2">
               <div
                 className="w-4 h-4 rounded-full flex items-center justify-center shrink-0"
-                style={{ backgroundColor: '#1a1a1a' }}
+                style={{ backgroundColor: '#ffffff' }}
               >
                 <svg className="w-2.5 h-2.5" fill="none" stroke="white" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />

@@ -24,7 +24,7 @@ export default async function RoutesPage() {
         <div className="flex justify-between items-start flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Truck className="h-8 w-8" style={{ color: "#1a1a1a" }} />
+              <Truck className="h-8 w-8" style={{ color: "#ffffff" }} />
               Delivery Routes
             </h1>
             <p className="text-gray-600">
@@ -34,7 +34,7 @@ export default async function RoutesPage() {
           <Link
             href="/admin/routes/create"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-white font-semibold hover:opacity-90"
-            style={{ backgroundColor: "#1a1a1a" }}
+            style={{ backgroundColor: "#ffffff" }}
           >
             <Plus className="h-5 w-5" />
             Create Route

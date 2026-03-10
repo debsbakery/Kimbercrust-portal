@@ -572,7 +572,7 @@ export default function DirectInvoicePage() {
       </a>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: '#1a1a1a' }}>
+        <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: '#ffffff' }}>
           <FileText className="h-8 w-8" /> Direct Invoice
         </h1>
         <p className="text-gray-600 mt-1">Create invoices with optional credit lines</p>
@@ -674,7 +674,7 @@ export default function DirectInvoicePage() {
                 type="button"
                 onClick={() => addLineItem(false)}
                 className="flex items-center gap-2 px-4 py-2 rounded text-white text-sm hover:opacity-90"
-                style={{ backgroundColor: '#1a1a1a' }}
+                style={{ backgroundColor: '#ffffff' }}
               >
                 <Plus className="h-4 w-4" /> Add Charge
               </button>
@@ -865,7 +865,7 @@ export default function DirectInvoicePage() {
                 </div>
                 <div
                   className="text-xl font-bold"
-                  style={{ color: grandTotal < 0 ? '#8B000' : '#1a1a1a' }}
+                  style={{ color: grandTotal < 0 ? '#8B000' : '#ffffff' }}
                 >
                   Total: {grandTotal < 0 ? `(${fmt(Math.abs(grandTotal))})` : fmt(grandTotal)}
                 </div>

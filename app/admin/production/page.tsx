@@ -24,7 +24,7 @@ export default async function ProductionDashboardPage() {
         <div className="flex justify-between items-start flex-wrap gap-4">
           <div>
             <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Package className="h-8 w-8" style={{ color: "#1a1a1a" }} />
+              <Package className="h-8 w-8" style={{ color: "#ffffff" }} />
               Production
             </h1>
             <p className="text-gray-600">

@@ -98,7 +98,7 @@ export default async function GSTReportPage({
         <ArrowLeft className="h-4 w-4" /> Back to Admin
       </Link>
 
-      <h1 className="text-2xl font-bold mb-6" style={{ color: '#1a1a1a' }}>
+      <h1 className="text-2xl font-bold mb-6" style={{ color: '#ffffff' }}>
         GST Report — BAS
       </h1>
 
@@ -125,7 +125,7 @@ export default async function GSTReportPage({
         <button
           type="submit"
           className="px-4 py-2 text-white text-sm rounded hover:opacity-90"
-          style={{ backgroundColor: '#1a1a1a' }}
+          style={{ backgroundColor: '#ffffff' }}
         >
           View
         </button>
@@ -142,7 +142,7 @@ export default async function GSTReportPage({
           </div>
           <div className="flex justify-between items-center py-2 border-b">
             <span className="text-gray-600">GST on Sales (1A)</span>
-            <span className="font-semibold text-lg" style={{ color: '#1a1a1a' }}>
+            <span className="font-semibold text-lg" style={{ color: '#ffffff' }}>
               {formatCurrency(invoiceGst)}
             </span>
           </div>
