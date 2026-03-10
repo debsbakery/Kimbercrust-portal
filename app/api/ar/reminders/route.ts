@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 
 // app/api/ar/reminders/route.ts
 import { NextResponse } from 'next/server'
@@ -6,12 +6,12 @@ import { createClient } from '@/lib/supabase/server'
 import { Resend } from 'resend'
 
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder")
 
 export async function POST() {
   const supabase = await createClient()
   try {
-    console.log('ðŸ“§ Processing overdue reminders...')
+    console.log('📧 Processing overdue reminders...')
 
     const today = new Date().toISOString().split('T')[0]
 
@@ -66,7 +66,7 @@ export async function POST() {
           .maybeSingle()
 
         if (recentEmail) {
-          console.log(`  â­ï¸ Skipping ${customer.business_name} - reminded recently`)
+          console.log(`  ⏭️ Skipping ${customer.business_name} - reminded recently`)
           continue
         }
 
@@ -76,7 +76,7 @@ export async function POST() {
             const daysOverdue = Math.floor(
               (new Date().getTime() - new Date(inv.due_date).getTime()) / (1000 * 60 * 60 * 24)
             )
-            return `â€¢ ${inv.description} â€” $${parseFloat(inv.amount).toFixed(2)} (${daysOverdue} days overdue)`
+            return `• ${inv.description} — $${parseFloat(inv.amount).toFixed(2)} (${daysOverdue} days overdue)`
           })
           .join('\n')
 
@@ -84,7 +84,7 @@ export async function POST() {
         const { error: emailError } = await resend.emails.send({
           from: process.env.RESEND_FROM_EMAIL!,
           to: customer.email,
-          subject: `Overdue Payment Reminder â€” $${totalOverdue.toFixed(2)} Outstanding`,
+          subject: `Overdue Payment Reminder — $${totalOverdue.toFixed(2)} Outstanding`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background-color: #8B000; color: white; padding: 20px; text-align: center;">
@@ -108,8 +108,8 @@ export async function POST() {
                 
                 <p>If you have any questions, please don't hesitate to contact us:</p>
                 <ul>
-                  <li>ðŸ“§ ${process.env.BAKERY_EMAIL}</li>
-                  <li>ðŸ“ž ${process.env.BAKERY_PHONE}</li>
+                  <li>📧 ${process.env.BAKERY_EMAIL}</li>
+                  <li>📞 ${process.env.BAKERY_PHONE}</li>
                 </ul>
                 
                 <p>Thank you for your business!</p>
@@ -129,20 +129,20 @@ export async function POST() {
         await supabase.from('ar_emails').insert({
           customer_id: customerId,
           type: 'overdue_reminder',
-          subject: `Overdue Payment Reminder â€” $${totalOverdue.toFixed(2)}`,
+          subject: `Overdue Payment Reminder — $${totalOverdue.toFixed(2)}`,
           status: 'sent',
         })
 
         sent++
         console.log(
-          `  ðŸ“§ Reminder sent to ${customer.business_name} (${customer.email}) â€” $${totalOverdue.toFixed(2)}`
+          `  📧 Reminder sent to ${customer.business_name} (${customer.email}) — $${totalOverdue.toFixed(2)}`
         )
       } catch (err: any) {
         errors.push(`${customerId}: ${err.message}`)
       }
     }
 
-    console.log(`âœ… Sent ${sent} reminders, ${errors.length} errors`)
+    console.log(`✅ Sent ${sent} reminders, ${errors.length} errors`)
 
     return NextResponse.json({
       success: true,
@@ -151,10 +151,11 @@ export async function POST() {
       errors: errors.length > 0 ? errors : undefined,
     })
   } catch (error: any) {
-    console.error('âŒ Reminder processing error:', error)
+    console.error('❌ Reminder processing error:', error)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
     )
   }
 }
+

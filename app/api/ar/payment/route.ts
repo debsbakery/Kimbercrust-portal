@@ -168,3 +168,4 @@ async function recalculateAging(supabase: any, customerId: string) {
     total_due
   })
 }
+

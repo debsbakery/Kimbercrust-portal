@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder")
 
 const BAKERY_NAME = process.env.BAKERY_NAME || "Kimbercrust Bakery"
 const BAKERY_EMAIL = process.env.BAKERY_EMAIL || 'noreply@example.com'

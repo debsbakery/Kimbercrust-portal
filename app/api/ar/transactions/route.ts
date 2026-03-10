@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 
 // app/api/ar/transactions/route.ts
 import { NextRequest, NextResponse } from 'next/server'
@@ -96,16 +96,17 @@ export async function POST(request: NextRequest) {
       .eq('id', customer_id)
 
     console.log(
-      `ðŸ’° AR Transaction: ${type} $${txAmount.toFixed(2)} for ${customer_id} ` +
-      `(balance: $${currentBalance.toFixed(2)} â†’ $${newBalance.toFixed(2)})`
+      `💰 AR Transaction: ${type} $${txAmount.toFixed(2)} for ${customer_id} ` +
+      `(balance: $${currentBalance.toFixed(2)} → $${newBalance.toFixed(2)})`
     )
 
     return NextResponse.json({ success: true, transaction, newBalance })
   } catch (error: any) {
-    console.error('âŒ AR transaction error:', error)
+    console.error('❌ AR transaction error:', error)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
     )
   }
 }
+

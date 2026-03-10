@@ -7,7 +7,7 @@ import { generateStatementPDF } from '@/lib/pdf/statement'
 import { Resend } from 'resend'
 import pLimit from 'p-limit'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder")
 const limit  = pLimit(3)
 
 export async function POST(request: NextRequest) {

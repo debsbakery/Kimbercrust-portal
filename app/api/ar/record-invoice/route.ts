@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 
 // app/api/ar/record-invoice/route.ts
 import { NextRequest, NextResponse } from 'next/server'
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'order_id required' }, { status: 400 })
     }
 
-    console.log(`ðŸ“„ Recording invoice for order: ${order_id}`)
+    console.log(`📄 Recording invoice for order: ${order_id}`)
 
     // Get order details
     const { data: order, error: orderError } = await supabase
@@ -24,12 +24,12 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (orderError || !order) {
-      console.error('âŒ Order not found:', orderError)
+      console.error('❌ Order not found:', orderError)
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
     if (!order.customer_id) {
-      console.error('âŒ Order has no customer_id')
+      console.error('❌ Order has no customer_id')
       return NextResponse.json({ error: 'Order has no customer_id' }, { status: 400 })
     }
 
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (existing) {
-      console.log(`   â„¹ï¸ Invoice already recorded (transaction ${existing.id})`)
+      console.log(`   ℹ️ Invoice already recorded (transaction ${existing.id})`)
       
       // Get existing invoice number
       const { data: existingInv } = await supabase
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
         .insert({ order_id, invoice_number: invoiceNumber })
 
       if (invNumError) {
-        console.error('âŒ Invoice number creation error:', invNumError)
+        console.error('❌ Invoice number creation error:', invNumError)
         throw invNumError
       }
 
@@ -133,11 +133,11 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (txError) {
-      console.error('âŒ AR transaction error:', txError)
+      console.error('❌ AR transaction error:', txError)
       throw txError
     }
 
-    console.log(`   âœ… AR transaction created: ${transaction.id}`)
+    console.log(`   ✅ AR transaction created: ${transaction.id}`)
 
     // Update customer balance
     const { error: balanceError } = await supabase
@@ -146,14 +146,14 @@ export async function POST(request: NextRequest) {
       .eq('id', order.customer_id)
 
     if (balanceError) {
-      console.error('âŒ Balance update error:', balanceError)
+      console.error('❌ Balance update error:', balanceError)
       throw balanceError
     }
 
-    console.log(`   âœ… Customer balance updated`)
+    console.log(`   ✅ Customer balance updated`)
 
     console.log(
-      `âœ… Invoice #${invoiceNumber} recorded for ${customer?.business_name || order.customer_email} - ` +
+      `✅ Invoice #${invoiceNumber} recorded for ${customer?.business_name || order.customer_email} - ` +
       `$${invoiceAmount.toFixed(2)} (due: ${dueDate.toISOString().split('T')[0]})`
     )
 
@@ -164,10 +164,11 @@ export async function POST(request: NextRequest) {
       newBalance,
     })
   } catch (error: any) {
-    console.error('âŒ Record invoice error:', error)
+    console.error('❌ Record invoice error:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to record invoice' },
       { status: 500 }
     )
   }
 }
+

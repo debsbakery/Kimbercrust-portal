@@ -476,3 +476,4 @@ function updateProductSummary(productSummary: any, productKey: string, item: any
     productSummary[productKey].historical_quantity += item.quantity;
   }
 }
+

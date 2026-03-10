@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 
 // app/api/ar/unpaid-invoices/route.ts
 import { NextRequest, NextResponse } from 'next/server'
@@ -58,10 +58,11 @@ export async function GET(request: NextRequest) {
       invoices: formattedInvoices,
     })
   } catch (error: any) {
-    console.error('âŒ Unpaid invoices fetch error:', error)
+    console.error('❌ Unpaid invoices fetch error:', error)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }
     )
   }
 }
+
