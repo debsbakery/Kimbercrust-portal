@@ -511,23 +511,23 @@ export default function DirectInvoicePage() {
           if (memoError) {
             console.error('Credit memo failed:', memoError.message)
           } else if (memo) {
-            await supabase.from('credit_memo_items').insert(
-              creditLines.map(i => ({
-                credit_memo_id:     memo.id,
-                product_id:         i.productId,
-                product_name:       i.productName,
-                product_code:       i.productCode,
-                custom_description: i.productName,
-                quantity:           i.quantity,
-                unit_price:         i.unitPrice,
-                total:              lineSubtotal(i),
-                credit_percent:     i.creditPercent,
-                line_total:         lineTotal(i),
-                gst_applicable:     i.gstApplicable,
-                gst_amount:         lineGst(i),
-                credit_type:        i.creditType,
-              }))
-            )
+         await supabase.from('credit_memo_items').insert(
+  creditLines.map(i => ({
+    credit_memo_id:     memo.id,
+    product_id:         i.productId,
+    product_name:       i.productName,
+    product_code:       i.productCode,
+    custom_description: i.productName,
+    quantity:           i.quantity,
+    unit_price:         i.unitPrice,
+    total:              Math.abs(lineSubtotal(i)),   // ✅ always positive
+    credit_percent:     i.creditPercent,
+    line_total:         Math.abs(lineTotal(i)),      // ✅ always positive
+    gst_applicable:     i.gstApplicable,
+    gst_amount:         Math.abs(lineGst(i)),        // ✅ always positive
+    credit_type:        i.creditType,
+  }))
+)
           }
         } catch (memoErr) {
           console.error('Credit memo exception:', memoErr)
