@@ -63,7 +63,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
 
   if (logoBase64) {
     try {
-      doc.addImage(logoBase64, 'PNG', margin, yPos + 2, 50, 25)
+      doc.addImage(logoBase64, 'PNG', margin, yPos + 2, 60, 25)
     } catch {
       drawFallbackLogo(doc, logoColor, margin, yPos)
     }
@@ -75,7 +75,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
   doc.setTextColor(...textColor)
   doc.setFontSize(24)
   doc.setFont('helvetica', 'bold')
-  doc.text(bakery.name, margin + 30, yPos + 12)
+  doc.text(bakery.name, margin + 60, yPos + 12)
 
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
