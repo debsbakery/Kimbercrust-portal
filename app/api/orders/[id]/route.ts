@@ -1,158 +1,159 @@
-import { createClient } from '@/lib/supabase/server';
-import { NextResponse } from 'next/server';
+// app/api/invoice/[orderId]/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { generateInvoicePDF } from '@/lib/invoice-pdf'
 
 export async function GET(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
+  request: NextRequest,
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
   try {
-    const { id } = await context.params;
-    const supabase = await createClient();
-    
-    const { data: { user } } = await supabase.auth.getUser();
+    const { orderId } = await params
+    const { searchParams } = new URL(request.url)
+    const download = searchParams.get('download') === 'true'
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Fetch order with items and products
-    const { data: order, error } = await supabase
+    // ── Fetch order WITHOUT the customers join (no FK constraint needed) ──
+    const { data: order, error: orderError } = await supabase
       .from('orders')
       .select(`
         *,
         order_items (
           id,
-          product_id,
-          product_name,
           quantity,
           unit_price,
           subtotal,
           gst_applicable,
-          product:products (
+          product_name,
+          custom_description,
+          products (
             id,
+            code,
             name,
-            product_number,
-            price,
-            unit,
-            category,
-            is_available
+            description
           )
+        ),
+        invoice_numbers (
+          invoice_number,
+          created_at
         )
       `)
-      .eq('id', id)
-      .single();
-
-    if (error || !order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-    }
-
-    // Check if order belongs to this customer
-    if (order.customer_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    return NextResponse.json({ order });
-  } catch (error: any) {
-    console.error('Get order error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id: orderId } = await context.params;
-    const supabase = await createClient();
-    const updates = await request.json();
-
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if order belongs to this customer
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('customer_id, delivery_date, cutoff_time, status')
       .eq('id', orderId)
-      .single();
+      .single()
 
-    if (orderError || !order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    if (orderError) throw orderError
+    if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+
+    // ── Fetch customer separately ─────────────────────────────────────────
+    let customer: any = null
+    if (order.customer_id) {
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('id, business_name, contact_name, email, phone, address, abn, payment_terms')
+        .eq('id', order.customer_id)
+        .single()
+      customer = customerData
     }
 
-    if (order.customer_id !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const rawItems = (order.order_items || []) as any[]
+
+    // ── Sort by product code ──────────────────────────────────────────────
+    const sortedItems = [...rawItems].sort((a, b) => {
+      const codeA = parseInt(a.products?.code?.toString() || '9999')
+      const codeB = parseInt(b.products?.code?.toString() || '9999')
+      return codeA - codeB
+    })
+
+    // ── Build order object ────────────────────────────────────────────────
+    const orderWithItems = {
+      id:                     order.id,
+      invoice_number:         order.invoice_number,
+      order_number:           order.order_number || order.id.slice(0, 8).toUpperCase(),
+      customer_email:         customer?.email         || order.customer_email,
+      customer_business_name: customer?.business_name || order.customer_business_name,
+      customer_contact_name:  customer?.contact_name,
+      customer_address:       customer?.address       || order.customer_address,
+      customer_phone:         customer?.phone,
+      customer_abn:           customer?.abn           || order.customer_abn,
+      delivery_date:          order.delivery_date,
+      created_at:             order.created_at,
+      notes:                  order.notes,
+      purchase_order_number:  order.purchase_order_number,
+      docket_number:          order.docket_number,
+      total_amount:           order.total_amount,
+      payment_terms:          customer?.payment_terms || 30,
+      order_items: sortedItems.map((item: any) => {
+        const displayCode = item.products?.code?.toString() || null
+        const displayName =
+          item.custom_description ||
+          item.product_name       ||
+          item.products?.name     ||
+          '(no description)'
+        return {
+          id:                  item.id,
+          product_id:          item.products?.id,
+          product_code:        displayCode,
+          product_name:        displayName,
+          product_description: item.products?.description ?? null,
+          quantity:            item.quantity,
+          unit_price:          item.unit_price,
+          subtotal:            item.subtotal,
+          gst_applicable:      item.gst_applicable !== false,
+          custom_description:  item.custom_description ?? null,
+        }
+      }),
     }
 
-    // Check if order is still editable (before cutoff)
-    const cutoffTime = order.cutoff_time || '17:00:00';
-    const deliveryDateTime = new Date(`${order.delivery_date}T${cutoffTime}`);
-    const now = new Date();
-
-    if (now >= deliveryDateTime) {
-      return NextResponse.json(
-        { error: 'Order editing deadline has passed' },
-        { status: 400 }
-      );
+    // ── Bakery config — ALL from env, no hardcoded fallbacks ──────────────
+    const bakeryInfo = {
+      name:        process.env.BAKERY_NAME         || '',
+      email:       process.env.BAKERY_EMAIL        || '',
+      phone:       process.env.BAKERY_PHONE        || '',
+      address:     process.env.BAKERY_ADDRESS      || '',
+      abn:         process.env.BAKERY_ABN          || '',
+      bankName:    process.env.BAKERY_BANK_NAME    || '',
+      bankBSB:     process.env.BAKERY_BANK_BSB     || '',
+      bankAccount: process.env.BAKERY_BANK_ACCOUNT || '',
     }
 
-    if (order.status !== 'pending') {
-      return NextResponse.json(
-        { error: 'Only pending orders can be edited' },
-        { status: 400 }
-      );
-    }
+    // ── Resolve invoice number ────────────────────────────────────────────
+    const invRecord  = (order.invoice_numbers as any[])?.[0]
+    const invoiceNum = invRecord?.invoice_number
+      ? String(invRecord.invoice_number).padStart(6, '0')
+      : order.invoice_number
+        ? String(order.invoice_number).padStart(6, '0')
+        : `TEMP-${order.id.slice(0, 8).toUpperCase()}`
 
-    // Delete existing order items
-    const { error: deleteError } = await supabase
-      .from('order_items')
-      .delete()
-      .eq('order_id', orderId);
+    // ── Generate PDF ──────────────────────────────────────────────────────
+    const pdf = await generateInvoicePDF({
+      order:  orderWithItems as any,
+      bakery: bakeryInfo,
+    })
 
-    if (deleteError) {
-      return NextResponse.json({ error: 'Failed to update order items' }, { status: 500 });
-    }
+    const pdfBuffer = Buffer.from(pdf.output('arraybuffer'))
+    const filename  = `invoice-${invoiceNum}.pdf`
 
-    // Insert updated items
-    if (updates.items && updates.items.length > 0) {
-      const { error: itemsError } = await supabase.from('order_items').insert(
-        updates.items.map((item: any) => ({
-          order_id: orderId,
-          product_id: item.product_id,
-          product_name: item.product_name,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          subtotal: item.quantity * item.unit_price,
-          gst_applicable: item.gst_applicable || false,
-        }))
-      );
+    return new NextResponse(pdfBuffer, {
+      headers: {
+        'Content-Type':        'application/pdf',
+        'Content-Disposition': download
+          ? `attachment; filename="${filename}"`
+          : `inline; filename="${filename}"`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma':        'no-cache',
+        'Expires':       '0',
+      },
+    })
 
-      if (itemsError) {
-        console.error('Insert items error:', itemsError);
-        return NextResponse.json({ error: 'Failed to update items' }, { status: 500 });
-      }
-    }
-
-    // Update order totals
-    const { error: updateError } = await supabase
-      .from('orders')
-      .update({
-        total_amount: updates.total_amount,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', orderId);
-
-    if (updateError) {
-      return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Update order error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Invoice generation error:', error)
+    return NextResponse.json(
+      { error: 'Failed to generate invoice', details: error.message },
+      { status: 500 }
+    )
   }
 }
