@@ -89,9 +89,9 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
 
   // TAX INVOICE title
   doc.setTextColor(...textColor)
-  doc.setFontSize(28)
+  doc.setFontSize(18)
   doc.setFont('helvetica', 'bold')
-  doc.text('TAX INVOICE', 210 - margin, 25, { align: 'right' })
+  doc.text('TAX INVOICE', 210 - margin, 20, { align: 'right' })
 
   // Resolve invoice number once — used in details box AND payment reference
   const invoiceNum = order.invoice_number
