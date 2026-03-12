@@ -63,7 +63,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
 
   if (logoBase64) {
     try {
-      doc.addImage(logoBase64, 'PNG', margin, yPos + 2, 25, 25)
+      doc.addImage(logoBase64, 'PNG', margin, yPos + 2, 50, 25)
     } catch {
       drawFallbackLogo(doc, logoColor, margin, yPos)
     }
@@ -79,12 +79,12 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
 
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
-  doc.text(bakery.email,   margin + 30, yPos + 20)
-  doc.text(bakery.phone,   margin + 30, yPos + 25)
-  doc.text(bakery.address, margin + 30, yPos + 30)
+  doc.text(bakery.email,   margin + 60, yPos + 20)
+  doc.text(bakery.phone,   margin + 60, yPos + 25)
+  doc.text(bakery.address, margin + 60, yPos + 30)
   if (bakery.abn) {
     doc.setFont('helvetica', 'bold')
-    doc.text('ABN: ' + bakery.abn, margin + 30, yPos + 36)
+    doc.text('ABN: ' + bakery.abn, margin + 60, yPos + 36)
   }
 
   // TAX INVOICE title
