@@ -17,7 +17,6 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const download = searchParams.get('download') === 'true'
 
-    // ── Fetch order WITHOUT the customers join (no FK constraint needed) ──
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select(`
@@ -48,18 +47,19 @@ export async function GET(
     if (orderError) throw orderError
     if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
 
-    // ── Fetch customer separately ─────────────────────────────────────────
+    // ── Fetch customer + invoice_brand ────────────────────────────────────
     let customer: any = null
     if (order.customer_id) {
       const { data: customerData } = await supabase
         .from('customers')
-        .select('id, business_name, contact_name, email, phone, address, abn, payment_terms')
+        .select('id, business_name, contact_name, email, phone, address, abn, payment_terms, invoice_brand')
         .eq('id', order.customer_id)
         .single()
       customer = customerData
     }
 
-    const rawItems = (order.order_items || []) as any[]
+    const rawItems     = (order.order_items || []) as any[]
+    const isStodsBrand = customer?.invoice_brand === 'stods'
 
     // ── Sort by product code ──────────────────────────────────────────────
     const sortedItems = [...rawItems].sort((a, b) => {
@@ -108,16 +108,33 @@ export async function GET(
       }),
     }
 
-    // ── Bakery config — ALL from env, no hardcoded fallbacks ──────────────
-    const bakeryInfo = {
-      name:        process.env.BAKERY_NAME         || '',
-      email:       process.env.BAKERY_EMAIL        || '',
-      phone:       process.env.BAKERY_PHONE        || '',
-      address:     process.env.BAKERY_ADDRESS      || '',
-      abn:         process.env.BAKERY_ABN          || '',
-      bankName:    process.env.BAKERY_BANK_NAME    || '',
-      bankBSB:     process.env.BAKERY_BANK_BSB     || '',
-      bankAccount: process.env.BAKERY_BANK_ACCOUNT || '',
+    // ── Bakery config — swap for Stods brand ──────────────────────────────
+    const bakeryInfo = isStodsBrand ? {
+      name:         process.env.STODS_BAKERY_NAME         || 'Stods Bakery',
+      email:        process.env.STODS_BAKERY_EMAIL        || '',
+      phone:        process.env.STODS_BAKERY_PHONE        || '',
+      address:      process.env.STODS_BAKERY_ADDRESS      || '',
+      abn:          process.env.STODS_BAKERY_ABN          || '',
+      bankName:     process.env.STODS_BAKERY_BANK_NAME    || '',
+      bankBSB:      process.env.STODS_BAKERY_BANK_BSB     || '',
+      bankAccount:  process.env.STODS_BAKERY_BANK_ACCOUNT || '',
+      logoUrl:      (process.env.STODS_SITE_URL || 'https://orders.stodsbakery.com') + '/logo.png',
+      logoWidth:    60,
+      logoHeight:   30,
+      hideNameText: true,
+    } : {
+      name:         process.env.BAKERY_NAME         || '',
+      email:        process.env.BAKERY_EMAIL        || '',
+      phone:        process.env.BAKERY_PHONE        || '',
+      address:      process.env.BAKERY_ADDRESS      || '',
+      abn:          process.env.BAKERY_ABN          || '',
+      bankName:     process.env.BAKERY_BANK_NAME    || '',
+      bankBSB:      process.env.BAKERY_BANK_BSB     || '',
+      bankAccount:  process.env.BAKERY_BANK_ACCOUNT || '',
+      logoUrl:      (process.env.NEXT_PUBLIC_SITE_URL || '') + '/logo.png',
+      logoWidth:    40,
+      logoHeight:   20,
+      hideNameText: false,
     }
 
     // ── Resolve invoice number ────────────────────────────────────────────
@@ -131,7 +148,7 @@ export async function GET(
     // ── Generate PDF ──────────────────────────────────────────────────────
     const pdf = await generateInvoicePDF({
       order:  orderWithItems as any,
-      bakery: bakeryInfo,
+      bakery: bakeryInfo as any,
     })
 
     const pdfBuffer = Buffer.from(pdf.output('arraybuffer'))

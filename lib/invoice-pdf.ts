@@ -19,6 +19,7 @@ async function imageUrlToBase64(url: string): Promise<string | null> {
 function drawFallbackLogo(
   doc: jsPDF,
   color: [number, number, number],
+  letter: string,
   margin: number,
   yPos: number
 ) {
@@ -27,7 +28,7 @@ function drawFallbackLogo(
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(16)
   doc.setFont('helvetica', 'bold')
-  doc.text('D', margin + 12, yPos + 15, { align: 'center' })
+  doc.text(letter, margin + 12, yPos + 15, { align: 'center' })
 }
 
 export interface InvoiceData {
@@ -41,6 +42,10 @@ export interface InvoiceData {
     bankName?: string
     bankBSB?: string
     bankAccount?: string
+    logoUrl?: string       // ✅ dynamic logo URL
+    logoWidth?: number     // ✅ dynamic logo width
+    logoHeight?: number    // ✅ dynamic logo height
+    hideNameText?: boolean // ✅ hide name if logo includes it
   }
 }
 
@@ -57,34 +62,59 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
   doc.setFillColor(255, 255, 255)
   doc.rect(0, 0, 210, 50, 'F')
 
-  // Logo
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://debsbakery-portal.vercel.app'
-  const logoBase64 = await imageUrlToBase64(siteUrl + '/logo.png')
+  // ── Logo ──────────────────────────────────────────────────────────────────
+  const logoW       = bakery.logoWidth  ?? 40
+  const logoH       = bakery.logoHeight ?? 20
+  const fallbackLetter = bakery.name.charAt(0).toUpperCase()
+
+  // Use bakery.logoUrl if provided, otherwise fall back to env var
+  const logoUrl     = bakery.logoUrl
+    ?? ((process.env.NEXT_PUBLIC_SITE_URL ?? '') + '/logo.png')
+  const logoBase64  = logoUrl ? await imageUrlToBase64(logoUrl) : null
 
   if (logoBase64) {
     try {
-      doc.addImage(logoBase64, 'PNG', margin, yPos + 2, 60, 25)
+      doc.addImage(logoBase64, 'PNG', margin, yPos + 2, logoW, logoH)
     } catch {
-      drawFallbackLogo(doc, logoColor, margin, yPos)
+      drawFallbackLogo(doc, logoColor, fallbackLetter, margin, yPos)
     }
   } else {
-    drawFallbackLogo(doc, logoColor, margin, yPos)
+    drawFallbackLogo(doc, logoColor, fallbackLetter, margin, yPos)
   }
 
-  // Company name and details
-  doc.setTextColor(...textColor)
-  doc.setFontSize(24)
-  doc.setFont('helvetica', 'bold')
-  doc.text(bakery.name, margin + 60, yPos + 12)
+  // ── Company name — hidden if logo includes name ───────────────────────────
+  const textOffsetX = margin + logoW + 5
 
+  if (!bakery.hideNameText) {
+    doc.setTextColor(...textColor)
+    doc.setFontSize(24)
+    doc.setFont('helvetica', 'bold')
+    doc.text(bakery.name, textOffsetX, yPos + 12)
+  }
+
+  // ── Contact details ───────────────────────────────────────────────────────
   doc.setFontSize(8)
   doc.setFont('helvetica', 'normal')
-  doc.text(bakery.email,   margin + 60, yPos + 20)
-  doc.text(bakery.phone,   margin + 60, yPos + 25)
-  doc.text(bakery.address, margin + 60, yPos + 30)
+  doc.setTextColor(...textColor)
+
+  const detailsX = bakery.hideNameText ? margin + logoW + 5 : textOffsetX
+  let   detailsY = bakery.hideNameText ? yPos + 8 : yPos + 20
+
+  if (bakery.email) {
+    doc.text(bakery.email, detailsX, detailsY)
+    detailsY += 5
+  }
+  if (bakery.phone) {
+    doc.text(bakery.phone, detailsX, detailsY)
+    detailsY += 5
+  }
+  if (bakery.address) {
+    doc.text(bakery.address, detailsX, detailsY)
+    detailsY += 5
+  }
   if (bakery.abn) {
     doc.setFont('helvetica', 'bold')
-    doc.text('ABN: ' + bakery.abn, margin + 60, yPos + 36)
+    doc.text('ABN: ' + bakery.abn, detailsX, detailsY)
   }
 
   // TAX INVOICE title
@@ -93,7 +123,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
   doc.setFont('helvetica', 'bold')
   doc.text('TAX INVOICE', 210 - margin, 20, { align: 'right' })
 
-  // Resolve invoice number once — used in details box AND payment reference
+  // Resolve invoice number
   const invoiceNum = order.invoice_number
     ? String(order.invoice_number).padStart(6, '0')
     : 'TEMP-' + order.id.slice(0, 8).toUpperCase()
@@ -177,7 +207,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
     yPos += 20
   }
 
-  // Notes — skip auto-generated standing orders
+  // Notes
   if (order.notes && !order.notes.toLowerCase().includes('auto-generated')) {
     yPos += 3
     doc.setFontSize(7)
@@ -235,8 +265,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
 
   // Totals
   const subtotal = order.order_items.reduce(
-    (sum, item) => sum + (item.subtotal ?? item.unit_price * item.quantity),
-    0
+    (sum, item) => sum + (item.subtotal ?? item.unit_price * item.quantity), 0
   )
   const gstTotal = order.order_items.reduce((sum, item) => {
     const hasGST    = item.gst_applicable !== false
