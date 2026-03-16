@@ -436,13 +436,14 @@ export default function DirectInvoicePage() {
             ? ` (${item.creditPercent}% Credit)`
             : item.isCredit ? ' (100% Credit)' : ''
           return {
-            order_id:       newOrder.id,
-            product_id:     item.productId,
-            product_name:   item.productName + creditLabel,
-            quantity:       item.isCredit ? -item.quantity : item.quantity,
-            unit_price:     item.unitPrice,
-            subtotal:       lineSubtotal(item),
-            gst_applicable: item.gstApplicable,
+                        order_id:           newOrder.id,
+              product_id:         item.productId,
+              product_name:       item.isCustom ? 'Manual Adjustment' : item.productName + creditLabel,
+              custom_description: item.isCustom ? item.productName + creditLabel : null,
+              quantity:           item.isCredit ? -item.quantity : item.quantity,
+              unit_price:         item.unitPrice,
+              subtotal:           lineSubtotal(item),
+              gst_applicable:     item.gstApplicable,
           }
         }))
 
@@ -559,13 +560,13 @@ export default function DirectInvoicePage() {
       <a
         href="/admin"
         className="flex items-center gap-1 text-sm mb-4 hover:opacity-80"
-        style={{ color: '#C4A882' }}
+        style={{ color: '#CE1126' }}
       >
         <ArrowLeft className="h-4 w-4" /> Back to Admin Dashboard
       </a>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: '#6a0053' }}>
+        <h1 className="text-3xl font-bold flex items-center gap-2" style={{ color: '#006A4E' }}>
           <FileText className="h-8 w-8" /> Direct Invoice
         </h1>
         <p className="text-gray-600 mt-1">Create invoices with optional credit lines</p>
@@ -759,14 +760,14 @@ export default function DirectInvoicePage() {
                     )}
                   </div>
 
-                  {/* Quantity */}
+                                   {/* Quantity */}
                   <div className="col-span-1">
                     <input
                       type="number"
-                      min="0.1"
-                      step="0.1"
+                      min="1"
+                      step="1"
                       value={item.quantity}
-                      onChange={e => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                      onChange={e => updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 1)}
                       className="w-full border rounded px-2 py-1.5 text-sm"
                     />
                   </div>
