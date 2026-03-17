@@ -451,19 +451,26 @@ export default function OrderPage() {
                   </div>
 
                   <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowCalendar(!showCalendar)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-red-900"
-                    >
-                      <span className={deliveryDate ? "text-gray-900" : "text-gray-400"}>
-                        {deliveryDate && isValid(deliveryDate)
-                          ? format(deliveryDate, "EEEE, MMMM d, yyyy")
-                          : "Select delivery date"
-                        }
-                      </span>
-                      <CalendarIcon className="h-5 w-5 text-gray-400" />
-                    </button>
+                  <button
+  type="button"
+  onClick={() => {
+    console.log('Calendar clicked')
+    console.log('category:', category)
+    console.log('availableDates length:', availableDates.length)
+    console.log('availableDates sample:', availableDates.slice(0, 3))
+    setShowCalendar(!showCalendar)
+    console.log('showCalendar toggled to:', !showCalendar)
+  }}
+  className="w-full px-3 py-2 border border-gray-300 rounded-md text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-red-900"
+>
+  <span className={deliveryDate ? "text-gray-900" : "text-gray-400"}>
+    {deliveryDate && isValid(deliveryDate)
+      ? format(deliveryDate, "EEEE, MMMM d, yyyy")
+      : "Select delivery date"
+    }
+  </span>
+  <CalendarIcon className="h-5 w-5 text-gray-400" />
+</button>
 
                     {showCalendar && availableDates.length > 0 && (
                       <div className="absolute z-10 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4 max-h-72 overflow-y-auto w-full">
