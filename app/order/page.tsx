@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -147,12 +147,21 @@ export default function OrderPage() {
   }, [supabase]);
 
   // ── Memoised date list — only recalculates when category or customer changes
-  const availableDates = useMemo(() => getAvailableDates(
+ const [availableDates, setAvailableDates] = useState<Date[]>([])
+
+useEffect(() => {
+  if (!category) {
+    setAvailableDates([])
+    return
+  }
+  const dates = getAvailableDates(
     category,
     (customer as any)?.cutoff_time ??
     (customer as any)?.default_cutoff_time ??
     undefined
-  ), [category, customer])
+  )
+  setAvailableDates(dates)
+}, [category, customer])
 
   const handleSelectCategory = (cat: OrderCategory) => {
     setCategory(cat)
