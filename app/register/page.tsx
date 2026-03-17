@@ -65,8 +65,8 @@ export default function RegisterPage() {
             <strong>{form.email}</strong> within 1-2 business days.
           </p>
           <div className="mt-6 pt-6 border-t text-xs text-gray-400">
-            <p>Deb&apos;s Bakery — Toowoomba QLD</p>
-            <p>debs_bakery@outlook.com</p>
+            <p>Kimbercrust Bakery — Kununurra WA</p>
+            <p>kimbercrust@outlook.com.au</p>
           </div>
         </div>
       </div>
@@ -87,7 +87,7 @@ export default function RegisterPage() {
             </div>
           </div>
           <h1 className="text-3xl font-bold" style={{ color: '#2c2c2c' }}>
-            Deb&apos;s Bakery
+            Kimbercrust Bakery
           </h1>
           <p className="text-gray-500 mt-1">Wholesale Account Application</p>
         </div>
@@ -112,7 +112,7 @@ export default function RegisterPage() {
               value={form.business_name}
               onChange={handleChange}
               placeholder="e.g. Sunrise Cafe"
-              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
             />
           </div>
 
@@ -127,7 +127,7 @@ export default function RegisterPage() {
               value={form.contact_name}
               onChange={handleChange}
               placeholder="e.g. Jane Smith"
-              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
             />
           </div>
 
@@ -142,7 +142,7 @@ export default function RegisterPage() {
               value={form.email}
               onChange={handleChange}
               placeholder="jane@sunrise.com.au"
-              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
             />
           </div>
 
@@ -155,8 +155,8 @@ export default function RegisterPage() {
               name="phone"
               value={form.phone}
               onChange={handleChange}
-              placeholder="(07) 1234 5678"
-              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              placeholder="(08) 9169 1664"
+              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
             />
           </div>
 
@@ -169,8 +169,8 @@ export default function RegisterPage() {
               name="address"
               value={form.address}
               onChange={handleChange}
-              placeholder="123 Main St, Toowoomba QLD 4350"
-              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              placeholder="123 Main St, Kununurra WA 6743"
+              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
             />
           </div>
 
@@ -184,7 +184,7 @@ export default function RegisterPage() {
               value={form.abn}
               onChange={handleChange}
               placeholder="12 345 678 901"
-              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
             />
           </div>
 
@@ -198,7 +198,7 @@ export default function RegisterPage() {
               onChange={handleChange}
               rows={3}
               placeholder="Any special delivery instructions..."
-              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm"
+              className="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 text-sm"
             />
           </div>
 
@@ -220,7 +220,7 @@ export default function RegisterPage() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          Questions? Call us on (07) 4632 9475
+          Questions? Call us on 08 9169 1664
         </p>
       </div>
     </div>
