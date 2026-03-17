@@ -163,16 +163,27 @@ useEffect(() => {
   setAvailableDates(dates)
 }, [category, customer])
 
-  const handleSelectCategory = (cat: OrderCategory) => {
+   const handleSelectCategory = (cat: OrderCategory) => {
     setCategory(cat)
     setDeliveryDate(undefined)
     setShowCalendar(false)
     setCart([])
     localStorage.removeItem("cart")
-    if (cat) localStorage.setItem("cart_category", cat)
-    else     localStorage.removeItem("cart_category")
+    if (cat) {
+      localStorage.setItem("cart_category", cat)
+      // ✅ Generate dates immediately — don't wait for useEffect
+      const dates = getAvailableDates(
+        cat,
+        (customer as any)?.cutoff_time ??
+        (customer as any)?.default_cutoff_time ??
+        undefined
+      )
+      setAvailableDates(dates)
+    } else {
+      localStorage.removeItem("cart_category")
+      setAvailableDates([])
+    }
   }
-
   const saveCart = (newCart: CartItem[]) => {
     setCart(newCart);
     localStorage.setItem("cart", JSON.stringify(newCart));
@@ -459,27 +470,20 @@ useEffect(() => {
                     }
                   </div>
 
-                  <div className="relative">
-                  <button
-  type="button"
-  onClick={() => {
-    console.log('Calendar clicked')
-    console.log('category:', category)
-    console.log('availableDates length:', availableDates.length)
-    console.log('availableDates sample:', availableDates.slice(0, 3))
-    setShowCalendar(!showCalendar)
-    console.log('showCalendar toggled to:', !showCalendar)
-  }}
-  className="w-full px-3 py-2 border border-gray-300 rounded-md text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-red-900"
->
-  <span className={deliveryDate ? "text-gray-900" : "text-gray-400"}>
-    {deliveryDate && isValid(deliveryDate)
-      ? format(deliveryDate, "EEEE, MMMM d, yyyy")
-      : "Select delivery date"
-    }
-  </span>
-  <CalendarIcon className="h-5 w-5 text-gray-400" />
-</button>
+                                 <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowCalendar(!showCalendar)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-red-900"
+                    >
+                      <span className={deliveryDate ? "text-gray-900" : "text-gray-400"}>
+                        {deliveryDate && isValid(deliveryDate)
+                          ? format(deliveryDate, "EEEE, MMMM d, yyyy")
+                          : "Select delivery date"
+                        }
+                      </span>
+                      <CalendarIcon className="h-5 w-5 text-gray-400" />
+                    </button>
 
                     {showCalendar && availableDates.length > 0 && (
                       <div className="absolute z-10 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4 max-h-72 overflow-y-auto w-full">
@@ -488,8 +492,9 @@ useEffect(() => {
                             <button
                               key={idx}
                               type="button"
-                              onClick={() => {
-                                setDeliveryDate(date)
+                              onMouseDown={(e) => {
+                                e.preventDefault()
+                                setDeliveryDate(new Date(date))
                                 setShowCalendar(false)
                               }}
                               className={`px-4 py-2 text-left rounded-md transition-colors ${
@@ -505,6 +510,15 @@ useEffect(() => {
                             >
                               {format(date, "EEEE, MMMM d, yyyy")}
                             </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                    {showCalendar && availableDates.length > 0 && (
+                      <div className="absolute z-10 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4 max-h-72 overflow-y-auto w-full">
+                        
                           ))}
                         </div>
                       </div>
