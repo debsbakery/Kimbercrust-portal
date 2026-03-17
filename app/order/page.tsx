@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -12,22 +12,83 @@ import {
   ArrowLeft, Trash2, Plus, Minus, Loader2, Send,
   Calendar as CalendarIcon, ChefHat, ShoppingBag,
 } from "lucide-react";
-import { addDays, format } from "date-fns";
+import { addDays, format, isValid } from "date-fns";
 
 const GST_RATE = 0.10;
 
-// ── Category types ────────────────────────────────────────
 type OrderCategory = 'bakery' | 'catering' | null
+
+// ── Moved outside component — pure function, no hooks ────
+function getAvailableDates(
+  cat: OrderCategory,
+  cutoffTime?: string
+): Date[] {
+  if (!cat) return []   // ✅ guard — never run with null
+
+  try {
+    const dates: Date[] = []
+
+    // Brisbane time
+    const nowBrisbane = new Date(
+      new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })
+    )
+
+    const todayHour = nowBrisbane.getHours()
+
+    // ── Clean today at midnight Brisbane ─────────────────────
+    const todayMidnight = new Date(
+      nowBrisbane.getFullYear(),
+      nowBrisbane.getMonth(),
+      nowBrisbane.getDate(),
+      0, 0, 0, 0
+    )
+
+    let daysToAdd:   number
+    let daysForward: number
+
+    if (cat === 'catering') {
+      daysToAdd   = 2    // always 2 full days ahead
+      daysForward = 90   // 90 days of options
+    } else {
+      const cutoffHour = cutoffTime
+        ? parseInt(cutoffTime.split(':')[0], 10)
+        : 14
+      daysToAdd   = todayHour < cutoffHour ? 1 : 2
+      daysForward = 21
+    }
+
+    // ── Build date list ───────────────────────────────────────
+    let cursor  = addDays(todayMidnight, daysToAdd)
+    let added   = 0
+    let safety  = 0
+
+    while (added < daysForward && safety < 300) {
+      safety++
+      if (cursor.getDay() !== 0) {   // skip Sundays
+        const d = new Date(cursor)
+        if (isValid(d)) {            // ✅ only push valid dates
+          dates.push(d)
+          added++
+        }
+      }
+      cursor = addDays(cursor, 1)
+    }
+
+    return dates
+
+  } catch (err) {
+    console.error('getAvailableDates error:', err)
+    return []
+  }
+}
 
 export default function OrderPage() {
   const router = useRouter();
   const [supabase, setSupabase] = useState<any>(null);
 
-  // ── Category selection ────────────────────────────────────
-  const [category, setCategory] = useState<OrderCategory>(null)
-
+  const [category, setCategory]                       = useState<OrderCategory>(null)
   const [cart, setCart]                               = useState<CartItem[]>([]);
-  const [deliveryDate, setDeliveryDate]               = useState<Date>();
+  const [deliveryDate, setDeliveryDate]               = useState<Date | undefined>(undefined);
   const [notes, setNotes]                             = useState("");
   const [customer, setCustomer]                       = useState<Customer | null>(null);
   const [businessName, setBusinessName]               = useState("");
@@ -38,21 +99,22 @@ export default function OrderPage() {
   const [error, setError]                             = useState<string | null>(null);
   const [showCalendar, setShowCalendar]               = useState(false);
 
-  useEffect(() => {
-    setSupabase(createClient());
-  }, []);
+  useEffect(() => { setSupabase(createClient()); }, []);
 
   useEffect(() => {
     if (!supabase) return;
     const init = async () => {
+      // Restore cart
       const savedCart = localStorage.getItem("cart");
       if (savedCart) {
         try { setCart(JSON.parse(savedCart)); } catch (e) { console.error(e); }
       }
 
-      // ── Also load category from cart if already set ───────
+      // Restore category
       const savedCategory = localStorage.getItem("cart_category") as OrderCategory
-      if (savedCategory) setCategory(savedCategory)
+      if (savedCategory === 'bakery' || savedCategory === 'catering') {
+        setCategory(savedCategory)
+      }
 
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -84,13 +146,22 @@ export default function OrderPage() {
     init();
   }, [supabase]);
 
-  // ── When category changes, clear cart + delivery date ────
+  // ── Memoised date list — only recalculates when category or customer changes
+  const availableDates = useMemo(() => getAvailableDates(
+    category,
+    (customer as any)?.cutoff_time ??
+    (customer as any)?.default_cutoff_time ??
+    undefined
+  ), [category, customer])
+
   const handleSelectCategory = (cat: OrderCategory) => {
     setCategory(cat)
     setDeliveryDate(undefined)
+    setShowCalendar(false)
     setCart([])
     localStorage.removeItem("cart")
     if (cat) localStorage.setItem("cart_category", cat)
+    else     localStorage.removeItem("cart_category")
   }
 
   const saveCart = (newCart: CartItem[]) => {
@@ -151,7 +222,7 @@ export default function OrderPage() {
           total_amount:           orderTotals.total,
           status:                 "pending",
           source:                 "online",
-          category:               category,           // ✅ save category on order
+          category:               category,
         })
         .select()
         .single();
@@ -172,7 +243,9 @@ export default function OrderPage() {
         };
       });
 
-      const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
+      const { error: itemsError } = await supabase
+        .from("order_items")
+        .insert(orderItems);
       if (itemsError) throw itemsError;
 
       try {
@@ -205,52 +278,7 @@ export default function OrderPage() {
     }
   };
 
-  // ── Available delivery dates ──────────────────────────────
-  const getAvailableDates = (cat: OrderCategory, cutoffTime?: string) => {
-    const dates = []
-
-    // Brisbane time now
-    const nowBrisbane = new Date(
-      new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })
-    )
-    const todayHour = nowBrisbane.getHours()
-
-    let daysToAdd: number
-    let daysForward: number
-
-    if (cat === 'catering') {
-      // ── Catering: 2 days prior, no customer override, 90 days forward
-      daysToAdd   = 2
-      daysForward = 90
-    } else {
-      // ── Bakery: 14:00 cutoff with customer override, 21 days forward
-      const cutoffHour = cutoffTime
-        ? parseInt(cutoffTime.split(':')[0], 10)
-        : 14
-      daysToAdd   = todayHour < cutoffHour ? 1 : 2
-      daysForward = 21
-    }
-
-    let currentDate = addDays(nowBrisbane, daysToAdd)
-
-    for (let i = 0; i < daysForward; i++) {
-      if (currentDate.getDay() !== 0) {  // no Sundays
-        dates.push(new Date(currentDate))
-      }
-      currentDate = addDays(currentDate, 1)
-    }
-
-    return dates
-  }
-
-  const availableDates = getAvailableDates(
-    category,
-    (customer as any)?.cutoff_time ??
-    (customer as any)?.default_cutoff_time ??
-    undefined
-  )
-
-  // ── Loading screen ────────────────────────────────────────
+  // ── Loading ───────────────────────────────────────────────
   if (!supabase || pageLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -259,12 +287,11 @@ export default function OrderPage() {
     );
   }
 
-  // ── Category selection screen ─────────────────────────────
+  // ── Category picker ───────────────────────────────────────
   if (!category) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-lg w-full">
-
           <div className="text-center mb-10">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               What are you ordering?
@@ -275,8 +302,6 @@ export default function OrderPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-6">
-
-            {/* Bakery */}
             <button
               onClick={() => handleSelectCategory('bakery')}
               className="bg-white rounded-2xl shadow-md p-8 flex flex-col items-center gap-4 hover:shadow-lg transition-all border-2 border-transparent hover:border-gray-300 group"
@@ -289,13 +314,10 @@ export default function OrderPage() {
               </div>
               <div className="text-center">
                 <p className="text-xl font-bold text-gray-900">Bakery</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Order by 2pm the day before
-                </p>
+                <p className="text-xs text-gray-500 mt-1">Order by 2pm the day before</p>
               </div>
             </button>
 
-            {/* Catering */}
             <button
               onClick={() => handleSelectCategory('catering')}
               className="bg-white rounded-2xl shadow-md p-8 flex flex-col items-center gap-4 hover:shadow-lg transition-all border-2 border-transparent hover:border-gray-300 group"
@@ -308,18 +330,14 @@ export default function OrderPage() {
               </div>
               <div className="text-center">
                 <p className="text-xl font-bold text-gray-900">Catering</p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Order at least 2 days ahead
-                </p>
+                <p className="text-xs text-gray-500 mt-1">Order at least 2 days ahead</p>
               </div>
             </button>
-
           </div>
 
           <p className="text-center text-xs text-gray-400 mt-8">
             You can go back and change category at any time
           </p>
-
         </div>
       </div>
     )
@@ -330,7 +348,6 @@ export default function OrderPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
 
-        {/* Back links */}
         <div className="flex items-center gap-4 mb-6">
           <Link href="/catalog">
             <button className="flex items-center hover:opacity-80" style={{ color: "#8B0000" }}>
@@ -347,7 +364,6 @@ export default function OrderPage() {
           </button>
         </div>
 
-        {/* Category badge */}
         <div className="mb-6 flex items-center gap-3">
           <h1 className="text-3xl font-bold">Complete Your Order</h1>
           <span
@@ -416,18 +432,16 @@ export default function OrderPage() {
                   </div>
                 </div>
 
-                {/* Delivery date */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Delivery Date *
                   </label>
 
-                  {/* Cutoff notice */}
                   <div
                     className="mb-2 px-3 py-2 rounded-md text-xs font-medium"
                     style={{
                       backgroundColor: category === 'catering' ? '#fff0f0' : '#f0f0f0',
-                      color:           category === 'catering' ? '#8B0000'  : '#2c2c2c',
+                      color:           category === 'catering' ? '#8B0000' : '#2c2c2c',
                     }}
                   >
                     {category === 'catering'
@@ -443,7 +457,7 @@ export default function OrderPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-red-900"
                     >
                       <span className={deliveryDate ? "text-gray-900" : "text-gray-400"}>
-                        {deliveryDate
+                        {deliveryDate && isValid(deliveryDate)
                           ? format(deliveryDate, "EEEE, MMMM d, yyyy")
                           : "Select delivery date"
                         }
@@ -451,14 +465,17 @@ export default function OrderPage() {
                       <CalendarIcon className="h-5 w-5 text-gray-400" />
                     </button>
 
-                    {showCalendar && (
+                    {showCalendar && availableDates.length > 0 && (
                       <div className="absolute z-10 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4 max-h-72 overflow-y-auto w-full">
                         <div className="grid gap-2">
-                          {availableDates.map((date) => (
+                          {availableDates.map((date, idx) => (
                             <button
-                              key={date.toISOString()}
+                              key={idx}
                               type="button"
-                              onClick={() => { setDeliveryDate(date); setShowCalendar(false); }}
+                              onClick={() => {
+                                setDeliveryDate(date)
+                                setShowCalendar(false)
+                              }}
                               className={`px-4 py-2 text-left rounded-md transition-colors ${
                                 deliveryDate && date.toDateString() === deliveryDate.toDateString()
                                   ? "text-white"
@@ -580,7 +597,10 @@ export default function OrderPage() {
                           <span>{formatCurrency(orderTotals.gstAmount)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between items-center text-lg font-bold pt-2 border-t" style={{ color: "#8B0000" }}>
+                      <div
+                        className="flex justify-between items-center text-lg font-bold pt-2 border-t"
+                        style={{ color: "#8B0000" }}
+                      >
                         <span>Total</span>
                         <span>{formatCurrency(orderTotals.total)}</span>
                       </div>
