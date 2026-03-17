@@ -18,64 +18,42 @@ const GST_RATE = 0.10;
 
 type OrderCategory = 'bakery' | 'catering' | null
 
-// ── Moved outside component — pure function, no hooks ────
-function getAvailableDates(
-  cat: OrderCategory,
-  cutoffTime?: string
-): Date[] {
-  if (!cat) return []   // ✅ guard — never run with null
-
+function getAvailableDates(cat: OrderCategory, cutoffTime?: string): Date[] {
+  if (!cat) return []
   try {
     const dates: Date[] = []
-
-    // Brisbane time
     const nowBrisbane = new Date(
       new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })
     )
-
     const todayHour = nowBrisbane.getHours()
-
-    // ── Clean today at midnight Brisbane ─────────────────────
     const todayMidnight = new Date(
       nowBrisbane.getFullYear(),
       nowBrisbane.getMonth(),
       nowBrisbane.getDate(),
       0, 0, 0, 0
     )
-
     let daysToAdd:   number
     let daysForward: number
-
     if (cat === 'catering') {
-      daysToAdd   = 2    // always 2 full days ahead
-      daysForward = 90   // 90 days of options
+      daysToAdd   = 2
+      daysForward = 90
     } else {
-      const cutoffHour = cutoffTime
-        ? parseInt(cutoffTime.split(':')[0], 10)
-        : 14
+      const cutoffHour = cutoffTime ? parseInt(cutoffTime.split(':')[0], 10) : 14
       daysToAdd   = todayHour < cutoffHour ? 1 : 2
       daysForward = 21
     }
-
-    // ── Build date list ───────────────────────────────────────
-    let cursor  = addDays(todayMidnight, daysToAdd)
-    let added   = 0
-    let safety  = 0
-
+    let cursor = addDays(todayMidnight, daysToAdd)
+    let added  = 0
+    let safety = 0
     while (added < daysForward && safety < 300) {
       safety++
-      if (cursor.getDay() !== 0) {   // skip Sundays
+      if (cursor.getDay() !== 0) {
         const d = new Date(cursor)
-        if (isValid(d)) {            // ✅ only push valid dates
-          dates.push(d)
-          added++
-        }
+        if (isValid(d)) { dates.push(d); added++ }
       }
       cursor = addDays(cursor, 1)
     }
-
     return dates
-
   } catch (err) {
     console.error('getAvailableDates error:', err)
     return []
@@ -84,9 +62,9 @@ function getAvailableDates(
 
 export default function OrderPage() {
   const router = useRouter();
-  const [supabase, setSupabase] = useState<any>(null);
-
+  const [supabase, setSupabase]                       = useState<any>(null);
   const [category, setCategory]                       = useState<OrderCategory>(null)
+  const [availableDates, setAvailableDates]           = useState<Date[]>([])
   const [cart, setCart]                               = useState<CartItem[]>([]);
   const [deliveryDate, setDeliveryDate]               = useState<Date | undefined>(undefined);
   const [notes, setNotes]                             = useState("");
@@ -104,34 +82,22 @@ export default function OrderPage() {
   useEffect(() => {
     if (!supabase) return;
     const init = async () => {
-      // Restore cart
       const savedCart = localStorage.getItem("cart");
       if (savedCart) {
         try { setCart(JSON.parse(savedCart)); } catch (e) { console.error(e); }
       }
-
-      // Restore category
       const savedCategory = localStorage.getItem("cart_category") as OrderCategory
       if (savedCategory === 'bakery' || savedCategory === 'catering') {
         setCategory(savedCategory)
       }
-
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data: custById } = await supabase
-            .from("customers")
-            .select("*")
-            .eq("id", user.id)
-            .maybeSingle();
-
+            .from("customers").select("*").eq("id", user.id).maybeSingle();
           const finalCust = custById ?? (await supabase
-            .from("customers")
-            .select("*")
-            .eq("email", user.email)
-            .maybeSingle()
+            .from("customers").select("*").eq("email", user.email).maybeSingle()
           ).data;
-
           if (finalCust) {
             setCustomer(finalCust);
             setBusinessName(finalCust.business_name || "");
@@ -140,30 +106,24 @@ export default function OrderPage() {
       } catch (e) {
         console.error("Error loading customer:", e);
       }
-
       setPageLoading(false);
     };
     init();
   }, [supabase]);
 
-  // ── Memoised date list — only recalculates when category or customer changes
- const [availableDates, setAvailableDates] = useState<Date[]>([])
+  // ── Regenerate dates when category or customer changes ───
+  useEffect(() => {
+    if (!category) { setAvailableDates([]); return }
+    const dates = getAvailableDates(
+      category,
+      (customer as any)?.cutoff_time ??
+      (customer as any)?.default_cutoff_time ??
+      undefined
+    )
+    setAvailableDates(dates)
+  }, [category, customer])
 
-useEffect(() => {
-  if (!category) {
-    setAvailableDates([])
-    return
-  }
-  const dates = getAvailableDates(
-    category,
-    (customer as any)?.cutoff_time ??
-    (customer as any)?.default_cutoff_time ??
-    undefined
-  )
-  setAvailableDates(dates)
-}, [category, customer])
-
-   const handleSelectCategory = (cat: OrderCategory) => {
+  const handleSelectCategory = (cat: OrderCategory) => {
     setCategory(cat)
     setDeliveryDate(undefined)
     setShowCalendar(false)
@@ -184,6 +144,7 @@ useEffect(() => {
       setAvailableDates([])
     }
   }
+
   const saveCart = (newCart: CartItem[]) => {
     setCart(newCart);
     localStorage.setItem("cart", JSON.stringify(newCart));
@@ -217,16 +178,12 @@ useEffect(() => {
     if (!supabase)         return;
     if (cart.length === 0) { setError("Your cart is empty");            return; }
     if (!deliveryDate)     { setError("Please select a delivery date"); return; }
-
     setLoading(true);
     setError(null);
-
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth/login"); return; }
-
       const customerId = customer?.id ?? user.id
-
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -246,9 +203,7 @@ useEffect(() => {
         })
         .select()
         .single();
-
       if (orderError) throw orderError;
-
       const orderItems = cart.map((item) => {
         const lineTotal = Number(item.product.price) * item.quantity;
         const lineGST   = item.product.gst_applicable ? lineTotal * GST_RATE : 0;
@@ -262,12 +217,8 @@ useEffect(() => {
           gst_applicable: item.product.gst_applicable || false,
         };
       });
-
-      const { error: itemsError } = await supabase
-        .from("order_items")
-        .insert(orderItems);
+      const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
       if (itemsError) throw itemsError;
-
       try {
         const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
         await fetch(`${siteUrl}/api/orders/send-confirmation`, {
@@ -284,12 +235,10 @@ useEffect(() => {
       } catch (emailErr) {
         console.error("Email error (non-fatal):", emailErr);
       }
-
       localStorage.removeItem("cart");
       localStorage.removeItem("cart_category");
       setCart([]);
       window.location.href = `/order/success?id=${order.id}`;
-
     } catch (err: any) {
       console.error("Order error:", err);
       setError("Failed to submit order. Please try again.");
@@ -316,11 +265,8 @@ useEffect(() => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               What are you ordering?
             </h1>
-            <p className="text-gray-500">
-              Select a category to see available products
-            </p>
+            <p className="text-gray-500">Select a category to see available products</p>
           </div>
-
           <div className="grid grid-cols-2 gap-6">
             <button
               onClick={() => handleSelectCategory('bakery')}
@@ -337,7 +283,6 @@ useEffect(() => {
                 <p className="text-xs text-gray-500 mt-1">Order by 2pm the day before</p>
               </div>
             </button>
-
             <button
               onClick={() => handleSelectCategory('catering')}
               className="bg-white rounded-2xl shadow-md p-8 flex flex-col items-center gap-4 hover:shadow-lg transition-all border-2 border-transparent hover:border-gray-300 group"
@@ -354,7 +299,6 @@ useEffect(() => {
               </div>
             </button>
           </div>
-
           <p className="text-center text-xs text-gray-400 mt-8">
             You can go back and change category at any time
           </p>
@@ -456,12 +400,11 @@ useEffect(() => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Delivery Date *
                   </label>
-
                   <div
                     className="mb-2 px-3 py-2 rounded-md text-xs font-medium"
                     style={{
                       backgroundColor: category === 'catering' ? '#fff0f0' : '#f0f0f0',
-                      color:           category === 'catering' ? '#8B0000' : '#2c2c2c',
+                      color:           category === 'catering' ? '#8B0000'  : '#2c2c2c',
                     }}
                   >
                     {category === 'catering'
@@ -469,8 +412,7 @@ useEffect(() => {
                       : '⏰ Bakery orders must be placed by 2pm the day before delivery'
                     }
                   </div>
-
-                                 <div className="relative">
+                  <div className="relative">
                     <button
                       type="button"
                       onClick={() => setShowCalendar(!showCalendar)}
@@ -510,15 +452,6 @@ useEffect(() => {
                             >
                               {format(date, "EEEE, MMMM d, yyyy")}
                             </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                    {showCalendar && availableDates.length > 0 && (
-                      <div className="absolute z-10 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4 max-h-72 overflow-y-auto w-full">
-                        
                           ))}
                         </div>
                       </div>
