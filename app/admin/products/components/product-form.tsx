@@ -75,7 +75,6 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
     setLoading(true);
     setError('');
 
-    // ── Validation ────────────────────────────────────────────
     if (!formData.category) {
       setError('Please select a category');
       setLoading(false);
@@ -181,7 +180,6 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
             </div>
           </div>
         </div>
-
         {formData.code === '900' && (
           <div className="mt-2 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-md">
             <p className="text-sm font-semibold text-blue-900 mb-1">
@@ -259,10 +257,8 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
         </p>
       </div>
 
-      {/* ── Category + Sub-category ───────────────────────────── */}
+      {/* Category + Sub-category */}
       <div className="space-y-4">
-
-        {/* Order Category */}
         <div>
           <label className="block text-sm font-medium mb-2">
             Order Category <span className="text-red-500">*</span>
@@ -272,7 +268,7 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
             onChange={(e) => setFormData({
               ...formData,
               category:     e.target.value,
-              sub_category: '',             // reset sub-category when parent changes
+              sub_category: '',
             })}
             className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white"
             required
@@ -286,7 +282,6 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
           </p>
         </div>
 
-        {/* Bakery sub-category */}
         {formData.category === 'bakery' && (
           <div>
             <label className="block text-sm font-medium mb-2">
@@ -306,7 +301,7 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
               <option value="Other">📦 Other (4001+)</option>
             </select>
             <p className="text-xs text-gray-500 mt-1">
-              Used to group products in the bakery catalog filter buttons
+              Used to group products in the bakery catalog
             </p>
           </div>
         )}
@@ -318,7 +313,6 @@ export default function ProductForm({ product, isEditing = false }: ProductFormP
             </p>
           </div>
         )}
-
       </div>
 
       {/* Description */}
