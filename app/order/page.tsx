@@ -10,45 +10,39 @@ import { CartItem, Customer } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import {
   ArrowLeft, Trash2, Plus, Minus, Loader2, Send,
-  Calendar as CalendarIcon, ChefHat, ShoppingBag,
+  ChefHat, ShoppingBag,
 } from "lucide-react";
-import { addDays, format, isValid } from "date-fns";
+import {
+  format, isValid, startOfMonth, endOfMonth,
+  eachDayOfInterval, isSameDay,
+} from "date-fns";
 
 const GST_RATE = 0.10;
-
 type OrderCategory = 'bakery' | 'catering' | null
 
+// ── Date generation ───────────────────────────────────────
 function getAvailableDates(cat: OrderCategory, cutoffTime?: string): Date[] {
   if (!cat) return []
   try {
     const dates: Date[] = []
-
-    // ✅ Use Intl.DateTimeFormat — reliable across all browsers
-    const now = new Date()
-    const brisbaneParts = new Intl.DateTimeFormat('en-AU', {
+    const now  = new Date()
+    const parts = new Intl.DateTimeFormat('en-AU', {
       timeZone: 'Australia/Brisbane',
-      year:   'numeric',
-      month:  '2-digit',
-      day:    '2-digit',
-      hour:   '2-digit',
-      minute: '2-digit',
-      hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
     }).formatToParts(now)
-
     const get = (type: string) =>
-      parseInt(brisbaneParts.find(p => p.type === type)?.value || '0')
+      parseInt(parts.find(p => p.type === type)?.value || '0')
 
-    const brisbaneYear   = get('year')
-    const brisbaneMonth  = get('month') - 1  // months are 0-indexed
-    const brisbaneDay    = get('day')
-    const brisbaneHour   = get('hour')
+    const brisbaneYear  = get('year')
+    const brisbaneMonth = get('month') - 1
+    const brisbaneDay   = get('day')
+    const brisbaneHour  = get('hour')
 
-    // Clean midnight in local time (not UTC)
     const todayMidnight = new Date(brisbaneYear, brisbaneMonth, brisbaneDay, 0, 0, 0, 0)
 
     let daysToAdd:   number
     let daysForward: number
-
     if (cat === 'catering') {
       daysToAdd   = 2
       daysForward = 90
@@ -60,26 +54,113 @@ function getAvailableDates(cat: OrderCategory, cutoffTime?: string): Date[] {
 
     let cursor = new Date(todayMidnight)
     cursor.setDate(cursor.getDate() + daysToAdd)
-
-    let added  = 0
-    let safety = 0
-
+    let added = 0, safety = 0
     while (added < daysForward && safety < 300) {
       safety++
-      if (cursor.getDay() !== 0) {
-        dates.push(new Date(cursor))
-        added++
-      }
+      if (cursor.getDay() !== 0) { dates.push(new Date(cursor)); added++ }
       cursor.setDate(cursor.getDate() + 1)
     }
-
     return dates
-
   } catch (err) {
     console.error('getAvailableDates error:', err)
     return []
   }
 }
+
+// ── CalendarPicker ────────────────────────────────────────
+function CalendarPicker({
+  availableDates, selectedDate, onSelect, accentColor,
+}: {
+  availableDates: Date[]
+  selectedDate:   Date | undefined
+  onSelect:       (date: Date) => void
+  accentColor:    string
+}) {
+  const availableSet   = new Set(availableDates.map(d => format(d, 'yyyy-MM-dd')))
+  const firstAvailable = availableDates[0] ?? new Date()
+  const lastAvailable  = availableDates[availableDates.length - 1] ?? new Date()
+
+  const [viewYear,  setViewYear]  = useState(firstAvailable.getFullYear())
+  const [viewMonth, setViewMonth] = useState(firstAvailable.getMonth())
+
+  const viewDate   = new Date(viewYear, viewMonth, 1)
+  const monthStart = startOfMonth(viewDate)
+  const monthEnd   = endOfMonth(viewDate)
+  const allDays    = eachDayOfInterval({ start: monthStart, end: monthEnd })
+  const startPad   = (monthStart.getDay() + 6) % 7
+
+  const firstAvailableMonth = new Date(firstAvailable.getFullYear(), firstAvailable.getMonth(), 1)
+  const lastAvailableMonth  = new Date(lastAvailable.getFullYear(),  lastAvailable.getMonth(),  1)
+  const canGoPrev = viewDate > firstAvailableMonth
+  const canGoNext = viewDate < lastAvailableMonth
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1) }
+    else setViewMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1) }
+    else setViewMonth(m => m + 1)
+  }
+
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 text-white"
+        style={{ backgroundColor: accentColor }}>
+        <button type="button" onClick={prevMonth} disabled={!canGoPrev}
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 disabled:opacity-30 text-lg font-bold">
+          ‹
+        </button>
+        <span className="font-semibold text-sm">{format(viewDate, 'MMMM yyyy')}</span>
+        <button type="button" onClick={nextMonth} disabled={!canGoNext}
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 disabled:opacity-30 text-lg font-bold">
+          ›
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
+        {['Mo','Tu','We','Th','Fr','Sa','Su'].map(d => (
+          <div key={d} className="text-center text-xs font-semibold text-gray-500 py-2">{d}</div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 p-2 gap-1">
+        {Array.from({ length: startPad }).map((_, i) => <div key={`pad-${i}`} />)}
+        {allDays.map(day => {
+          const key        = format(day, 'yyyy-MM-dd')
+          const isAvail    = availableSet.has(key)
+          const isSelected = selectedDate && isSameDay(day, selectedDate)
+          const isSunday   = day.getDay() === 0
+          return (
+            <button
+              key={key}
+              type="button"
+              disabled={!isAvail}
+              onMouseDown={(e) => {
+                e.preventDefault()
+                if (isAvail) onSelect(new Date(day))
+              }}
+              className={`h-9 w-full rounded-md text-sm font-medium transition-colors
+                ${isSelected
+                  ? 'text-white font-bold'
+                  : isAvail
+                    ? 'hover:bg-gray-100 text-gray-800 cursor-pointer'
+                    : isSunday
+                      ? 'text-gray-200 cursor-not-allowed'
+                      : 'text-gray-300 cursor-not-allowed'
+                }`}
+              style={isSelected ? { backgroundColor: accentColor } : {}}
+            >
+              {format(day, 'd')}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Main Page ─────────────────────────────────────────────
 export default function OrderPage() {
   const router = useRouter();
   const [supabase, setSupabase]                       = useState<any>(null);
@@ -95,7 +176,6 @@ export default function OrderPage() {
   const [loading, setLoading]                         = useState(false);
   const [pageLoading, setPageLoading]                 = useState(true);
   const [error, setError]                             = useState<string | null>(null);
-  const [showCalendar, setShowCalendar]               = useState(false);
 
   useEffect(() => { setSupabase(createClient()); }, []);
 
@@ -123,42 +203,33 @@ export default function OrderPage() {
             setBusinessName(finalCust.business_name || "");
           }
         }
-      } catch (e) {
-        console.error("Error loading customer:", e);
-      }
+      } catch (e) { console.error("Error loading customer:", e); }
       setPageLoading(false);
     };
     init();
   }, [supabase]);
 
-  // ── Regenerate dates when category or customer changes ───
   useEffect(() => {
     if (!category) { setAvailableDates([]); return }
-    const dates = getAvailableDates(
+    setAvailableDates(getAvailableDates(
       category,
       (customer as any)?.cutoff_time ??
-      (customer as any)?.default_cutoff_time ??
-      undefined
-    )
-    setAvailableDates(dates)
+      (customer as any)?.default_cutoff_time ?? undefined
+    ))
   }, [category, customer])
 
   const handleSelectCategory = (cat: OrderCategory) => {
     setCategory(cat)
     setDeliveryDate(undefined)
-    setShowCalendar(false)
     setCart([])
     localStorage.removeItem("cart")
     if (cat) {
       localStorage.setItem("cart_category", cat)
-      // ✅ Generate dates immediately — don't wait for useEffect
-      const dates = getAvailableDates(
+      setAvailableDates(getAvailableDates(
         cat,
         (customer as any)?.cutoff_time ??
-        (customer as any)?.default_cutoff_time ??
-        undefined
-      )
-      setAvailableDates(dates)
+        (customer as any)?.default_cutoff_time ?? undefined
+      ))
     } else {
       localStorage.removeItem("cart_category")
       setAvailableDates([])
@@ -169,26 +240,16 @@ export default function OrderPage() {
     setCart(newCart);
     localStorage.setItem("cart", JSON.stringify(newCart));
   };
-
-  const handleUpdateQuantity = (productId: string, quantity: number) => {
-    saveCart(cart.map(item =>
-      item.product.id === productId ? { ...item, quantity } : item
-    ));
-  };
-
-  const handleRemoveItem = (productId: string) => {
+  const handleUpdateQuantity = (productId: string, quantity: number) =>
+    saveCart(cart.map(item => item.product.id === productId ? { ...item, quantity } : item));
+  const handleRemoveItem = (productId: string) =>
     saveCart(cart.filter(item => item.product.id !== productId));
-  };
 
   const orderTotals = cart.reduce(
     (acc, item) => {
       const lineTotal = Number(item.product.price) * item.quantity;
       const lineGST   = item.product.gst_applicable ? lineTotal * GST_RATE : 0;
-      return {
-        subtotal:  acc.subtotal  + lineTotal,
-        gstAmount: acc.gstAmount + lineGST,
-        total:     acc.total     + lineTotal + lineGST,
-      };
+      return { subtotal: acc.subtotal + lineTotal, gstAmount: acc.gstAmount + lineGST, total: acc.total + lineTotal + lineGST };
     },
     { subtotal: 0, gstAmount: 0, total: 0 }
   );
@@ -198,8 +259,7 @@ export default function OrderPage() {
     if (!supabase)         return;
     if (cart.length === 0) { setError("Your cart is empty");            return; }
     if (!deliveryDate)     { setError("Please select a delivery date"); return; }
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/auth/login"); return; }
@@ -209,65 +269,59 @@ export default function OrderPage() {
         .insert({
           customer_id:            customerId,
           customer_email:         user.email!,
-          customer_business_name: businessName || null,
-          customer_address:       customer?.address || null,
-          customer_abn:           customer?.abn    || null,
+          customer_business_name: businessName         || null,
+          customer_address:       customer?.address    || null,
+          customer_abn:           customer?.abn        || null,
           delivery_date:          format(deliveryDate, 'yyyy-MM-dd'),
-          notes:                  notes               || null,
-          purchase_order_number:  purchaseOrderNumber || null,
-          docket_number:          docketNumber        || null,
+          notes:                  notes                || null,
+          purchase_order_number:  purchaseOrderNumber  || null,
+          docket_number:          docketNumber         || null,
           total_amount:           orderTotals.total,
           status:                 "pending",
           source:                 "online",
           category:               category,
         })
-        .select()
-        .single();
+        .select().single();
       if (orderError) throw orderError;
-      const orderItems = cart.map((item) => {
-        const lineTotal = Number(item.product.price) * item.quantity;
-        const lineGST   = item.product.gst_applicable ? lineTotal * GST_RATE : 0;
-        return {
-          order_id:       order.id,
-          product_id:     item.product.id,
-          product_name:   item.product.name,
-          quantity:       item.quantity,
-          unit_price:     Number(item.product.price),
-          subtotal:       lineTotal + lineGST,
-          gst_applicable: item.product.gst_applicable || false,
-        };
-      });
-      const { error: itemsError } = await supabase.from("order_items").insert(orderItems);
+
+      const { error: itemsError } = await supabase.from("order_items").insert(
+        cart.map(item => {
+          const lineTotal = Number(item.product.price) * item.quantity;
+          const lineGST   = item.product.gst_applicable ? lineTotal * GST_RATE : 0;
+          return {
+            order_id:       order.id,
+            product_id:     item.product.id,
+            product_name:   item.product.name,
+            quantity:       item.quantity,
+            unit_price:     Number(item.product.price),
+            subtotal:       lineTotal + lineGST,
+            gst_applicable: item.product.gst_applicable || false,
+          };
+        })
+      );
       if (itemsError) throw itemsError;
+
       try {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-        await fetch(`${siteUrl}/api/orders/send-confirmation`, {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
+        await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/api/orders/send-confirmation`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            orderId:       order.id,
-            customerEmail: user.email,
-            businessName:  businessName || null,
-            deliveryDate:  format(deliveryDate, 'yyyy-MM-dd'),
-            total:         orderTotals.total,
+            orderId: order.id, customerEmail: user.email,
+            businessName: businessName || null,
+            deliveryDate: format(deliveryDate, 'yyyy-MM-dd'),
+            total: orderTotals.total,
           }),
         });
-      } catch (emailErr) {
-        console.error("Email error (non-fatal):", emailErr);
-      }
+      } catch (emailErr) { console.error("Email error (non-fatal):", emailErr); }
+
       localStorage.removeItem("cart");
       localStorage.removeItem("cart_category");
-      setCart([]);
       window.location.href = `/order/success?id=${order.id}`;
     } catch (err: any) {
       console.error("Order error:", err);
       setError("Failed to submit order. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  // ── Loading ───────────────────────────────────────────────
   if (!supabase || pageLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -276,26 +330,19 @@ export default function OrderPage() {
     );
   }
 
-  // ── Category picker ───────────────────────────────────────
   if (!category) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
         <div className="max-w-lg w-full">
           <div className="text-center mb-10">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              What are you ordering?
-            </h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">What are you ordering?</h1>
             <p className="text-gray-500">Select a category to see available products</p>
           </div>
           <div className="grid grid-cols-2 gap-6">
-            <button
-              onClick={() => handleSelectCategory('bakery')}
-              className="bg-white rounded-2xl shadow-md p-8 flex flex-col items-center gap-4 hover:shadow-lg transition-all border-2 border-transparent hover:border-gray-300 group"
-            >
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform"
-                style={{ backgroundColor: '#2c2c2c' }}
-              >
+            <button onClick={() => handleSelectCategory('bakery')}
+              className="bg-white rounded-2xl shadow-md p-8 flex flex-col items-center gap-4 hover:shadow-lg transition-all border-2 border-transparent hover:border-gray-300 group">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform"
+                style={{ backgroundColor: '#2c2c2c' }}>
                 <ShoppingBag className="h-8 w-8 text-white" />
               </div>
               <div className="text-center">
@@ -303,14 +350,10 @@ export default function OrderPage() {
                 <p className="text-xs text-gray-500 mt-1">Order by 2pm the day before</p>
               </div>
             </button>
-            <button
-              onClick={() => handleSelectCategory('catering')}
-              className="bg-white rounded-2xl shadow-md p-8 flex flex-col items-center gap-4 hover:shadow-lg transition-all border-2 border-transparent hover:border-gray-300 group"
-            >
-              <div
-                className="w-16 h-16 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform"
-                style={{ backgroundColor: '#8B0000' }}
-              >
+            <button onClick={() => handleSelectCategory('catering')}
+              className="bg-white rounded-2xl shadow-md p-8 flex flex-col items-center gap-4 hover:shadow-lg transition-all border-2 border-transparent hover:border-gray-300 group">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform"
+                style={{ backgroundColor: '#8B0000' }}>
                 <ChefHat className="h-8 w-8 text-white" />
               </div>
               <div className="text-center">
@@ -327,7 +370,6 @@ export default function OrderPage() {
     )
   }
 
-  // ── Main order form ───────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -335,25 +377,20 @@ export default function OrderPage() {
         <div className="flex items-center gap-4 mb-6">
           <Link href="/catalog">
             <button className="flex items-center hover:opacity-80" style={{ color: "#8B0000" }}>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Catalog
+              <ArrowLeft className="h-4 w-4 mr-2" />Back to Catalog
             </button>
           </Link>
           <span className="text-gray-300">|</span>
-          <button
-            onClick={() => handleSelectCategory(null)}
-            className="flex items-center text-sm hover:opacity-80 text-gray-500"
-          >
+          <button onClick={() => handleSelectCategory(null)}
+            className="text-sm hover:opacity-80 text-gray-500">
             Change category
           </button>
         </div>
 
         <div className="mb-6 flex items-center gap-3">
           <h1 className="text-3xl font-bold">Complete Your Order</h1>
-          <span
-            className="px-3 py-1 rounded-full text-white text-sm font-semibold capitalize"
-            style={{ backgroundColor: category === 'catering' ? '#8B0000' : '#2c2c2c' }}
-          >
+          <span className="px-3 py-1 rounded-full text-white text-sm font-semibold capitalize"
+            style={{ backgroundColor: category === 'catering' ? '#8B0000' : '#2c2c2c' }}>
             {category === 'catering' ? '🍽️' : '🍞'} {category}
           </span>
         </div>
@@ -362,22 +399,16 @@ export default function OrderPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2">
 
-            {/* LEFT — Delivery Details */}
+            {/* LEFT */}
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-bold mb-4">📅 Delivery Details</h2>
 
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Business Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Your business name"
-                    value={businessName}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+                  <input type="text" placeholder="Your business name" value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900"
-                  />
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900" />
                 </div>
 
                 {customer && (
@@ -391,111 +422,64 @@ export default function OrderPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Purchase Order Number (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g., PO-2024-1234"
-                      value={purchaseOrderNumber}
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Order (Optional)</label>
+                    <input type="text" placeholder="e.g., PO-2024-1234" value={purchaseOrderNumber}
                       onChange={(e) => setPurchaseOrderNumber(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900"
-                    />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Docket Number (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g., DOC-5678"
-                      value={docketNumber}
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Docket Number (Optional)</label>
+                    <input type="text" placeholder="e.g., DOC-5678" value={docketNumber}
                       onChange={(e) => setDocketNumber(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900"
-                    />
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900" />
                   </div>
                 </div>
 
+                {/* Delivery Date */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Delivery Date *
-                  </label>
-                  <div
-                    className="mb-2 px-3 py-2 rounded-md text-xs font-medium"
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Delivery Date *</label>
+                  <div className="mb-2 px-3 py-2 rounded-md text-xs font-medium"
                     style={{
                       backgroundColor: category === 'catering' ? '#fff0f0' : '#f0f0f0',
                       color:           category === 'catering' ? '#8B0000'  : '#2c2c2c',
-                    }}
-                  >
+                    }}>
                     {category === 'catering'
                       ? '⏰ Catering orders require at least 2 days notice'
-                      : '⏰ Bakery orders must be placed by 2pm the day before delivery'
-                    }
+                      : '⏰ Bakery orders must be placed by 2pm the day before delivery'}
                   </div>
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowCalendar(!showCalendar)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-red-900"
-                    >
-                      <span className={deliveryDate ? "text-gray-900" : "text-gray-400"}>
-                        {deliveryDate && isValid(deliveryDate)
-                          ? format(deliveryDate, "EEEE, MMMM d, yyyy")
-                          : "Select delivery date"
-                        }
-                      </span>
-                      <CalendarIcon className="h-5 w-5 text-gray-400" />
-                    </button>
 
-                    {showCalendar && availableDates.length > 0 && (
-                      <div className="absolute z-10 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg p-4 max-h-72 overflow-y-auto w-full">
-                        <div className="grid gap-2">
-                          {availableDates.map((date, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault()
-                                setDeliveryDate(new Date(date))
-                                setShowCalendar(false)
-                              }}
-                              className={`px-4 py-2 text-left rounded-md transition-colors ${
-                                deliveryDate && date.toDateString() === deliveryDate.toDateString()
-                                  ? "text-white"
-                                  : "hover:bg-gray-100"
-                              }`}
-                              style={
-                                deliveryDate && date.toDateString() === deliveryDate.toDateString()
-                                  ? { backgroundColor: category === 'catering' ? '#8B0000' : '#2c2c2c' }
-                                  : {}
-                              }
-                            >
-                              {format(date, "EEEE, MMMM d, yyyy")}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  {availableDates.length > 0 ? (
+                    <CalendarPicker
+                      availableDates={availableDates}
+                      selectedDate={deliveryDate}
+                      onSelect={(date) => setDeliveryDate(date)}
+                      accentColor={category === 'catering' ? '#8B0000' : '#2c2c2c'}
+                    />
+                  ) : (
+                    <div className="p-4 text-center text-gray-400 border border-gray-200 rounded-lg">
+                      Loading available dates...
+                    </div>
+                  )}
+
+                  {deliveryDate && isValid(deliveryDate) && (
+                    <div className="mt-2 px-3 py-2 rounded-md text-sm font-medium text-white text-center"
+                      style={{ backgroundColor: category === 'catering' ? '#8B0000' : '#2c2c2c' }}>
+                      ✅ {format(deliveryDate, "EEEE, MMMM d, yyyy")}
+                    </div>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">No Sunday deliveries.</p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Order Notes (Optional)
-                  </label>
-                  <textarea
-                    placeholder="Special instructions, delivery preferences..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Order Notes (Optional)</label>
+                  <textarea placeholder="Special instructions..." value={notes}
+                    onChange={(e) => setNotes(e.target.value)} rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-900" />
                 </div>
               </div>
             </div>
 
-            {/* RIGHT — Order Summary */}
+            {/* RIGHT */}
             <div className="space-y-6">
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-bold mb-4">
@@ -537,55 +521,42 @@ export default function OrderPage() {
                             </p>
                           </div>
                           <div className="flex items-center gap-1">
-                            <button
-                              type="button"
+                            <button type="button"
                               onClick={() => handleUpdateQuantity(item.product.id, item.quantity - 1)}
                               disabled={item.quantity <= item.product.min_quantity}
-                              className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
-                            >
+                              className="p-1 hover:bg-gray-100 rounded disabled:opacity-50">
                               <Minus className="h-3 w-3" />
                             </button>
                             <span className="w-8 text-center text-sm">{item.quantity}</span>
-                            <button
-                              type="button"
+                            <button type="button"
                               onClick={() => handleUpdateQuantity(item.product.id, item.quantity + 1)}
                               disabled={item.quantity >= item.product.max_quantity}
-                              className="p-1 hover:bg-gray-100 rounded disabled:opacity-50"
-                            >
+                              className="p-1 hover:bg-gray-100 rounded disabled:opacity-50">
                               <Plus className="h-3 w-3" />
                             </button>
                           </div>
                           <p className="w-20 text-right font-medium text-sm">
                             {formatCurrency(lineTotal + lineGST)}
                           </p>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItem(item.product.id)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded"
-                          >
+                          <button type="button" onClick={() => handleRemoveItem(item.product.id)}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       );
                     })}
-
                     <div className="pt-2 space-y-1">
                       <div className="flex justify-between text-sm text-gray-600">
-                        <span>Subtotal</span>
-                        <span>{formatCurrency(orderTotals.subtotal)}</span>
+                        <span>Subtotal</span><span>{formatCurrency(orderTotals.subtotal)}</span>
                       </div>
                       {orderTotals.gstAmount > 0 && (
                         <div className="flex justify-between text-sm text-orange-600">
-                          <span>GST (10%)</span>
-                          <span>{formatCurrency(orderTotals.gstAmount)}</span>
+                          <span>GST (10%)</span><span>{formatCurrency(orderTotals.gstAmount)}</span>
                         </div>
                       )}
-                      <div
-                        className="flex justify-between items-center text-lg font-bold pt-2 border-t"
-                        style={{ color: "#8B0000" }}
-                      >
-                        <span>Total</span>
-                        <span>{formatCurrency(orderTotals.total)}</span>
+                      <div className="flex justify-between items-center text-lg font-bold pt-2 border-t"
+                        style={{ color: "#8B0000" }}>
+                        <span>Total</span><span>{formatCurrency(orderTotals.total)}</span>
                       </div>
                     </div>
                   </div>
@@ -598,17 +569,13 @@ export default function OrderPage() {
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={loading || cart.length === 0}
+              <button type="submit" disabled={loading || cart.length === 0}
                 className="w-full text-white py-3 px-6 rounded-md hover:opacity-90 disabled:opacity-50 font-medium flex items-center justify-center gap-2 shadow-md"
-                style={{ backgroundColor: "#8B0000" }}
-              >
-                {loading ? (
-                  <><Loader2 className="h-5 w-5 animate-spin" /> Submitting...</>
-                ) : (
-                  <><Send className="h-5 w-5" /> Submit Order</>
-                )}
+                style={{ backgroundColor: "#8B0000" }}>
+                {loading
+                  ? <><Loader2 className="h-5 w-5 animate-spin" /> Submitting...</>
+                  : <><Send className="h-5 w-5" /> Submit Order</>
+                }
               </button>
             </div>
           </div>
