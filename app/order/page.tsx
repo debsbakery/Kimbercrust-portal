@@ -22,44 +22,64 @@ function getAvailableDates(cat: OrderCategory, cutoffTime?: string): Date[] {
   if (!cat) return []
   try {
     const dates: Date[] = []
-    const nowBrisbane = new Date(
-      new Date().toLocaleString('en-AU', { timeZone: 'Australia/Brisbane' })
-    )
-    const todayHour = nowBrisbane.getHours()
-    const todayMidnight = new Date(
-      nowBrisbane.getFullYear(),
-      nowBrisbane.getMonth(),
-      nowBrisbane.getDate(),
-      0, 0, 0, 0
-    )
+
+    // ✅ Use Intl.DateTimeFormat — reliable across all browsers
+    const now = new Date()
+    const brisbaneParts = new Intl.DateTimeFormat('en-AU', {
+      timeZone: 'Australia/Brisbane',
+      year:   'numeric',
+      month:  '2-digit',
+      day:    '2-digit',
+      hour:   '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(now)
+
+    const get = (type: string) =>
+      parseInt(brisbaneParts.find(p => p.type === type)?.value || '0')
+
+    const brisbaneYear   = get('year')
+    const brisbaneMonth  = get('month') - 1  // months are 0-indexed
+    const brisbaneDay    = get('day')
+    const brisbaneHour   = get('hour')
+
+    // Clean midnight in local time (not UTC)
+    const todayMidnight = new Date(brisbaneYear, brisbaneMonth, brisbaneDay, 0, 0, 0, 0)
+
     let daysToAdd:   number
     let daysForward: number
+
     if (cat === 'catering') {
       daysToAdd   = 2
       daysForward = 90
     } else {
       const cutoffHour = cutoffTime ? parseInt(cutoffTime.split(':')[0], 10) : 14
-      daysToAdd   = todayHour < cutoffHour ? 1 : 2
+      daysToAdd   = brisbaneHour < cutoffHour ? 1 : 2
       daysForward = 21
     }
-    let cursor = addDays(todayMidnight, daysToAdd)
+
+    let cursor = new Date(todayMidnight)
+    cursor.setDate(cursor.getDate() + daysToAdd)
+
     let added  = 0
     let safety = 0
+
     while (added < daysForward && safety < 300) {
       safety++
       if (cursor.getDay() !== 0) {
-        const d = new Date(cursor)
-        if (isValid(d)) { dates.push(d); added++ }
+        dates.push(new Date(cursor))
+        added++
       }
-      cursor = addDays(cursor, 1)
+      cursor.setDate(cursor.getDate() + 1)
     }
+
     return dates
+
   } catch (err) {
     console.error('getAvailableDates error:', err)
     return []
   }
 }
-
 export default function OrderPage() {
   const router = useRouter();
   const [supabase, setSupabase]                       = useState<any>(null);
