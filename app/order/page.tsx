@@ -27,19 +27,19 @@ function getAvailableDates(cat: OrderCategory, cutoffTime?: string): Date[] {
     const dates: Date[] = []
     const now  = new Date()
     const parts = new Intl.DateTimeFormat('en-AU', {
-      timeZone: 'Australia/Brisbane',
+      timeZone: 'Australia/perth',
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', hour12: false,
     }).formatToParts(now)
     const get = (type: string) =>
       parseInt(parts.find(p => p.type === type)?.value || '0')
 
-    const brisbaneYear  = get('year')
-    const brisbaneMonth = get('month') - 1
-    const brisbaneDay   = get('day')
-    const brisbaneHour  = get('hour')
+    const perthYear  = get('year')
+    const perthMonth = get('month') - 1
+    const perthDay   = get('day')
+    const perthHour  = get('hour')
 
-    const todayMidnight = new Date(brisbaneYear, brisbaneMonth, brisbaneDay, 0, 0, 0, 0)
+    const todayMidnight = new Date(perthYear, perthMonth, perthDay, 0, 0, 0, 0)
 
     let daysToAdd:   number
     let daysForward: number
@@ -48,7 +48,7 @@ function getAvailableDates(cat: OrderCategory, cutoffTime?: string): Date[] {
       daysForward = 90
     } else {
       const cutoffHour = cutoffTime ? parseInt(cutoffTime.split(':')[0], 10) : 14
-      daysToAdd   = brisbaneHour < cutoffHour ? 1 : 2
+      daysToAdd   = perthHour < cutoffHour ? 1 : 2
       daysForward = 21
     }
 
