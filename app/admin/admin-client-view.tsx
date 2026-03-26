@@ -4,7 +4,7 @@ import { useState } from 'react'
 import {
   Clock, Users, BarChart3, Package, RefreshCw, Truck,
   DollarSign, FileText, ShoppingCart, ChefHat, Receipt,
-  Copy, Play, ClipboardList, Printer, Store 
+  Copy, Play, ClipboardList, Printer, Store, X,
 } from 'lucide-react'
 
 import OrdersView from './orders-view'
@@ -12,6 +12,12 @@ import ContractPricingPage from './pricing/page'
 import ProductsView from './products-view'
 
 type Tab = 'orders' | 'standing-orders' | 'pricing' | 'products'
+
+const ALL_DAYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
+const DAY_LABELS: Record<string, string> = {
+  sunday: 'Sun', monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed',
+  thursday: 'Thu', friday: 'Fri', saturday: 'Sat',
+}
 
 export default function AdminClientView({
   pendingCount = 0,
@@ -24,30 +30,61 @@ export default function AdminClientView({
   weekStart?: string
   weekEnd?: string
 }) {
-  const [activeTab, setActiveTab] = useState<Tab>('orders')
+  const [activeTab,                setActiveTab]                = useState<Tab>('orders')
+  const [showSOModal,              setShowSOModal]              = useState(false)
+  const [skippedDays,              setSkippedDays]              = useState<string[]>([])
   const [generatingStandingOrders, setGeneratingStandingOrders] = useState(false)
+  const [soResult,                 setSoResult]                 = useState<{
+    success: boolean; message: string; ordersCreated?: number
+  } | null>(null)
 
-async function generateStandingOrders() {
-  if (!confirm('This will generate standing orders for the upcoming week. Continue?')) return
-  setGeneratingStandingOrders(true)
-  try {
-    const response = await fetch('/api/standing-orders/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    })
-    const data = await response.json()
-    if (data.success) {
-      alert(`Success! ${data.ordersCreated} orders created`)
-      if (data.ordersCreated > 0) window.location.reload()
-    } else {
-      throw new Error(data.error || 'Generation failed')
-    }
-  } catch (error: any) {
-    alert(`Error: ${error.message}`)
-  } finally {
-    setGeneratingStandingOrders(false)
+  function toggleDay(day: string) {
+    setSkippedDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    )
   }
-}
+
+  function openModal() {
+    setSkippedDays([])
+    setSoResult(null)
+    setShowSOModal(true)
+  }
+
+  async function generateStandingOrders() {
+    const skipMsg = skippedDays.length > 0
+      ? `\n\nSkipping: ${skippedDays.map(d => DAY_LABELS[d]).join(', ')}`
+      : ''
+    if (!confirm(`Generate orders for all active standing orders this week?${skipMsg}`)) return
+
+    setGeneratingStandingOrders(true)
+    setSoResult(null)
+
+    try {
+      const response = await fetch('/api/standing-orders/generate', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ skip_days: skippedDays }),
+      })
+      const data = await response.json()
+      if (response.ok && data.success) {
+        setSoResult({
+          success:       true,
+          message:       data.message,
+          ordersCreated: data.ordersCreated,
+        })
+        if (data.ordersCreated > 0) {
+          setTimeout(() => window.location.reload(), 2000)
+        }
+      } else {
+        setSoResult({ success: false, message: data.error || 'Generation failed' })
+      }
+    } catch (error: any) {
+      setSoResult({ success: false, message: error.message })
+    } finally {
+      setGeneratingStandingOrders(false)
+    }
+  }
+
   const todayLabel = (() => {
     const brisbane = new Date(Date.now() + 10 * 60 * 60 * 1000)
     const iso = brisbane.toISOString().split('T')[0]
@@ -61,24 +98,105 @@ async function generateStandingOrders() {
     : ''
 
   return (
-    <div className="min-h-screen bg-gray-50"><div className="bg-white shadow-sm border-b sticky top-0 z-10">
-        <div className="container mx-auto px-4"><div className="flex justify-between items-start py-4 gap-4"><div className="shrink-0">
+    <div className="min-h-screen bg-gray-50">
+
+      {/* ── Skip Days Modal ── */}
+      {showSOModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold">🗓️ Generate Standing Orders</h2>
+              <button onClick={() => setShowSOModal(false)}
+                className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mb-4">
+              Generates orders for all active standing orders this week.
+              Tick any days to skip — e.g. public holidays.
+            </p>
+            <div className="mb-5">
+              <p className="text-sm font-medium text-gray-700 mb-2">
+                Skip days <span className="text-gray-400 font-normal">(optional)</span>
+              </p>
+              <div className="flex gap-2 flex-wrap">
+                {ALL_DAYS.map(day => {
+                  const skipped = skippedDays.includes(day)
+                  return (
+                    <button
+                      key={day}
+                      onClick={() => toggleDay(day)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors
+                        ${skipped
+                          ? 'bg-red-100 border-red-300 text-red-700 line-through'
+                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                      {DAY_LABELS[day]}
+                    </button>
+                  )
+                })}
+              </div>
+              {skippedDays.length > 0 && (
+                <p className="text-xs text-red-600 mt-2 font-medium">
+                  ⚠️ Skipping: {skippedDays.map(d => DAY_LABELS[d]).join(', ')}
+                </p>
+              )}
+            </div>
+            {soResult && (
+              <div className={`mb-4 p-3 rounded-lg text-sm
+                ${soResult.success
+                  ? 'bg-green-50 border border-green-200 text-green-800'
+                  : 'bg-red-50 border border-red-200 text-red-800'
+                }`}>
+                <p className="font-semibold">{soResult.success ? '✅ Done' : '❌ Error'}</p>
+                <p className="mt-0.5">{soResult.message}</p>
+                {soResult.success && soResult.ordersCreated === 0 && (
+                  <p className="mt-1 text-green-700">All orders already exist — no duplicates created.</p>
+                )}
+                {soResult.success && (soResult.ordersCreated ?? 0) > 0 && (
+                  <p className="mt-1 text-green-700">Reloading page...</p>
+                )}
+              </div>
+            )}
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowSOModal(false)}
+                className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                Cancel
+              </button>
+              <button
+                onClick={generateStandingOrders}
+                disabled={generatingStandingOrders}
+                className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+                {generatingStandingOrders
+                  ? <><RefreshCw className="h-4 w-4 animate-spin" /> Generating...</>
+                  : <><RefreshCw className="h-4 w-4" /> Generate Now</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-start py-4 gap-4">
+            <div className="shrink-0">
+              {/* ✅ Kimbercrust branding unchanged */}
               <h1 className="text-2xl font-bold" style={{ color: '#2c2c2c' }}>
                 Admin Dashboard
               </h1>
               <p className="text-sm text-gray-500 mt-0.5">
                 {todayLabel} — Kimbercrust Bakery
-              </p>{weekRevenue > 0 && (
+              </p>
+              {weekRevenue > 0 && (
                 <div className="mt-2 inline-flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5">
                   <BarChart3 className="h-4 w-4 text-green-600" />
                   <div>
-                    <span className="text-xs text-green-600 font-medium">
-                      This Week ex-GST
-                    </span>
+                    <span className="text-xs text-green-600 font-medium">This Week ex-GST</span>
                     <span className="ml-2 text-base font-bold text-green-700">
                       ${weekRevenue.toLocaleString('en-AU', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
+                        minimumFractionDigits: 2, maximumFractionDigits: 2,
                       })}
                     </span>
                     {weekLabel && (
@@ -90,43 +208,36 @@ async function generateStandingOrders() {
             </div>
 
             <div className="flex gap-2 flex-wrap justify-end">
-
               <a href="/admin/batch-invoice"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#8B0000' }}>
                 <FileText className="h-4 w-4" />Batch Invoice
               </a>
-
               <a href="/admin/direct-invoice"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#8B0000' }}>
                 <Receipt className="h-4 w-4" />Direct Invoice
               </a>
-
               <a href="/admin/batch-packing-slips"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#0369a1' }}>
                 <Printer className="h-4 w-4" />Packing Slips
               </a>
-
               <a href="/admin/production"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#2c2c2c' }}>
                 <ChefHat className="h-4 w-4" />Production
               </a>
-
               <a href="/admin/orders/create"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#2c2c2c' }}>
                 <ClipboardList className="h-4 w-4" />New Order
               </a>
-
               <a href="/admin/customers"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#0284c7' }}>
                 <Users className="h-4 w-4" />Customers
               </a>
-
               <a href="/admin/customers/pending"
                 className="relative flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#ea580c' }}>
@@ -138,115 +249,98 @@ async function generateStandingOrders() {
                   </span>
                 )}
               </a>
-
               <a href="/admin/customers/repeat-order-search"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#7c3aed' }}>
                 <Copy className="h-4 w-4" />Repeat Order
               </a>
-
               <a href="/admin/ar"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#1f2937' }}>
                 <DollarSign className="h-4 w-4" />AR Dashboard
               </a>
-
               <a href="/admin/reports/weekly"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#7c3aed' }}>
                 <BarChart3 className="h-4 w-4" />Weekly Report
               </a>
-
               <a href="/admin/reports/stales"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#dc2626' }}>
                 <BarChart3 className="h-4 w-4" />Stales
               </a>
-
               <a href="/admin/reports/accountant"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#2563eb' }}>
                 <FileText className="h-4 w-4" />Accountant
               </a>
-
               <a href="/admin/reports/sales-history"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#7c3aed' }}>
                 <BarChart3 className="h-4 w-4" />Sales History
               </a>
-
               <a href="/admin/payments/record"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#16a34a' }}>
                 <DollarSign className="h-4 w-4" />Record Payment
               </a>
-
               <a href="/admin/gst-report"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#7c3aed' }}>
                 <BarChart3 className="h-4 w-4" />GST Report
               </a>
-
               <a href="/admin/routes"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#8B0000' }}>
                 <Truck className="h-4 w-4" />Routes
               </a>
-<a href="/admin/products"
-  className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
-  style={{ backgroundColor: '#006A4E' }}>
-  <Package className="h-4 w-4" />Products
-</a>
+              <a href="/admin/products"
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
+                style={{ backgroundColor: '#006A4E' }}>
+                <Package className="h-4 w-4" />Products
+              </a>
               <a href="/admin/inventory"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#16a34a' }}>
                 <Package className="h-4 w-4" />Inventory
               </a>
-
               <a href="/admin/stock-take"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#ea580c' }}>
                 <ClipboardList className="h-4 w-4" />Stock Take
               </a>
-
               <a href="/admin/costings"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#ca8a04' }}>
                 <DollarSign className="h-4 w-4" />Cost Settings
               </a>
-
               <a href="/admin/products/bulk-codes"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#4f46e5' }}>
                 <ShoppingCart className="h-4 w-4" />Bulk Codes
               </a>
-
               <a href="/admin/products/bulk-weights"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#0d9488' }}>
                 <Package className="h-4 w-4" />Bulk Weights
               </a>
-<a href="/admin/shop-reports"
-  className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
-  style={{ backgroundColor: '#0f766e' }}>
-  <Store className="h-4 w-4" />Shop Reports
-</a>
+              <a href="/admin/shop-reports"
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
+                style={{ backgroundColor: '#0f766e' }}>
+                <Store className="h-4 w-4" />Shop Reports
+              </a>
               <a href="/admin/portal-qr"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#db2777' }}>
                 <FileText className="h-4 w-4" />Portal QR
               </a>
 
-            <button
-  onClick={generateStandingOrders}
-  disabled={generatingStandingOrders}
-  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-  {generatingStandingOrders
-    ? <><RefreshCw className="h-4 w-4 animate-spin" />Generating...</>
-    : <><RefreshCw className="h-4 w-4" />Generate S/O</>
-  }
-</button>
-
+              {/* ✅ Generate S/O — now opens modal with skip days */}
+              <button
+                onClick={openModal}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 shadow-md text-sm font-medium">
+                <RefreshCw className="h-4 w-4" />Generate S/O
+              </button>
             </div>
           </div>
 
@@ -270,13 +364,11 @@ async function generateStandingOrders() {
               </button>
             ))}
           </div>
-
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-6">
-
- {activeTab === 'orders' && <OrdersView />}
+        {activeTab === 'orders' && <OrdersView />}
         {activeTab === 'standing-orders' && (
           <div className="bg-white rounded-lg shadow-md p-8">
             <div className="flex items-center justify-between mb-6">
@@ -313,10 +405,8 @@ async function generateStandingOrders() {
             </div>
           </div>
         )}
-
         {activeTab === 'products' && <ProductsView />}
         {activeTab === 'pricing'  && <ContractPricingPage />}
-
       </div>
     </div>
   )
