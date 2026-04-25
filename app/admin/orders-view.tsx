@@ -69,7 +69,7 @@ export default function OrdersView() {
   const [loading, setLoading]           = useState(true)
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
   const [weekOffset, setWeekOffset]     = useState(getInitialWeekOffset)
-  const [cancelling, setCancelling]     = useState<string | null>(null) // ✅ INSIDE component
+  const [cancelling, setCancelling]     = useState<string | null>(null)
 
   useEffect(() => {
     loadOrders()
@@ -113,29 +113,36 @@ export default function OrdersView() {
   }
 
   async function loadStats() {
+    // ✅ Total Orders — exclude cancelled
     const { count: totalOrders } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
+      .neq('status', 'cancelled')
 
+    // ✅ Pending — already filtered correctly
     const { count: pendingOrders } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'pending')
 
+    // ✅ Total Revenue — exclude cancelled
     const { data: revenueData } = await supabase
       .from('orders')
       .select('total_amount')
       .not('total_amount', 'is', null)
+      .neq('status', 'cancelled')
 
     const totalRevenue = revenueData?.reduce(
       (sum, o) => sum + (o.total_amount || 0), 0
     ) || 0
 
+    // ✅ Delivering Today — exclude cancelled
     const today = getBrisbaneToday()
     const { count: todayOrders } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .eq('delivery_date', today)
+      .neq('status', 'cancelled')
 
     setStats({
       totalOrders:   totalOrders   || 0,
@@ -145,7 +152,6 @@ export default function OrdersView() {
     })
   }
 
-  // ✅ Cancel order — sets status to cancelled via API
   async function cancelOrder(orderId: string, customerName: string) {
     if (!confirm(`Cancel order for ${customerName}? This cannot be undone.`)) return
     setCancelling(orderId)
@@ -323,7 +329,9 @@ export default function OrdersView() {
           {sortedDates.map(date => {
             const dayOrders  = ordersByDate[date]
             const isExpanded = expandedDays.has(date)
-            const dayTotal   = dayOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+            const dayTotal   = dayOrders
+              .filter(o => o.status !== 'cancelled')
+              .reduce((sum, o) => sum + (o.total_amount || 0), 0)
             const colorClass = getDayColor(date)
             const today      = isToday(date)
 
@@ -432,7 +440,6 @@ export default function OrdersView() {
                                   <Package className="h-3 w-3" />Slip
                                 </a>
 
-                                {/* ✅ Cancel button — hidden if already cancelled or invoiced */}
                                 {order.status !== 'cancelled' && order.status !== 'invoiced' && (
                                   <button
                                     onClick={() => cancelOrder(
