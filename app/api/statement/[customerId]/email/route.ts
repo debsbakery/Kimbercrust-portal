@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateStatementPDF } from '@/lib/pdf/statement'
-import { Resend } from 'resend'
+import { Resend } from 'resend'
+import { emailConfig } from '@/lib/email-config'
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder")
 
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const endDate      = searchParams.get('endDate')
       || new Date().toISOString().split('T')[0]
 
-    // ── Customer ──────────────────────────────────────────────
+    // â”€â”€ Customer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const { data: customer, error: customerError } = await supabase
       .from('customers')
       .select('id, business_name, contact_name, email, address, balance, payment_terms')
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    // ── Fetch AR transactions (invoices + credits) ────────────
+    // â”€â”€ Fetch AR transactions (invoices + credits) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let txQuery = supabase
       .from('ar_transactions')
       .select('id, type, amount, description, created_at, invoice_id')
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (txError) throw new Error(txError.message)
     const transactions = txRaw ?? []
 
-    // ── Fetch payments in period ──────────────────────────────
+    // â”€â”€ Fetch payments in period â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let pmtQuery = supabase
       .from('payments')
       .select('id, amount, payment_date, payment_method, reference_number')
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (pmtError) throw new Error(pmtError.message)
     const payments = pmtRaw ?? []
 
-    // ── Invoice number map ────────────────────────────────────
+    // â”€â”€ Invoice number map â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const invoiceIds = transactions
       .filter(t => t.invoice_id)
       .map(t => t.invoice_id as string)
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // ── Opening balance BEFORE period ─────────────────────────
+    // â”€â”€ Opening balance BEFORE period â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let openingBalance = 0
 
     if (startDate) {
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       openingBalance = priorInvoiceTotal - priorPaymentTotal
     }
 
-    // ── Merge invoices + payments into unified sorted lines ────
+    // â”€â”€ Merge invoices + payments into unified sorted lines â”€â”€â”€â”€
     type RawLine = {
       date: string
       type: 'invoice' | 'credit' | 'payment'
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       new Date(a.date).getTime() - new Date(b.date).getTime()
     )
 
-    // ── Build final lines with running balance ─────────────────
+    // â”€â”€ Build final lines with running balance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     let runningBalance = openingBalance
 
     const lines = rawLines.map(raw => {
@@ -183,7 +184,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
     })
 
-    // ── Generate PDF ──────────────────────────────────────────
+    // â”€â”€ Generate PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const pdfBuffer = await generateStatementPDF({
       customer,
       lines,
@@ -193,7 +194,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       endDate,
     })
 
-    // ── Period label for email ────────────────────────────────
+    // â”€â”€ Period label for email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const fmtDate = (d: string) =>
       new Date(d).toLocaleDateString('en-AU', {
         day: '2-digit', month: '2-digit', year: 'numeric',
@@ -210,9 +211,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const closingBalance = Math.round(runningBalance * 100) / 100
 
-    // ── Send via Resend ───────────────────────────────────────
+    // â”€â”€ Send via Resend â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const { error: sendError } = await resend.emails.send({
-      from:    "Kimbercrust Bakery <noreply@debsbakery.store>",
+      from: emailConfig.fromAddress,
+    replyTo: emailConfig.replyTo,
       to:      customer.email,
       subject: `Account Statement - ${customerName}`,
       html: `

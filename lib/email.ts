@@ -1,4 +1,5 @@
-import { Resend } from "resend";
+import { Resend } from "resend";
+import { emailConfig } from './email-config'
 import { OrderWithItems } from "./types";
 import { formatCurrency, formatDate } from "./utils";
 
@@ -39,7 +40,7 @@ export async function sendOrderEmails({
     </head>
     <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #8B4513 0%, #D2691E 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 28px;">🍞 ${bakeryName}</h1>
+        <h1 style="color: white; margin: 0; font-size: 28px;">ðŸž ${bakeryName}</h1>
         <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0;">Wholesale Order Confirmation</p>
       </div>
       
@@ -55,7 +56,7 @@ export async function sendOrderEmails({
 
         ${order.notes ? `
         <div style="background: #fffbeb; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #f59e0b;">
-          <p style="margin: 0; font-weight: 600; color: #92400e;">📝 Order Notes:</p>
+          <p style="margin: 0; font-weight: 600; color: #92400e;">ðŸ“ Order Notes:</p>
           <p style="margin: 10px 0 0 0;">${order.notes}</p>
         </div>
         ` : ''}
@@ -82,7 +83,7 @@ export async function sendOrderEmails({
 
         <div style="background: #e0f2fe; padding: 15px; border-radius: 8px; margin-top: 20px;">
   <p style="margin: 0; color: #075985;">
-    <strong>✅ Order Confirmed</strong><br>
+    <strong>âœ… Order Confirmed</strong><br>
     We've received your order and will begin preparing your fresh bread for delivery on ${formatDate(order.delivery_date)}.
   </p>
 </div>
@@ -96,33 +97,35 @@ export async function sendOrderEmails({
   `;
 
   try {
-    console.log("📧 Sending emails...");
+    console.log("ðŸ“§ Sending emails...");
     
     // Send to customer
-    console.log("📧 Sending to customer:", customerEmail);
+    console.log("ðŸ“§ Sending to customer:", customerEmail);
     const customerResponse = await resend.emails.send({
-      from: `${bakeryName} <onboarding@resend.dev>`,
+      from: emailConfig.fromAddress,
+    replyTo: emailConfig.replyTo,
       to: customerEmail,
       subject: `Order Confirmation #${order.id.slice(0, 8).toUpperCase()} - ${bakeryName}`,
       html: emailTemplate,
     });
 
-    console.log("✅ Customer email sent:", customerResponse);
+    console.log("âœ… Customer email sent:", customerResponse);
 
     // Send to bakery
-    console.log("📧 Sending to bakery:", bakeryEmail);
+    console.log("ðŸ“§ Sending to bakery:", bakeryEmail);
     const bakeryResponse = await resend.emails.send({
-      from: `${bakeryName} Orders <onboarding@resend.dev>`,
+      from: emailConfig.fromAddress,
+    replyTo: emailConfig.replyTo,
       to: bakeryEmail,
-      subject: `🍞 New Order #${order.id.slice(0, 8).toUpperCase()} from ${order.customer_business_name || customerEmail}`,
+      subject: `ðŸž New Order #${order.id.slice(0, 8).toUpperCase()} from ${order.customer_business_name || customerEmail}`,
       html: emailTemplate.replace('Order Confirmation', 'New Order Received'),
     });
 
-    console.log("✅ Bakery email sent:", bakeryResponse);
+    console.log("âœ… Bakery email sent:", bakeryResponse);
 
     return { success: true, customerResponse, bakeryResponse };
   } catch (error) {
-    console.error("🔴 Email error:", error);
+    console.error("ðŸ”´ Email error:", error);
     throw error;
   }
 }

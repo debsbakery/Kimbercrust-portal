@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { Resend } from 'resend'
+import { Resend } from 'resend'
+import { emailConfig } from '@/lib/email-config'
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder")
 
@@ -40,9 +41,10 @@ export async function POST(
   const total        = Math.abs(parseFloat(memo.total_amount || memo.amount || '0'))
 
   const { error: emailError } = await resend.emails.send({
-    from: "Kimbercrust Bakery <noreply@debsbakery.store>",
+    from: emailConfig.fromAddress,
+    replyTo: emailConfig.replyTo,
     to:   memo.customer.email,
-    subject: `Credit Invoice ${memo.credit_number} — Kimbercrust Bakery`,
+    subject: `Credit Invoice ${memo.credit_number} â€” Kimbercrust Bakery`,
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2c2c2c;">Credit Invoice</h2>
