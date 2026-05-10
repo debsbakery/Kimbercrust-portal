@@ -233,6 +233,8 @@ export async function GET(request: NextRequest) {
 
       // ── Generate PDF ─────────────────────────────────────────────
       const pdfBuffer = await generateStatementPDF({
+      bakeryName:  process.env.BAKERY_NAME  ?? 'Kimbercrust Bakery',
+      bakeryEmail: process.env.BAKERY_EMAIL ?? 'orders@kimbercrust.com',
         customer,
         lines,
         openingBalance: Math.round(openingBalance * 100) / 100,

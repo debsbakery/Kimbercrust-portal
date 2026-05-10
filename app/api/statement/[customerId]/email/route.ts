@@ -186,6 +186,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // â”€â”€ Generate PDF â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const pdfBuffer = await generateStatementPDF({
+      bakeryName:  process.env.BAKERY_NAME  ?? 'Kimbercrust Bakery',
+      bakeryEmail: process.env.BAKERY_EMAIL ?? 'orders@kimbercrust.com',
       customer,
       lines,
       openingBalance: Math.round(openingBalance * 100) / 100,
