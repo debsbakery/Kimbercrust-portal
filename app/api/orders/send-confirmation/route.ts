@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     try {
       await sendEmail({
         to: customerEmail,
-        subject: process.env.RESEND_FROM_NAME ? Order Confirmation -  : 'Order Confirmation - Kimbercrust Bakery',
+        subject: `Order Confirmation - ${process.env.RESEND_FROM_NAME ?? 'Kimbercrust Bakery'}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h1 style="color: #2c2c2c;">Thank you for your order!</h1>
