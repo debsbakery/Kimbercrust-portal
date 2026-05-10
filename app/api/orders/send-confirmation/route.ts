@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
     console.log('📧 Sending order confirmation emails for order:', orderId);
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL ?? 'https://orders.kimbercrust.com';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://orders.kimbercrust.com';
 
     // ✅ Get full order details for admin email
     const supabase = await createClient();

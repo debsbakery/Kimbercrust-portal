@@ -118,7 +118,7 @@ export async function POST(request: Request) {
 
     // ✅ Send confirmation emails
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL ?? 'https://orders.kimbercrust.com';
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://orders.kimbercrust.com';
       
       console.log('📧 Preparing to send emails...');
 
