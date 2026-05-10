@@ -38,11 +38,11 @@ export async function POST(request: NextRequest) {
     // ── Pick from address based on brand ─────────────────────────
     const fromName  = isStodsBrand
       ? (process.env.STODS_RESEND_FROM_NAME  || 'Stods Bakery')
-      : (process.env.RESEND_FROM_NAME        || process.env.RESEND_FROM_NAME ?? "Kimbercrust Bakery")
+      : (process.env.RESEND_FROM_NAME ?? "Kimbercrust Bakery")
 
     const fromEmail = isStodsBrand
       ? (process.env.STODS_RESEND_FROM_EMAIL || 'orders@stodsbakery.com')
-      : (process.env.RESEND_FROM_EMAIL       || process.env.RESEND_FROM_EMAIL ?? 'orders@kimbercrust.com')
+      : (process.env.RESEND_FROM_EMAIL ?? 'orders@kimbercrust.com')
 
     const from = `${fromName} <${fromEmail}>`
 
