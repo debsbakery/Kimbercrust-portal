@@ -118,7 +118,7 @@ export async function POST(request: Request) {
 
     // ✅ Send confirmation emails
     try {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://debsbakery-portal.vercel.app';
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL ?? 'https://orders.kimbercrust.com';
       
       console.log('📧 Preparing to send emails...');
 
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
       try {
         await sendEmail({
           to: customer.email,
-          subject: 'Order Confirmation - Debs Bakery',
+          subject: 'Order Confirmation - Kimbercrust Bakery',
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
               <h1 style="color: #2c2c2c;">Thank you for your order!</h1>
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
         `).join('');
 
         await sendEmail({
-          to: 'debs_bakery@outlook.com',
+          to: process.env.BAKERY_EMAIL ?? 'orders@kimbercrust.com',
           subject: `🔔 New Shadow Order from ${customer.business_name || customer.email}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">

@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
     console.log('📧 Sending order confirmation emails for order:', orderId);
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://debsbakery-portal.vercel.app';
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SITE_URL ?? 'https://orders.kimbercrust.com';
 
     // ✅ Get full order details for admin email
     const supabase = await createClient();
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     try {
       await sendEmail({
         to: customerEmail,
-        subject: 'Order Confirmation - Debs Bakery',
+        subject: process.env.RESEND_FROM_NAME ? Order Confirmation -  : 'Order Confirmation - Kimbercrust Bakery',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h1 style="color: #2c2c2c;">Thank you for your order!</h1>
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       `).join('') || '';
 
       await sendEmail({
-        to: 'debs_bakery@outlook.com',
+        to: process.env.BAKERY_EMAIL ?? 'orders@kimbercrust.com',
         subject: `🔔 New Order from ${businessName || customerEmail}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">

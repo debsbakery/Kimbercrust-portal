@@ -170,7 +170,7 @@ export async function generateOpenInvoicesPDF(data: OpenInvoicesData): Promise<B
     { x: 50, y, size: 8, font, color: rgb(...GREY) }
   )
   page.drawText(
-    "Kimbercrust Bakery  |  noreply@debsbakery.store",
+    `${process.env.BAKERY_NAME ?? "Kimbercrust Bakery"}  |  ${process.env.BAKERY_EMAIL ?? "orders@kimbercrust.com"}`,
     { x: RIGHT_MARGIN - 250, y, size: 8, font, color: rgb(...GREY) }
   )
 
