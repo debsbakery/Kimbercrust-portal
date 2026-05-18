@@ -1,4 +1,4 @@
-// app/admin/shop-reports/[weekStart]/page.tsx
+// app/admin/shop-reports/[weekStart]/page.tsx — DEB'S BAKERY
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
@@ -184,7 +184,6 @@ export default function WeeklyShopReport() {
     else showToast('❌ Failed to save settings', false)
   }
 
-  // ─── Combined Totals ───────────────────────────────────────────────────────
   function getCombined() {
     let totalSales = 0, totalGst = 0, totalEftpos = 0, totalCash = 0,
         totalPaidOut = 0, totalActualBanking = 0, totalPurchases = 0,
@@ -218,7 +217,6 @@ export default function WeeklyShopReport() {
       totalPurchases, totalVariance,
       totalCustomers, totalHours, totalWages, overhead,
       grossProfit, netProfit,
-      // percentages
       wagesPct:       pct(totalWages,    totalNetSales),
       purchasesPct:   pct(totalPurchases, totalNetSales),
       grossProfitPct: pct(grossProfit,    totalNetSales),
@@ -229,7 +227,6 @@ export default function WeeklyShopReport() {
 
   const c = getCombined()
 
-  // ─── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="p-4 md:p-6 max-w-full">
 
@@ -248,7 +245,7 @@ export default function WeeklyShopReport() {
         </div>
       )}
 
-      {/* Header */}
+      {/* ═══ HEADER ═══ */}
       <div className="flex flex-wrap items-center gap-3 mb-6 no-print">
         <h1 className="text-2xl font-bold text-gray-900">Shop Reports</h1>
         <div className="flex items-center gap-2 ml-4">
@@ -261,6 +258,11 @@ export default function WeeklyShopReport() {
             className="px-3 py-1.5 border rounded hover:bg-gray-50 text-sm">Next ▶</button>
         </div>
         <div className="flex gap-2 ml-auto">
+          <button
+            onClick={() => router.push(`/admin/temperature/${param}`)}
+            className="px-3 py-1.5 border rounded hover:bg-gray-50 text-sm text-gray-600">
+            🌡️ Temp &amp; Cash
+          </button>
           <button onClick={() => setShowSettings(true)}
             className="px-3 py-1.5 border rounded hover:bg-gray-50 text-sm text-gray-600">
             ⚙️ Settings
@@ -291,7 +293,7 @@ export default function WeeklyShopReport() {
 
       <div className="space-y-6">
 
-        {/* Per-shop grids */}
+        {/* ═══ PER-SHOP GRIDS ═══ */}
         {shops.map(shop => {
           const rows = weekDays.map(d =>
             daily[`${shop.id}_${format(d, 'yyyy-MM-dd')}`]
@@ -404,15 +406,13 @@ export default function WeeklyShopReport() {
           )
         })}
 
-        {/* ── Combined Totals ── */}
+        {/* ═══ COMBINED TOTALS ═══ */}
         <div className="bg-white rounded-xl shadow border overflow-x-auto">
           <div className="bg-gray-800 text-white px-4 py-2.5 font-semibold rounded-t-xl">
             Combined — All Shops
           </div>
           <table className="w-full text-sm">
             <tbody>
-
-              {/* ── Takings ── */}
               <tr className="bg-gray-50 border-b">
                 <td colSpan={3} className="px-4 py-1.5 text-xs font-bold text-gray-400 uppercase tracking-wide">
                   Takings
@@ -443,7 +443,6 @@ export default function WeeklyShopReport() {
                 </tr>
               ))}
 
-              {/* ── Activity ── */}
               <tr className="bg-gray-50 border-b border-t-2">
                 <td colSpan={3} className="px-4 py-1.5 text-xs font-bold text-gray-400 uppercase tracking-wide">
                   Activity
@@ -462,21 +461,16 @@ export default function WeeklyShopReport() {
                 </td>
               </tr>
 
-              {/* ── Profit Analysis ── */}
               <tr className="bg-gray-50 border-b border-t-2">
                 <td colSpan={3} className="px-4 py-1.5 text-xs font-bold text-gray-400 uppercase tracking-wide">
                   Profit Analysis
                 </td>
               </tr>
-
-              {/* Header row */}
               <tr className="border-b bg-gray-100 text-xs text-gray-500 font-semibold">
                 <td className="px-4 py-1.5">Item</td>
                 <td className="px-4 py-1.5 text-right">Amount</td>
                 <td className="px-4 py-1.5 text-right">% of Net Sales</td>
               </tr>
-
-              {/* Wages */}
               <tr className="border-b bg-amber-50">
                 <td className="px-4 py-2 font-medium text-amber-800">Total Wages</td>
                 <td className="px-4 py-2 text-right font-bold text-amber-800">
@@ -487,8 +481,6 @@ export default function WeeklyShopReport() {
                   {fmtPct(c.wagesPct)}
                 </td>
               </tr>
-
-              {/* Purchases */}
               <tr className="border-b">
                 <td className="px-4 py-2 font-medium text-gray-600">Total Purchases</td>
                 <td className="px-4 py-2 text-right font-bold text-gray-800">
@@ -499,8 +491,6 @@ export default function WeeklyShopReport() {
                   {fmtPct(c.purchasesPct)}
                 </td>
               </tr>
-
-              {/* Gross Profit */}
               <tr className="border-b bg-emerald-50">
                 <td className="px-4 py-2 font-semibold text-emerald-800">Gross Profit</td>
                 <td className="px-4 py-2 text-right font-bold text-emerald-800">
@@ -511,12 +501,8 @@ export default function WeeklyShopReport() {
                   {fmtPct(c.grossProfitPct)}
                 </td>
               </tr>
-
-              {/* Overhead */}
               <tr className="border-b">
-                <td className="px-4 py-2 font-medium text-gray-600">
-                  Overhead (weekly fixed)
-                </td>
+                <td className="px-4 py-2 font-medium text-gray-600">Overhead (weekly fixed)</td>
                 <td className="px-4 py-2 text-right font-bold text-gray-800">
                   {fmtMoney(c.overhead)}
                 </td>
@@ -524,8 +510,6 @@ export default function WeeklyShopReport() {
                   {fmtPct(c.overheadPct)}
                 </td>
               </tr>
-
-              {/* Net Profit */}
               <tr className={`border-b border-t-2
                 ${c.netProfit >= 0 ? 'bg-emerald-100' : 'bg-red-100'}`}>
                 <td className={`px-4 py-3 font-bold text-lg
@@ -541,79 +525,48 @@ export default function WeeklyShopReport() {
                   {fmtPct(c.netProfitPct)}
                 </td>
               </tr>
-
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Settings Modal */}
+      {/* ═══ SETTINGS MODAL ═══ */}
       {showSettings && settings && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 no-print">
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
             <h2 className="text-lg font-bold mb-4">⚙️ Report Settings</h2>
             <form onSubmit={handleSaveSettings} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bookkeeper Name
-                </label>
-                <input
-                  type="text"
-                  value={settings.bookkeeper_name}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bookkeeper Name</label>
+                <input type="text" value={settings.bookkeeper_name}
                   onChange={e => setSettings({ ...settings, bookkeeper_name: e.target.value })}
-                  className="w-full border rounded px-3 py-2 text-sm
-                    focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder="e.g. Jane Smith"
-                />
+                  className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  placeholder="e.g. Jane Smith" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Bookkeeper Email
-                </label>
-                <input
-                  type="email"
-                  value={settings.bookkeeper_email}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bookkeeper Email</label>
+                <input type="email" value={settings.bookkeeper_email}
                   onChange={e => setSettings({ ...settings, bookkeeper_email: e.target.value })}
-                  className="w-full border rounded px-3 py-2 text-sm
-                    focus:outline-none focus:ring-2 focus:ring-blue-400"
-                  placeholder="bookkeeper@example.com"
-                />
+                  className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  placeholder="bookkeeper@example.com" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Weekly Overhead ($)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Weekly Overhead ($)</label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={settings.weekly_overhead}
-                    onChange={e => setSettings({
-                      ...settings,
-                      weekly_overhead: parseFloat(e.target.value) || 0
-                    })}
-                    className="w-full border rounded pl-7 pr-3 py-2 text-sm
-                      focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    placeholder="2000.00"
-                  />
+                  <input type="number" min="0" step="0.01" value={settings.weekly_overhead}
+                    onChange={e => setSettings({ ...settings, weekly_overhead: parseFloat(e.target.value) || 0 })}
+                    className="w-full border rounded pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    placeholder="2000.00" />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Fixed weekly overhead used in net profit calculation
-                </p>
+                <p className="text-xs text-gray-400 mt-1">Fixed weekly overhead used in net profit calculation</p>
               </div>
-              <p className="text-xs text-gray-400">
-                Email saved for future auto-send via Resend.
-              </p>
+              <p className="text-xs text-gray-400">Email saved for future auto-send via Resend.</p>
               <div className="flex justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowSettings(false)}
-                  className="px-4 py-2 border rounded text-sm hover:bg-gray-50">
-                  Cancel
-                </button>
+                  className="px-4 py-2 border rounded text-sm hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={savingSettings}
-                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm
-                    hover:bg-blue-700 disabled:opacity-50">
+                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50">
                   {savingSettings ? 'Saving...' : 'Save Settings'}
                 </button>
               </div>
