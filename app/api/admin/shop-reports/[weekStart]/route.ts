@@ -14,19 +14,41 @@ export async function GET(
 
   const weekStart = parseWeekStart(params.weekStart)
   const weekEnd   = getWeekEnd(weekStart)
+  const wsStr     = formatWeekStart(weekStart)
 
-  const [{ data: shops }, { data: daily }, { data: wages }, { data: settings }] =
-    await Promise.all([
-      supabase.from('shops').select('*').eq('is_active', true).order('sort_order'),
-      supabase.from('shop_daily_reports').select('*')
-        .gte('report_date', formatWeekStart(weekStart))
-        .lte('report_date', format(weekEnd, 'yyyy-MM-dd')),
-      supabase.from('shop_weekly_wages').select('*')
-        .eq('week_start', formatWeekStart(weekStart)),
-      supabase.from('report_settings').select('*').single()
-    ])
+  const [
+    { data: shops },
+    { data: daily },
+    { data: wages },
+    { data: settings },
+    { data: purchases },
+  ] = await Promise.all([
+    supabase.from('shops')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order'),
+    supabase.from('shop_daily_reports')
+      .select('*')
+      .gte('report_date', wsStr)
+      .lte('report_date', format(weekEnd, 'yyyy-MM-dd')),
+    supabase.from('shop_weekly_wages')
+      .select('*')
+      .eq('week_start', wsStr),
+    supabase.from('report_settings')
+      .select('*')
+      .single(),
+    supabase.from('shop_weekly_purchases')
+      .select('*')
+      .eq('week_start', wsStr),
+  ])
 
-  return NextResponse.json({ shops, daily, wages, settings })
+  return NextResponse.json({
+    shops:     shops     ?? [],
+    daily:     daily     ?? [],
+    wages:     wages     ?? [],
+    settings:  settings  ?? null,
+    purchases: purchases ?? [],
+  })
 }
 
 export async function POST(
@@ -38,7 +60,7 @@ export async function POST(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   )
 
-  const { dailyRows, wageRows } = await req.json()
+  const { dailyRows, wageRows, purchaseRows } = await req.json()
 
   if (dailyRows?.length) {
     const { error } = await supabase
@@ -51,6 +73,13 @@ export async function POST(
     const { error } = await supabase
       .from('shop_weekly_wages')
       .upsert(wageRows, { onConflict: 'shop_id,week_start' })
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  if (purchaseRows?.length) {
+    const { error } = await supabase
+      .from('shop_weekly_purchases')
+      .upsert(purchaseRows, { onConflict: 'week_start,supplier' })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
