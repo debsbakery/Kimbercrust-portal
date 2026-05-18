@@ -324,16 +324,17 @@ export default function AdminClientView({
                 style={{ backgroundColor: '#0d9488' }}>
                 <Package className="h-4 w-4" />Bulk Weights
               </a>
-              <a href="/admin/shop-reports"
+                           <a href="/admin/shop-reports"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#0f766e' }}>
                 <Store className="h-4 w-4" />Shop Reports
-           <a href="/admin/search"
-  className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
-  style={{ backgroundColor: '#1d4ed8' }}>
-  <Search className="h-4 w-4" />Invoice Search
-</a>
               </a>
+              <a href="/admin/search"
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
+                style={{ backgroundColor: '#1d4ed8' }}>
+                <Search className="h-4 w-4" />Invoice Search
+              </a>
+
               <a href="/admin/portal-qr"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#db2777' }}>
