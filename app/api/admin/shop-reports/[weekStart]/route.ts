@@ -66,21 +66,30 @@ export async function POST(
     const { error } = await supabase
       .from('shop_daily_reports')
       .upsert(dailyRows, { onConflict: 'shop_id,report_date' })
-    if (error) { console.error('[daily upsert]', error, 'rows:', JSON.stringify(dailyRows).slice(0,500)); return NextResponse.json({ error: error.message, where: 'daily', detail: error }, { status: 500 }) }
+    if (error) {
+      console.error('[daily upsert]', error, 'rows:', JSON.stringify(dailyRows).slice(0, 800))
+      return NextResponse.json({ error: error.message, where: 'daily', detail: error }, { status: 500 })
+    }
   }
 
   if (wageRows?.length) {
     const { error } = await supabase
       .from('shop_weekly_wages')
       .upsert(wageRows, { onConflict: 'shop_id,week_start' })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('[wages upsert]', error, 'rows:', JSON.stringify(wageRows).slice(0, 800))
+      return NextResponse.json({ error: error.message, where: 'wages', detail: error }, { status: 500 })
+    }
   }
 
   if (purchaseRows?.length) {
     const { error } = await supabase
       .from('shop_weekly_purchases')
       .upsert(purchaseRows, { onConflict: 'week_start,supplier' })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('[purchases upsert]', error, 'rows:', JSON.stringify(purchaseRows).slice(0, 800))
+      return NextResponse.json({ error: error.message, where: 'purchases', detail: error }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ success: true })
