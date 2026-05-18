@@ -66,7 +66,7 @@ export async function POST(
     const { error } = await supabase
       .from('shop_daily_reports')
       .upsert(dailyRows, { onConflict: 'shop_id,report_date' })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) { console.error('[daily upsert]', error, 'rows:', JSON.stringify(dailyRows).slice(0,500)); return NextResponse.json({ error: error.message, where: 'daily', detail: error }, { status: 500 }) }
   }
 
   if (wageRows?.length) {
