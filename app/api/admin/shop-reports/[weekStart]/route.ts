@@ -62,20 +62,29 @@ export async function POST(
 
   const { dailyRows, wageRows, purchaseRows } = await req.json()
 
-  if (dailyRows?.length) {
+   if (dailyRows?.length) {
+    // Strip undefined/null id fields so Supabase uses default gen_random_uuid()
+    const cleanDaily = dailyRows.map((r: any) => {
+      const { id, created_at, updated_at, created_by, notes, ...rest } = r
+      return id ? { id, ...rest } : rest
+    })
     const { error } = await supabase
       .from('shop_daily_reports')
-      .upsert(dailyRows, { onConflict: 'shop_id,report_date' })
+      .upsert(cleanDaily, { onConflict: 'shop_id,report_date' })
     if (error) {
       console.error('[daily upsert]', error, 'rows:', JSON.stringify(dailyRows).slice(0, 800))
       return NextResponse.json({ error: error.message, where: 'daily', detail: error }, { status: 500 })
     }
   }
 
-  if (wageRows?.length) {
+   if (wageRows?.length) {
+    const cleanWages = wageRows.map((r: any) => {
+      const { id, created_at, updated_at, created_by, ...rest } = r
+      return id ? { id, ...rest } : rest
+    })
     const { error } = await supabase
       .from('shop_weekly_wages')
-      .upsert(wageRows, { onConflict: 'shop_id,week_start' })
+      .upsert(cleanWages, { onConflict: 'shop_id,week_start' })
     if (error) {
       console.error('[wages upsert]', error, 'rows:', JSON.stringify(wageRows).slice(0, 800))
       return NextResponse.json({ error: error.message, where: 'wages', detail: error }, { status: 500 })
