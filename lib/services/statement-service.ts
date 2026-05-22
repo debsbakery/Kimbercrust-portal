@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+﻿import { createClient } from '@/lib/supabase/server';
 
 export class StatementService {
   static async sendStatement(customerId: string) {
@@ -27,4 +27,3 @@ export class StatementService {
     return { success: true };
   }
 }
-

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+﻿import { createClient } from '@/lib/supabase/server';
 
 export class AgingService {
   static async calculateAging(customerId: string) {
@@ -35,4 +35,3 @@ export class AgingService {
     return this.calculateAging(customerId);
   }
 }
-

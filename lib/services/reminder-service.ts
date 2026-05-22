@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server';
+﻿import { createClient } from '@/lib/supabase/server';
 
 export class ReminderService {
   static async sendReminder(customerId: string) {
@@ -31,4 +31,3 @@ export class ReminderService {
     return { success: true };
   }
 }
-
