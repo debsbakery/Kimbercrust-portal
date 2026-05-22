@@ -361,7 +361,11 @@ export default function AdminClientView({
                   style={{ backgroundColor: '#b45309' }}>
                   <Clock className="h-4 w-4" />Approve Hours
                 </a>
-              
+                            <a href="/admin/staff"
+                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
+                style={{ backgroundColor: '#3E1F00' }}>
+                <Users className="h-4 w-4" />Staff
+              </a>
              
                 <a href="/admin/payroll"
                   className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
