@@ -5,9 +5,9 @@ import { createClient } from '@/lib/supabase/server';
  * Add admin email addresses here
  */
 const ADMIN_EMAILS = [
-  'orders@norbakebroome.com',
+  'admin@kimbercrust.com',
   'admin@allstarsbakery.com',
-  'admin@norbakebroome.com',
+  'orders@norbakebroome.com',
 ];
 
 /**
