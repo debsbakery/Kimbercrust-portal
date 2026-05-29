@@ -33,10 +33,30 @@ export default function AdminClientView({
   const [activeTab,                setActiveTab]                = useState<Tab>('orders')
   const [showSOModal,              setShowSOModal]              = useState(false)
   const [skippedDays,              setSkippedDays]              = useState<string[]>([])
+ const [selectedWeek,             setSelectedWeek]             = useState(1)
   const [generatingStandingOrders, setGeneratingStandingOrders] = useState(false)
   const [soResult,                 setSoResult]                 = useState<{
     success: boolean; message: string; ordersCreated?: number
   } | null>(null)
+function getWeekOptions() {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Perth' }))
+  const currentDay = now.getDay()
+  const options: Array<{ label: string; offset: number; start: string; end: string }> = []
+  for (let weekOffset = 1; weekOffset <= 3; weekOffset++) {
+    const daysUntilNextSunday = currentDay === 0 ? 7 : 7 - currentDay
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() + daysUntilNextSunday + (weekOffset - 1) * 7)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekStart.getDate() + 6)
+    options.push({
+      label: weekOffset === 1 ? 'Next Week' : weekOffset === 2 ? 'Week After Next' : '3 Weeks Out',
+      offset: weekOffset,
+      start: weekStart.toISOString().split('T')[0],
+      end: weekEnd.toISOString().split('T')[0],
+    })
+  }
+  return options
+}
 
   function toggleDay(day: string) {
     setSkippedDays(prev =>
@@ -45,17 +65,18 @@ export default function AdminClientView({
   }
 
   function openModal() {
-    setSkippedDays([])
-    setSoResult(null)
-    setShowSOModal(true)
-  }
+  setSkippedDays([])
+  setSelectedWeek(1)
+  setSoResult(null)
+  setShowSOModal(true)
+}
 
   async function generateStandingOrders() {
     const skipMsg = skippedDays.length > 0
       ? `\n\nSkipping: ${skippedDays.map(d => DAY_LABELS[d]).join(', ')}`
       : ''
-    if (!confirm(`Generate orders for all active standing orders this week?${skipMsg}`)) return
-
+const selected = weekOptions.find(w => w.offset === selectedWeek)
+if (!confirm(`Generate standing orders for:\n\n${selected?.label}\n${selected?.start} to ${selected?.end}${skipMsg}\n\nAlready-existing orders will be skipped.`)) return
     setGeneratingStandingOrders(true)
     setSoResult(null)
 
@@ -63,8 +84,7 @@ export default function AdminClientView({
       const response = await fetch('/api/standing-orders/generate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ skip_days: skippedDays }),
-      })
+body:    JSON.stringify({ skip_days: skippedDays, week_offset: selectedWeek }),      })
       const data = await response.json()
       if (response.ok && data.success) {
         setSoResult({
@@ -111,10 +131,34 @@ export default function AdminClientView({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <p className="text-sm text-gray-600 mb-4">
-              Generates orders for all active standing orders this week.
-              Tick any days to skip — e.g. public holidays.
-            </p>
+         <p className="text-sm text-gray-600 mb-4">
+  Select which week to generate, and optionally skip specific days.
+</p>
+
+{/* Week Selector */}
+<div className="mb-4">
+  <p className="text-sm font-medium text-gray-700 mb-2">Select Week</p>
+  <div className="flex flex-col gap-2">
+    {weekOptions.map(option => (
+      <button
+        key={option.offset}
+        onClick={() => { setSelectedWeek(option.offset); setSoResult(null) }}
+        className={`px-3 py-2.5 rounded-lg border-2 text-left text-sm transition-all ${
+          selectedWeek === option.offset
+            ? 'border-blue-500 bg-blue-50 text-blue-800 font-semibold'
+            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+        }`}
+      >
+        <span className="font-semibold">📅 {option.label}</span>
+        <span className="text-xs ml-2 opacity-75">
+          {new Date(option.start + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+          {' — '}
+          {new Date(option.end + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+        </span>
+      </button>
+    ))}
+  </div>
+</div>
             <div className="mb-5">
               <p className="text-sm font-medium text-gray-700 mb-2">
                 Skip days <span className="text-gray-400 font-normal">(optional)</span>
