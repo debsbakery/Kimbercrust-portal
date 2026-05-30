@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react'
 import {
   Search, Loader2, AlertTriangle, Package, Plus,
-  Minus, ClipboardCheck, Trash2, X, Save, RotateCcw,
-  Calendar, TrendingDown,
+  ClipboardCheck, Trash2, X, Save,
+  Calendar,
 } from 'lucide-react'
 
 interface Usage {
@@ -103,6 +103,17 @@ export default function StockView() {
   const [editReorder, setEditReorder] = useState<string | null>(null)
   const [reorderVal, setReorderVal]   = useState('')
   const [sortBy, setSortBy]           = useState<'name' | 'days' | 'usage'>('name')
+  const [showInvoice, setShowInvoice] = useState(false)
+  const [invoiceSupplier, setInvoiceSupplier] = useState('')
+  const [invoiceNumber, setInvoiceNumber] = useState('')
+  const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0])
+  const [invoiceLines, setInvoiceLines] = useState<Array<{
+    ingredient_id: string
+    quantity: string
+    unit_cost: string
+    update_price: boolean
+  }>>([{ ingredient_id: '', quantity: '', unit_cost: '', update_price: false }])
+  const [savingInvoice, setSavingInvoice] = useState(false)
 
   const [adjForm, setAdjForm] = useState({
     ingredient_id:   '',
@@ -161,7 +172,6 @@ export default function StockView() {
     }
     setSaving(true)
     setMessage(null)
-
     try {
       const res = await fetch('/api/admin/stock', {
         method: 'POST',
@@ -173,7 +183,6 @@ export default function StockView() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
-
       const ingName = ingredients.find(i => i.id === adjForm.ingredient_id)?.name || ''
       setMessage({ type: 'success', text: `${adjForm.adjustment_type} recorded for ${ingName} — new stock: ${data.new_stock}` })
       setShowAdj(false)
@@ -204,6 +213,66 @@ export default function StockView() {
     }
   }
 
+  function addInvoiceLine() {
+    setInvoiceLines(prev => [...prev, { ingredient_id: '', quantity: '', unit_cost: '', update_price: false }])
+  }
+
+  function removeInvoiceLine(idx: number) {
+    setInvoiceLines(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function updateInvoiceLine(idx: number, field: string, value: any) {
+    setInvoiceLines(prev => prev.map((line, i) => i === idx ? { ...line, [field]: value } : line))
+  }
+
+  async function handleReceiveInvoice() {
+    const validLines = invoiceLines.filter(l => l.ingredient_id && l.quantity && parseFloat(l.quantity) > 0)
+    if (validLines.length === 0) {
+      setMessage({ type: 'error', text: 'Add at least one ingredient line' })
+      return
+    }
+    setSavingInvoice(true)
+    setMessage(null)
+    try {
+      for (const line of validLines) {
+        await fetch('/api/admin/stock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ingredient_id: line.ingredient_id,
+            adjustment_type: 'receive',
+            quantity: parseFloat(line.quantity),
+            reason: `Invoice${invoiceNumber ? ` #${invoiceNumber}` : ''}${invoiceSupplier ? ` - ${invoiceSupplier}` : ''}`,
+          }),
+        })
+        if (line.update_price && line.unit_cost && parseFloat(line.unit_cost) > 0) {
+          const ing = ingredients.find(i => i.id === line.ingredient_id)
+          await fetch('/api/admin/ingredients', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: line.ingredient_id,
+              name: ing?.name,
+              unit: ing?.unit,
+              unit_cost: parseFloat(line.unit_cost),
+              previous_cost: ing?.unit_cost,
+            }),
+          })
+        }
+      }
+      setMessage({ type: 'success', text: `✅ Received ${validLines.length} ingredient${validLines.length > 1 ? 's' : ''} from ${invoiceSupplier || 'supplier'}` })
+      setShowInvoice(false)
+      setInvoiceLines([{ ingredient_id: '', quantity: '', unit_cost: '', update_price: false }])
+      setInvoiceSupplier('')
+      setInvoiceNumber('')
+      fetchData()
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message })
+    } finally {
+      setSavingInvoice(false)
+    }
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -216,13 +285,21 @@ export default function StockView() {
             {ingredients.length} ingredients · Usage based on last 30 days sales
           </p>
         </div>
-        <button
-          onClick={() => setShowAdj(true)}
-          className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg"
-          style={{ backgroundColor: '#006A4E' }}
-        >
-          <Plus className="h-4 w-4" /> Stock Adjustment
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowInvoice(true)}
+            className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg bg-blue-600 hover:bg-blue-700"
+          >
+            <ClipboardCheck className="h-4 w-4" /> Receive Invoice
+          </button>
+          <button
+            onClick={() => setShowAdj(true)}
+            className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg"
+            style={{ backgroundColor: '#006A4E' }}
+          >
+            <Plus className="h-4 w-4" /> Adjustment
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -231,7 +308,6 @@ export default function StockView() {
         </div>
       ) : (
         <>
-          {/* Low Stock Alert */}
           {lowStock.length > 0 && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center gap-2 mb-2">
@@ -262,7 +338,6 @@ export default function StockView() {
             </div>
           )}
 
-          {/* Filters + Sort */}
           <div className="flex gap-3 mb-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -294,7 +369,6 @@ export default function StockView() {
             </select>
           </div>
 
-          {/* Stock Table */}
           <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-8">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -320,34 +394,25 @@ export default function StockView() {
                     filtered.map(i => {
                       const stock  = i.current_stock ?? 0
                       const status = getStockStatus(i)
-
                       return (
                         <tr key={i.id} className={`hover:bg-gray-50 ${
                           status.label === 'OUT' ? 'bg-red-50' :
-                          status.label.includes('d left') && (i.usage?.days_remaining ?? 99) <= 7 ? 'bg-red-50' :
-                          ''
+                          status.label.includes('d left') && (i.usage?.days_remaining ?? 99) <= 7 ? 'bg-red-50' : ''
                         }`}>
                           <td className="px-4 py-3">
                             <p className="font-medium text-gray-900">{i.name}</p>
                             <p className="text-xs text-gray-400">
-                              {(i.suppliers as any)?.name || '—'}
-                              {' · '}${Number(i.unit_cost).toFixed(2)}/{i.unit}
+                              {(i.suppliers as any)?.name || '—'}{' · '}${Number(i.unit_cost).toFixed(2)}/{i.unit}
                             </p>
                           </td>
                           <td className="px-4 py-3 text-right font-mono font-semibold text-gray-900">
                             {stock > 0 ? `${stock} ${i.unit}` : <span className="text-gray-300">0</span>}
                           </td>
                           <td className="px-4 py-3 text-right font-mono text-gray-600">
-                            {i.usage?.weekly_avg
-                              ? `${i.usage.weekly_avg} ${i.unit}`
-                              : <span className="text-gray-300">—</span>
-                            }
+                            {i.usage?.weekly_avg ? `${i.usage.weekly_avg} ${i.unit}` : <span className="text-gray-300">—</span>}
                           </td>
                           <td className="px-4 py-3 text-right font-mono text-gray-600">
-                            {i.usage?.daily_avg
-                              ? `${i.usage.daily_avg} ${i.unit}`
-                              : <span className="text-gray-300">—</span>
-                            }
+                            {i.usage?.daily_avg ? `${i.usage.daily_avg} ${i.unit}` : <span className="text-gray-300">—</span>}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
@@ -375,16 +440,10 @@ export default function StockView() {
                                   className="w-20 px-2 py-1 text-sm border rounded text-right"
                                   autoFocus
                                 />
-                                <button
-                                  onClick={() => handleSaveReorder(i.id)}
-                                  className="p-1 text-green-600 hover:bg-green-50 rounded"
-                                >
+                                <button onClick={() => handleSaveReorder(i.id)} className="p-1 text-green-600 hover:bg-green-50 rounded">
                                   <Save className="h-3.5 w-3.5" />
                                 </button>
-                                <button
-                                  onClick={() => setEditReorder(null)}
-                                  className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-                                >
+                                <button onClick={() => setEditReorder(null)} className="p-1 text-gray-400 hover:bg-gray-100 rounded">
                                   <X className="h-3.5 w-3.5" />
                                 </button>
                               </div>
@@ -392,7 +451,6 @@ export default function StockView() {
                               <button
                                 onClick={() => { setEditReorder(i.id); setReorderVal(String(i.reorder_point ?? 0)) }}
                                 className="text-gray-500 hover:text-blue-600 font-mono text-xs"
-                                title="Click to edit reorder point"
                               >
                                 {(i.reorder_point ?? 0) > 0 ? `${i.reorder_point} ${i.unit}` : 'Set'}
                               </button>
@@ -407,7 +465,6 @@ export default function StockView() {
             </div>
           </div>
 
-          {/* Recent Adjustments */}
           <h2 className="text-lg font-semibold mb-3">Recent Stock Adjustments</h2>
           <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
             <table className="w-full text-sm">
@@ -423,16 +480,12 @@ export default function StockView() {
               <tbody className="divide-y divide-gray-100">
                 {history.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                      No stock adjustments recorded yet
-                    </td>
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-400">No stock adjustments recorded yet</td>
                   </tr>
                 ) : (
                   history.slice(0, 50).map(adj => (
                     <tr key={adj.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">
-                        {formatDate(adj.created_at)}
-                      </td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap text-xs">{formatDate(adj.created_at)}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                           adj.adjustment_type === 'receive' ? 'bg-green-100 text-green-700' :
@@ -444,17 +497,11 @@ export default function StockView() {
                           {ADJ_TYPES.find(t => t.value === adj.adjustment_type)?.label || adj.adjustment_type}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-gray-800">
-                        {(adj.ingredients as any)?.name || '-'}
-                      </td>
-                      <td className={`px-4 py-3 text-right font-mono font-semibold ${
-                        adj.quantity > 0 ? 'text-green-700' : 'text-red-600'
-                      }`}>
+                      <td className="px-4 py-3 text-gray-800">{(adj.ingredients as any)?.name || '-'}</td>
+                      <td className={`px-4 py-3 text-right font-mono font-semibold ${adj.quantity > 0 ? 'text-green-700' : 'text-red-600'}`}>
                         {adj.quantity > 0 ? '+' : ''}{adj.quantity} {adj.unit}
                       </td>
-                      <td className="px-4 py-3 text-gray-500 text-xs">
-                        {adj.reason || '-'}
-                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{adj.reason || '-'}</td>
                     </tr>
                   ))
                 )}
@@ -472,7 +519,6 @@ export default function StockView() {
                     <X className="h-5 w-5" />
                   </button>
                 </div>
-
                 <div className="p-5 space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ingredient *</label>
@@ -483,13 +529,10 @@ export default function StockView() {
                     >
                       <option value="">Select ingredient</option>
                       {ingredients.map(i => (
-                        <option key={i.id} value={i.id}>
-                          {i.name} (stock: {i.current_stock ?? 0} {i.unit})
-                        </option>
+                        <option key={i.id} value={i.id}>{i.name} (stock: {i.current_stock ?? 0} {i.unit})</option>
                       ))}
                     </select>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
                     <div className="grid grid-cols-3 gap-2">
@@ -509,7 +552,6 @@ export default function StockView() {
                       ))}
                     </div>
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
                     <input
@@ -522,7 +564,6 @@ export default function StockView() {
                       className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
                     <input
@@ -534,12 +575,8 @@ export default function StockView() {
                     />
                   </div>
                 </div>
-
                 <div className="flex gap-3 p-5 border-t bg-gray-50 rounded-b-xl">
-                  <button
-                    onClick={() => setShowAdj(false)}
-                    className="flex-1 px-4 py-2 border rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
-                  >
+                  <button onClick={() => setShowAdj(false)} className="flex-1 px-4 py-2 border rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100">
                     Cancel
                   </button>
                   <button
@@ -550,6 +587,152 @@ export default function StockView() {
                   >
                     {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                     Record Adjustment
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Invoice Modal */}
+          {showInvoice && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div className="flex items-center justify-between p-5 border-b">
+                  <h3 className="text-lg font-bold flex items-center gap-2">
+                    <ClipboardCheck className="h-5 w-5 text-blue-600" />
+                    Receive Supplier Invoice
+                  </h3>
+                  <button onClick={() => setShowInvoice(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="p-5 overflow-y-auto flex-1">
+                  <div className="grid grid-cols-3 gap-3 mb-5">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Supplier</label>
+                      <input
+                        type="text"
+                        value={invoiceSupplier}
+                        onChange={e => setInvoiceSupplier(e.target.value)}
+                        placeholder="e.g. Allied Pinnacle"
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Invoice #</label>
+                      <input
+                        type="text"
+                        value={invoiceNumber}
+                        onChange={e => setInvoiceNumber(e.target.value)}
+                        placeholder="Optional"
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                      <input
+                        type="date"
+                        value={invoiceDate}
+                        onChange={e => setInvoiceDate(e.target.value)}
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 uppercase px-1">
+                      <div className="col-span-4">Ingredient</div>
+                      <div className="col-span-2">Qty Received</div>
+                      <div className="col-span-2">Unit Cost ($)</div>
+                      <div className="col-span-3">Update Price?</div>
+                      <div className="col-span-1"></div>
+                    </div>
+                    {invoiceLines.map((line, idx) => {
+                      const ing = ingredients.find(i => i.id === line.ingredient_id)
+                      return (
+                        <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-lg p-2">
+                          <div className="col-span-4">
+                            <select
+                              value={line.ingredient_id}
+                              onChange={e => {
+                                const selected = ingredients.find(i => i.id === e.target.value)
+                                updateInvoiceLine(idx, 'ingredient_id', e.target.value)
+                                if (selected) updateInvoiceLine(idx, 'unit_cost', String(selected.unit_cost))
+                              }}
+                              className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            >
+                              <option value="">Select...</option>
+                              {ingredients.map(i => (
+                                <option key={i.id} value={i.id}>{i.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="col-span-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={line.quantity}
+                              onChange={e => updateInvoiceLine(idx, 'quantity', e.target.value)}
+                              placeholder="0.00"
+                              className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                            {ing && <p className="text-xs text-gray-400 mt-0.5 pl-1">{ing.unit}</p>}
+                          </div>
+                          <div className="col-span-2">
+                            <input
+                              type="number"
+                              step="0.0001"
+                              min="0"
+                              value={line.unit_cost}
+                              onChange={e => updateInvoiceLine(idx, 'unit_cost', e.target.value)}
+                              placeholder="0.00"
+                              className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                            {ing && line.unit_cost && parseFloat(line.unit_cost) !== ing.unit_cost && (
+                              <p className="text-xs text-orange-500 mt-0.5 pl-1">was ${ing.unit_cost}</p>
+                            )}
+                          </div>
+                          <div className="col-span-3 flex items-center gap-2 pl-2">
+                            <input
+                              type="checkbox"
+                              id={`update-${idx}`}
+                              checked={line.update_price}
+                              onChange={e => updateInvoiceLine(idx, 'update_price', e.target.checked)}
+                              className="rounded"
+                            />
+                            <label htmlFor={`update-${idx}`} className="text-xs text-gray-600">Update ingredient price</label>
+                          </div>
+                          <div className="col-span-1 flex justify-center">
+                            <button
+                              onClick={() => removeInvoiceLine(idx)}
+                              disabled={invoiceLines.length === 1}
+                              className="p-1 text-red-400 hover:text-red-600 disabled:opacity-30"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <button
+                    onClick={addInvoiceLine}
+                    className="mt-3 flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    <Plus className="h-4 w-4" /> Add another ingredient
+                  </button>
+                </div>
+                <div className="flex gap-3 p-5 border-t bg-gray-50 rounded-b-xl">
+                  <button onClick={() => setShowInvoice(false)} className="flex-1 px-4 py-2 border rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleReceiveInvoice}
+                    disabled={savingInvoice}
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {savingInvoice ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardCheck className="h-4 w-4" />}
+                    Receive All Stock
                   </button>
                 </div>
               </div>
