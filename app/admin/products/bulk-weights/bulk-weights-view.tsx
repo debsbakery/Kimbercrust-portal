@@ -40,9 +40,7 @@ export default function BulkWeightsView({ products }: { products: Product[] }) {
   const [errors, setErrors]             = useState<Record<string, string>>({})
   const [filter, setFilter]             = useState<'production' | 'missing' | 'all'>('production')
 
-  // 🆕 Track per-field dirty state — only edited fields will be saved
-  const [dirty, setDirty]               = useState<Record<string, Set<string>>>({})
-
+  const [dirty, setDirty] = useState<Record<string, Set<string>>>({})
   // Init state from products
   useEffect(() => {
     const w:   Record<string, string> = {}
