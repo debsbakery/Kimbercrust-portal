@@ -75,8 +75,8 @@ function getWeekOptions() {
     const skipMsg = skippedDays.length > 0
       ? `\n\nSkipping: ${skippedDays.map(d => DAY_LABELS[d]).join(', ')}`
       : ''
-const selected = weekOptions.find(w => w.offset === selectedWeek)
-if (!confirm(`Generate standing orders for:\n\n${selected?.label}\n${selected?.start} to ${selected?.end}${skipMsg}\n\nAlready-existing orders will be skipped.`)) return
+const selected = getWeekOptions().find(w => w.offset === selectedWeek)
+      if (!confirm(`Generate standing orders for:\n\n${selected?.label}\n${selected?.start} to ${selected?.end}${skipMsg}\n\nAlready-existing orders will be skipped.`)) return
     setGeneratingStandingOrders(true)
     setSoResult(null)
 
@@ -139,7 +139,7 @@ body:    JSON.stringify({ skip_days: skippedDays, week_offset: selectedWeek }), 
 <div className="mb-4">
   <p className="text-sm font-medium text-gray-700 mb-2">Select Week</p>
   <div className="flex flex-col gap-2">
-    {weekOptions.map(option => (
+{getWeekOptions().map(option => (
       <button
         key={option.offset}
         onClick={() => { setSelectedWeek(option.offset); setSoResult(null) }}
