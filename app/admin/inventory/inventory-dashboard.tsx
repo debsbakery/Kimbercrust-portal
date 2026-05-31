@@ -234,15 +234,15 @@ export default function InventoryDashboard({ ingredients, initialReceipts, suppl
       )}
 
       {/* ── RECEIVE TAB ── */}
-      {tab === 'receive' && (
-        <InventoryReceivedView
-          ingredients={ingredients.map(i => ({
-            ...i,
-            supplier: (i.suppliers as any)?.name ?? null,
-          }))}
-          initialReceipts={receipts}
-        />
-      )}
+    {tab === 'receive' && (
+  <InventoryReceivedView
+    ingredients={ingredients.map(i => ({
+      ...i,
+      supplier: (i.suppliers as any)?.name ?? null,
+    }))}
+    initialReceipts={receipts as any}
+  />
+)}
 
       {/* ── HISTORY TAB ── */}
       {tab === 'history' && (
