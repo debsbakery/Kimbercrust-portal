@@ -18,14 +18,14 @@ const { pin, token, lat, lng, device_fingerprint } = body
   const nowLocal = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'Australia/Perth' }))
 
   const { data: qr } = await supabase
-    .from('staff_qr_codes')
+  .from('staff_qr_codes')
+  .select('id, location_id, clock_locations(id, name, latitude, longitude, radius_metres)')
+  .eq('token', token)
+  .eq('active', true)
+  .maybeSingle()
 
-.select('id, location_id, clock_locations(id, name, latitude, longitude, radius_metres)')    .eq('token', token)
-    .eq('active', true)
-    .maybeSingle()
-
-  if (!qr) return NextResponse.json({ error: 'Invalid QR code' }, { status: 401 })
-const location = qr.clock_locations as any
+if (!qr) return NextResponse.json({ error: 'Invalid QR code' }, { status: 401 })
+const location = (qr as any).clock_locations
   const { data: staff } = await supabase
     .from('staff')
 .select('id, name, employment_type, active, break_minutes, primary_department, known_device')    .eq('pin', String(pin))
