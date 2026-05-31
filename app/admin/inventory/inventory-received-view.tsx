@@ -30,11 +30,16 @@ interface Receipt {
   suppliers: { id: string; name: string } | null
 }
 
+interface Supplier {
+  id: string
+  name: string
+}
+
 interface Props {
   ingredients: Ingredient[]
   initialReceipts: Receipt[]
+  suppliers: Supplier[]   // ← ADD
 }
-
 interface InvoiceLine {
   ingredient_id: string
   packs: string
@@ -51,8 +56,7 @@ const EMPTY_LINE: InvoiceLine = {
   update_cost: true,
 }
 
-export default function InventoryReceivedView({ ingredients, initialReceipts }: Props) {
-  const [receipts, setReceipts]   = useState<Receipt[]>(initialReceipts)
+export default function InventoryReceivedView({ ingredients, initialReceipts, suppliers }: Props) {  const [receipts, setReceipts]   = useState<Receipt[]>(initialReceipts)
   const [lines, setLines]         = useState<InvoiceLine[]>([{ ...EMPTY_LINE }])
   const [supplier, setSupplier]   = useState('')
   const [invoiceRef, setInvoiceRef] = useState('')
@@ -214,16 +218,19 @@ export default function InventoryReceivedView({ ingredients, initialReceipts }: 
 
             {/* Invoice Header */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Supplier</label>
-                <input
-                  type="text"
-                  value={supplier}
-                  onChange={e => setSupplier(e.target.value)}
-                  placeholder="e.g. Allied Mills"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-              </div>
+             <div className="sm:col-span-2">
+  <label className="block text-xs font-semibold text-gray-600 mb-1">Supplier</label>
+  <select
+    value={supplier}
+    onChange={e => setSupplier(e.target.value)}
+    className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+  >
+    <option value="">— Select supplier —</option>
+    {suppliers.map(s => (
+      <option key={s.id} value={s.name}>{s.name}</option>
+    ))}
+  </select>
+</div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Invoice Ref</label>
                 <input
