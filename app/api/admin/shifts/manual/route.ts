@@ -10,8 +10,63 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { staff_id, work_date, clock_in_time, clock_out_time, department, reason } = await request.json()
+const body = await request.json()
+const { staff_id, work_date, clock_in_time, clock_out_time, department, reason, force_out, shift_id } = body
 
+// ── Force clock-out on existing open shift ──
+if (force_out && shift_id && clock_out_time) {
+  const supabase = createAdminClient()
+
+  // Get the open shift
+  const { data: openShift } = await supabase
+    .from('shifts')
+    .select('*, staff:staff_id(employment_type, break_minutes, primary_department, base_hourly_rate, saturday_rate, sunday_rate, true_hourly_cost)')
+    .eq('id', shift_id)
+    .maybeSingle()
+
+  if (!openShift) return NextResponse.json({ error: 'Shift not found' }, { status: 404 })
+
+  const effectiveStart = new Date(openShift.effective_start)
+  const effectiveEnd   = new Date(`${openShift.work_date}T${clock_out_time}:00+08:00`)
+
+  if (effectiveEnd <= effectiveStart) {
+    return NextResponse.json({ error: 'Clock out must be after clock in' }, { status: 400 })
+  }
+
+  const grossMins = Math.round((effectiveEnd.getTime() - effectiveStart.getTime()) / 60000)
+  const breakMins = grossMins >= 270 ? Number(openShift.staff?.break_minutes ?? 30) : 0
+  const paidMins  = Math.max(0, grossMins - breakMins)
+  const paidHours = Math.round(paidMins / 60 * 100) / 100
+
+  const { error: updateErr } = await supabase
+    .from('shifts')
+    .update({
+      effective_end:  effectiveEnd.toISOString(),
+      gross_minutes:  grossMins,
+      break_minutes:  breakMins,
+      paid_minutes:   paidMins,
+      paid_hours:     paidHours,
+      status:         'pending',
+      manager_note:   `Admin force clock-out at ${clock_out_time}: ${reason ?? ''}`.trim(),
+    })
+    .eq('id', shift_id)
+
+  if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
+
+  // Also insert a clock_out event for the record
+  await supabase.from('clock_events').insert({
+    staff_id:    openShift.staff_id,
+    event_type:  'clock_out',
+    raw_time:    effectiveEnd.toISOString(),
+    paid_time:   effectiveEnd.toISOString(),
+    snap_reason: `admin_force_out: ${reason ?? ''}`.trim(),
+    gps_valid:   false,
+    trust_score: 100,
+    flags:       ['admin_override'],
+  })
+
+  return NextResponse.json({ success: true, paid_hours: paidHours })
+}
   // clock_out_time is now OPTIONAL
   if (!staff_id || !work_date || !clock_in_time) {
     return NextResponse.json({ error: 'staff_id, work_date, clock_in_time required' }, { status: 400 })
