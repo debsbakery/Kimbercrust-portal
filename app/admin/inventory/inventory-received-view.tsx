@@ -14,6 +14,7 @@ interface Ingredient {
 interface Receipt {
   id: string
   ingredient_id: string
+  supplier_id: string | null
   supplier: string | null
   quantity_kg: number
   unit_cost: number
@@ -21,8 +22,12 @@ interface Receipt {
   invoice_ref: string | null
   received_date: string
   notes: string | null
-  created_at: string
-  ingredients: { id: string; name: string; unit: string } | null
+  packs: number | null
+  pack_size_kg: number | null
+  cost_per_pack: number | null
+  created_at: string          
+    ingredients: { id: string; name: string; unit: string } | null
+  suppliers: { id: string; name: string } | null
 }
 
 interface Props {
