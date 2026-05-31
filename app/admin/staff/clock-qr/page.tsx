@@ -1,4 +1,3 @@
-// app/admin/staff/clock-qr/page.tsx
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
@@ -11,13 +10,19 @@ export default async function ClockQRPage() {
 
   const supabase = createAdminClient()
 
-  const { data: locations } = await supabase
-    .from('staff_locations')
+  const { data: qrCodes } = await supabase
+    .from('staff_qr_codes')
     .select(`
-      id, name,
-      staff_qr_codes(id, token, active)
+      id, token, active,
+      clock_locations(id, name)
     `)
     .eq('active', true)
+
+  const locations = (qrCodes ?? []).map((q: any) => ({
+    id:             q.clock_locations?.id ?? q.id,
+    name:           q.clock_locations?.name ?? 'Bakery',
+    staff_qr_codes: [{ id: q.id, token: q.token, active: q.active }],
+  }))
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -31,7 +36,7 @@ export default async function ClockQRPage() {
         Print and mount this QR code at the bakery. Staff scan it to clock in and out.
         Click Refresh Code if the QR is compromised.
       </p>
-      <QRDisplayClient locations={locations ?? []} />
+      <QRDisplayClient locations={locations} />
     </div>
   )
 }
