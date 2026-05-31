@@ -19,14 +19,13 @@ const { pin, token, lat, lng, device_fingerprint } = body
 
   const { data: qr } = await supabase
     .from('staff_qr_codes')
-    .select('id, location_id, staff_locations(id, name, latitude, longitude, radius_metres)')
-    .eq('token', token)
+
+.select('id, location_id, clock_locations(id, name, latitude, longitude, radius_metres)')    .eq('token', token)
     .eq('active', true)
     .maybeSingle()
 
   if (!qr) return NextResponse.json({ error: 'Invalid QR code' }, { status: 401 })
-  const location = qr.staff_locations as any
-
+const location = qr.clock_locations as any
   const { data: staff } = await supabase
     .from('staff')
 .select('id, name, employment_type, active, break_minutes, primary_department, known_device')    .eq('pin', String(pin))
