@@ -75,7 +75,7 @@ const DEPT_COLOURS: Record<string, { bg: string; barBg: string }> = {
   production: { bg: 'bg-amber-500', barBg: '#f59e0b' },
   shop:       { bg: 'bg-blue-500',  barBg: '#3b82f6' },
   delivery:   { bg: 'bg-green-500', barBg: '#22c55e' },
-  admin:      { bg: 'bg-gray-500',  barBg: '#6b7280' },
+  pizza:      { bg: 'bg-gray-500',  barBg: '#6b7280' },
   management: { bg: 'bg-purple-500', barBg: '#a855f7' },
 }
 
@@ -815,7 +815,7 @@ const router = useRouter()
                   <option value="production">🍞 Production</option>
                   <option value="shop">🏪 Shop</option>
                   <option value="delivery">🚚 Delivery</option>
-                  <option value="admin">📋 Admin</option>
+                  <option value="pizza">📋 Admin</option>
                   <option value="management">👔 Management</option>
                 </select>
               </div>
