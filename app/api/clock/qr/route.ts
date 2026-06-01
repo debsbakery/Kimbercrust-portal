@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('staff_qr_codes')
-    .select('id, location_id, active, staff_locations(id, name, latitude, longitude, radius_metres)')
+.select('id, location_id, active, clock_locations(id, name, latitude, longitude, radius_metres)')
     .eq('token', token)
     .eq('active', true)
     .maybeSingle()
@@ -27,6 +27,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     valid:       true,
     location_id: data.location_id,
-    location:    data.staff_locations,
+location: (data as any).clock_locations,
   })
 }
