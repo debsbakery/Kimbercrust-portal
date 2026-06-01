@@ -500,7 +500,7 @@ const router = useRouter()
             {staff.map((s, idx) => {
               const staffEntries = getEntries(s.id, currentDate)
               const off = isRosteredOff(s.id, currentDate)
-              const dept = DEPT_COLOURS[s.primary_department] ?? DEPT_COLOURS.admin
+              const dept = DEPT_COLOURS[s.primary_department] ?? DEPT_COLOURS.pizza
               const showDrag = dragPreview && dragPreview.staffId === s.id
               return (
                 <div key={s.id} className={`border-b relative group ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
@@ -534,7 +534,7 @@ const router = useRouter()
                   {!off && !showDrag && staffEntries.map(entry => {
                     const bar = getBarForEntry(entry)
                     if (!bar) return null
-                    const eDept = DEPT_COLOURS[entry.department ?? s.primary_department] ?? DEPT_COLOURS.admin
+                    const eDept = DEPT_COLOURS[entry.department ?? s.primary_department] ?? DEPT_COLOURS.pizza
                     return (
                       <div key={entry.id} data-bar="true"
                         className="absolute top-1.5 bottom-1.5 rounded-lg shadow-sm flex items-center cursor-move
@@ -815,7 +815,7 @@ const router = useRouter()
                   <option value="production">🍞 Production</option>
                   <option value="shop">🏪 Shop</option>
                   <option value="delivery">🚚 Delivery</option>
-                  <option value="pizza">📋 Admin</option>
+<option value="pizza">🍕 Pizza</option>
                   <option value="management">👔 Management</option>
                 </select>
               </div>
