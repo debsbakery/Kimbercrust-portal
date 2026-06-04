@@ -10,8 +10,21 @@ export async function POST(
   const supabase = createAdminClient()
   const { override_paid_minutes, reason, approved_by_id } = await req.json()
 
-  if (!override_paid_minutes || !reason || !approved_by_id) {
-    return NextResponse.json(
+  export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('shifts')
+    .delete()
+    .eq('id', params.id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
+}
+if (override_paid_minutes === undefined || override_paid_minutes === null || !reason || !approved_by_id) {
+  return NextResponse.json(
       { error: 'override_paid_minutes, reason and approved_by_id are required' },
       { status: 400 }
     )
