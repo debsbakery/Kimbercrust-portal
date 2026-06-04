@@ -10,21 +10,8 @@ export async function POST(
   const supabase = createAdminClient()
   const { override_paid_minutes, reason, approved_by_id } = await req.json()
 
-  export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createAdminClient()
-  const { error } = await supabase
-    .from('shifts')
-    .delete()
-    .eq('id', params.id)
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
-}
-if (override_paid_minutes === undefined || override_paid_minutes === null || !reason || !approved_by_id) {
-  return NextResponse.json(
+  if (override_paid_minutes === undefined || override_paid_minutes === null || !reason || !approved_by_id) {
+    return NextResponse.json(
       { error: 'override_paid_minutes, reason and approved_by_id are required' },
       { status: 400 }
     )
@@ -49,8 +36,6 @@ if (override_paid_minutes === undefined || override_paid_minutes === null || !re
 
   const now = new Date().toISOString()
 
-  // Calculate new effective_end from effective_start + override minutes
-  // (keeps the stored times honest for audit)
   let newEffectiveEnd: string | null = null
   if (shift.effective_start) {
     const end = new Date(shift.effective_start)
@@ -76,7 +61,6 @@ if (override_paid_minutes === undefined || override_paid_minutes === null || !re
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Log override to clock_events — update the clock_out event
   await supabase
     .from('clock_events')
     .update({
@@ -88,4 +72,18 @@ if (override_paid_minutes === undefined || override_paid_minutes === null || !re
     .eq('id', data.clock_out_id)
 
   return NextResponse.json({ shift: data })
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const supabase = createAdminClient()
+  const { error } = await supabase
+    .from('shifts')
+    .delete()
+    .eq('id', params.id)
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
 }
