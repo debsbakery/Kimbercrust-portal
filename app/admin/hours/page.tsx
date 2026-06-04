@@ -63,7 +63,35 @@ function statusBadge(shift: Shift) {
     return <span className={`${base} bg-yellow-100 text-yellow-800`}>Active</span>
   return <span className={`${base} bg-orange-100 text-orange-800`}>Pending</span>
 }
+function flagBadges(shift: Shift) {
+  const allFlags = [
+    ...(shift.clock_in?.flags ?? []),
+    ...(shift.clock_out?.flags ?? []),
+  ]
+  // De-duplicate
+  const unique = Array.from(new Set(allFlags))
+  if (unique.length === 0) return null
 
+  const labels: Record<string, { text: string; cls: string }> = {
+    different_device: { text: '📱 Diff device', cls: 'bg-red-100 text-red-700' },
+    no_gps:           { text: '📍 No GPS',       cls: 'bg-gray-100 text-gray-600' },
+    outside_radius:   { text: '⚠️ Off-site',     cls: 'bg-orange-100 text-orange-700' },
+    admin_override:   { text: '🛠 Admin',         cls: 'bg-blue-100 text-blue-700' },
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1 justify-center">
+      {unique.map(f => {
+        const l = labels[f] ?? { text: f, cls: 'bg-gray-100 text-gray-600' }
+        return (
+          <span key={f} className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${l.cls}`}>
+            {l.text}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
 function gpsBadge(event: ClockEvent | null) {
   if (!event || event.trust_score === null) return null
   const pct = event.trust_score
@@ -250,6 +278,7 @@ export default function HoursPage() {
                 <th className="px-4 py-3 text-right">Gross</th>
                 <th className="px-4 py-3 text-center">GPS In</th>
                 <th className="px-4 py-3 text-center">GPS Out</th>
+                <th className="px-4 py-3 text-center">Flags</th>
                 <th className="px-4 py-3 text-center">Status</th>
                 <th className="px-4 py-3 text-center">Review</th>
               </tr>
@@ -288,11 +317,15 @@ export default function HoursPage() {
                   </td>
                   <td className="px-4 py-3 text-center">{gpsBadge(shift.clock_in)}</td>
                   <td className="px-4 py-3 text-center">{gpsBadge(shift.clock_out)}</td>
+                  <td className="px-4 py-3 text-center">{flagBadges(shift)}</td>
                   <td className="px-4 py-3 text-center">{statusBadge(shift)}</td>
                   <td className="px-4 py-3 text-center">
                     <Link href={`/admin/hours/${date}?shift=${shift.id}`}
                       className="text-indigo-600 hover:underline text-xs font-medium">
-                      Review
+<a href={`/admin/hours/${date}?shift=${shift.id}`}
+  className="text-indigo-600 hover:underline text-xs font-medium">
+  Review
+</a>
                     </Link>
                   </td>
                 </tr>
@@ -309,7 +342,7 @@ export default function HoursPage() {
                 <td className="px-4 py-3 text-right font-mono">
                   ${shifts.reduce((a, s) => a + Number(s.gross_pay ?? 0), 0).toFixed(2)}
                 </td>
-                <td colSpan={4} />
+                <td colSpan={5} />
               </tr>
             </tfoot>
           </table>
