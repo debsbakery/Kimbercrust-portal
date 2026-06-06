@@ -1,5 +1,4 @@
 // POST /api/admin/shifts/[id]/override
-// Body: { override_paid_minutes: number, reason: string, approved_by_id: string }
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -17,7 +16,6 @@ export async function POST(
     )
   }
 
-  // Fetch current shift to recalculate pay
   const { data: shift, error: fetchErr } = await supabase
     .from('shifts')
     .select('staff_id, effective_start, effective_end, applicable_rate, break_minutes')
@@ -51,9 +49,9 @@ export async function POST(
       gross_pay:     newGrossPay,
       effective_end: newEffectiveEnd,
       status:        'approved',
-      approved_by:   approved_by_id,
+      approved_by:   null,
       approved_at:   now,
-      manager_note:  `Override: ${reason}`,
+      manager_note:  `Override by auth:${approved_by_id.slice(0, 8)} — ${reason}`,
     })
     .eq('id', params.id)
     .select()
@@ -66,24 +64,10 @@ export async function POST(
     .update({
       override_paid_time: newEffectiveEnd,
       override_reason:    reason,
-      overridden_by:      approved_by_id,
+      overridden_by:      null,
       overridden_at:      now,
     })
     .eq('id', data.clock_out_id)
 
   return NextResponse.json({ shift: data })
-}
-
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  const supabase = createAdminClient()
-  const { error } = await supabase
-    .from('shifts')
-    .delete()
-    .eq('id', params.id)
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ success: true })
 }
