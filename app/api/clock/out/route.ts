@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
   const supabase = createAdminClient()
   const nowUtc   = new Date()
   const today    = nowUtc.toLocaleDateString('en-CA', { timeZone: 'Australia/Perth' })
-  const nowLocal = new Date(nowUtc.toLocaleString('en-US', { timeZone: 'Australia/Perth' }))
 
   const { data: qr } = await supabase
     .from('staff_qr_codes')
@@ -39,9 +38,10 @@ export async function POST(request: NextRequest) {
 
   const twentyFourHoursAgo = new Date(nowUtc.getTime() - 86400000)
 
+  // ✅ Fix — added raw_time to select
   const { data: clockInEvent } = await supabase
     .from('clock_events')
-    .select('id, paid_time, roster_entry_id')
+    .select('id, raw_time, paid_time, roster_entry_id')
     .eq('staff_id', staff.id)
     .eq('event_type', 'clock_in')
     .gte('raw_time', twentyFourHoursAgo.toISOString())
@@ -64,12 +64,13 @@ export async function POST(request: NextRequest) {
     }, { status: 409 })
   }
 
+  // ✅ Fix — was clockInEvent.paid_time
   const { data: existingOut } = await supabase
     .from('clock_events')
     .select('id')
     .eq('staff_id', staff.id)
     .eq('event_type', 'clock_out')
-    .gte('raw_time', clockInEvent.paid_time)
+    .gte('raw_time', clockInEvent.raw_time)
     .maybeSingle()
 
   if (existingOut) {
@@ -258,15 +259,23 @@ export async function POST(request: NextRequest) {
     Math.max(0, (paidTime.getTime() - paidStart.getTime()) / 60000 - Number(staff.break_minutes ?? 30)) / 60 * 100
   ) / 100
 
-  const rawOutStr = nowLocal.toTimeString().slice(0, 5)
-  const rawInStr  = new Date(new Date(clockInEvent.paid_time).toLocaleString('en-US', { timeZone: 'Australia/Perth' })).toTimeString().slice(0, 5)
+  // ✅ Fix — format nowUtc directly, no double-offset via nowLocal
+  const rawOutStr = nowUtc.toLocaleTimeString('en-AU', {
+    timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit', hour12: true,
+  })
+  const rawInStr = new Date(clockInEvent.paid_time).toLocaleTimeString('en-AU', {
+    timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit', hour12: true,
+  })
+  const paidOutStr = paidTime.toLocaleTimeString('en-AU', {
+    timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit', hour12: true,
+  })
 
   return NextResponse.json({
     success:     true,
     staff_name:  staff.name,
     raw_time:    rawOutStr,
     clocked_in:  rawInStr,
-    clocked_out: paidTime.toTimeString().slice(0, 5),
+    clocked_out: paidOutStr,
     paid_hours:  paidHours,
     gross_pay:   calc?.grossPay ?? null,
     snap_reason: snapReason,

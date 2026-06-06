@@ -22,7 +22,6 @@ export function snapTime(date: Date, direction: 'up' | 'down'): Date {
   return result
 }
 
-// ── Late grace period: arrivals up to GRACE_MIN minutes late are not penalised ─
 export const LATE_GRACE_MIN = 4
 
 export function computeClockIn(params: {
@@ -32,12 +31,10 @@ export function computeClockIn(params: {
 }): { paidTime: Date; snapReason: string } {
   const { rawTime, scheduledStart, employmentType } = params
 
-  // Salary: presence only — raw time recorded, no pay calculation
   if (employmentType === 'salary') {
     return { paidTime: rawTime, snapReason: 'salary_presence_only' }
   }
 
-  // Casual or no scheduled start — snap UP to next 15min
   if (!scheduledStart || employmentType === 'casual') {
     const paidTime = snapTime(rawTime, 'up')
     return {
@@ -48,7 +45,6 @@ export function computeClockIn(params: {
 
   const diffMin = (rawTime.getTime() - scheduledStart.getTime()) / 60000
 
-  // Early or on time — snap TO scheduled start
   if (diffMin <= 0) {
     return {
       paidTime:   scheduledStart,
@@ -56,7 +52,6 @@ export function computeClockIn(params: {
     }
   }
 
-  // ── ✅ NEW: Within grace period (1-4 min late) — snap to scheduled start ─
   if (diffMin <= LATE_GRACE_MIN) {
     return {
       paidTime:   scheduledStart,
@@ -64,13 +59,13 @@ export function computeClockIn(params: {
     }
   }
 
-  // Late beyond grace — snap UP to next 15min interval
   const paidTime = snapTime(rawTime, 'up')
   return {
     paidTime,
     snapReason: `late_${Math.round(diffMin)}min_rounded_up_to_${fmtT(paidTime)}`,
   }
 }
+
 export function computeClockOut(params: {
   rawTime:        Date
   scheduledEnd:   Date | null
@@ -79,12 +74,10 @@ export function computeClockOut(params: {
 }): { paidTime: Date; snapReason: string } {
   const { rawTime, scheduledEnd, employmentType, paidStart } = params
 
-  // Salary: presence only
   if (employmentType === 'salary') {
     return { paidTime: rawTime, snapReason: 'salary_presence_only' }
   }
 
-  // Fixed staff: always paid to scheduled end regardless of when they leave
   if (employmentType === 'fixed' && scheduledEnd) {
     return {
       paidTime:   scheduledEnd,
@@ -92,14 +85,19 @@ export function computeClockOut(params: {
     }
   }
 
-  // Fixed_start + casual: snap DOWN to last 15min interval
   const paidTime = snapTime(rawTime, 'down')
 
-  // Safety: never go before paid start
   if (paidTime.getTime() <= paidStart.getTime()) {
+    const rawDiffMin = (rawTime.getTime() - paidStart.getTime()) / 60000
+    if (rawDiffMin < 0) {
+      return {
+        paidTime:   paidStart,
+        snapReason: 'clock_out_before_shift_start_zero_hours',
+      }
+    }
     return {
       paidTime:   paidStart,
-      snapReason: 'clock_out_same_or_before_start_adjusted',
+      snapReason: `clock_out_under_15min_paid_from_${fmtT(paidStart)}`,
     }
   }
 
@@ -117,7 +115,7 @@ export function haversineDistanceM(
   lat1: number, lng1: number,
   lat2: number, lng2: number
 ): number {
-  const R    = 6371000  // Earth radius in metres
+  const R    = 6371000
   const dLat = (lat2 - lat1) * Math.PI / 180
   const dLng = (lng2 - lng1) * Math.PI / 180
   const a    = Math.sin(dLat / 2) ** 2
@@ -128,12 +126,12 @@ export function haversineDistanceM(
 }
 
 export function computeTrustScore(params: {
-  gpsValid:     boolean
-  distanceM:    number | null
-  radiusM:      number
+  gpsValid:      boolean
+  distanceM:     number | null
+  radiusM:       number
   ipMatchesSite: boolean
 }): { score: number; flags: string[] } {
-  let score         = 100
+  let score             = 100
   const flags: string[] = []
   const { gpsValid, distanceM, radiusM, ipMatchesSite } = params
 
