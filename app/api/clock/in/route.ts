@@ -57,8 +57,37 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     if (!existingOut) {
-      return NextResponse.json({ error: `${staff.name} is already clocked in`, already_in: true }, { status: 409 })
-    }
+  // If the open clock-in was from a previous day, auto-close it at midnight
+  // and allow today's clock-in to proceed
+const clockInDate = new Date(existingIn.raw_time).toLocaleDateString('en-CA', { timeZone: 'Australia/Perth' })
+  if (clockInDate < today) {
+    // Auto clock-out at end of that day (midnight Brisbane)
+const autoClockOut = new Date(`${clockInDate}T21:00:00+08:00`) 
+   await supabase.from('clock_events').insert({
+      staff_id:    staff.id,
+      event_type:  'clock_out',
+      raw_time:    autoClockOut.toISOString(),
+      paid_time:   autoClockOut.toISOString(),
+      snap_reason: 'auto_closed_forgot_to_clock_out',
+      gps_valid:   false,
+      trust_score: 0,
+      flags:       ['auto_closed'],
+    })
+    // Update open shift effective_end
+    await supabase.from('shifts')
+      .update({
+        effective_end: autoClockOut.toISOString(),
+        status: 'pending',
+        manager_note: 'Auto-closed: staff forgot to clock out',
+      })
+      .eq('staff_id', staff.id)
+      .eq('work_date', clockInDate)
+      .is('effective_end', null)
+    // Allow clock-in to continue
+  } else {
+    return NextResponse.json({ error: `${staff.name} is already clocked in`, already_in: true }, { status: 409 })
+  }
+}
   }
 
   const { data: rosterEntries } = await supabase
