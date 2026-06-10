@@ -107,7 +107,11 @@ export async function POST(request: NextRequest) {
     employmentType: staff.employment_type,
     paidStart,
   })
-
+// Break only applies to section 1 AND gross hours >= 5
+const grossMinsPreview = Math.round((paidTime.getTime() - paidStart.getTime()) / 60000)
+const section = rosterEntry?.section ?? 1
+const staffBreak = Number(rosterEntry?.break_minutes ?? staff.break_minutes ?? 30)
+const effectiveBreakMinutes = (section === 1 && grossMinsPreview >= 300) ? staffBreak : 0
   let distanceM: number | null = null
   let gpsValid = false
 
@@ -171,7 +175,7 @@ export async function POST(request: NextRequest) {
     calc = calculateShift({
       effectiveStart:           paidStart,
       effectiveEnd:             paidTime,
-      breakMinutes:             Number(rosterEntry.break_minutes ?? staff.break_minutes ?? 30),
+breakMinutes: effectiveBreakMinutes,
       employmentType:           staff.employment_type,
       dayType:                  rosterEntry.day_type ?? 'normal',
       baseHourlyRate:           rosterEntry.base_hourly_rate,
@@ -231,7 +235,7 @@ export async function POST(request: NextRequest) {
 
   } else {
     const grossMins = Math.round((paidTime.getTime() - paidStart.getTime()) / 60000)
-    const breakMins = Number(staff.break_minutes ?? 30)
+const breakMins = effectiveBreakMinutes
     const paidMins  = Math.max(0, grossMins - breakMins)
 
     const { error: fallbackErr } = await supabase.from('shifts').upsert({
@@ -256,7 +260,7 @@ export async function POST(request: NextRequest) {
   }
 
   const paidHours = calc?.paidHours ?? Math.round(
-    Math.max(0, (paidTime.getTime() - paidStart.getTime()) / 60000 - Number(staff.break_minutes ?? 30)) / 60 * 100
+Math.max(0, (paidTime.getTime() - paidStart.getTime()) / 60000 - effectiveBreakMinutes) / 60 * 100
   ) / 100
 
   // ✅ Fix — format nowUtc directly, no double-offset via nowLocal
