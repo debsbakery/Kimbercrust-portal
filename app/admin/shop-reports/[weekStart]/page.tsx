@@ -40,10 +40,14 @@ interface Settings {
 }
 
 const SUPPLIERS = [
+  'Bega',
+  'Bidfood',
+  'TWD',
+  'TCW',
+  'Angliss',
+  "Deb's Bakery",
   'Coke',
-  'Kimberley Marketing',
-  'Coles',
-  'Bakery',
+  'Bou Samra',
   'Other',
 ]
 
@@ -167,7 +171,7 @@ export default function WeeklyShopReport() {
 
   function triggerAutoSave() {
     if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => { handleSave() }, 1500)
+    saveTimer.current = setTimeout(() => { handleSave() }, 15000)
   }
 
   function updateCell(shopId: string, date: string, field: DailyKey, val: string) {
@@ -305,9 +309,8 @@ export default function WeeklyShopReport() {
         </div>
       )}
 
-    {/* Header */}
-    <div className="flex flex-wrap items-center gap-3 mb-4 no-print">
-
+  {/* Header */}
+<div className="flex flex-wrap items-center gap-3 mb-4 no-print">
   <a
     href="/admin"
     className="flex items-center gap-1 text-sm hover:opacity-80"
