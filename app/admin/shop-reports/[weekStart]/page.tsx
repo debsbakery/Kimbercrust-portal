@@ -40,16 +40,15 @@ interface Settings {
 }
 
 const SUPPLIERS = [
-  'Bega',
-  'Bidfood',
-  'TWD',
-  'TCW',
-  'Angliss',
-  "Deb's Bakery",
   'Coke',
-  'Bou Samra',
-  'Other',
+  'Kimberley marketing',
+  'Coles',
+  'other',
+  'limes',
+  "Bakery",
+  'other2',
 ]
+  
 
 type DailyKey = keyof Omit<DailyRow, 'shop_id' | 'report_date' | 'purchases'>
 
