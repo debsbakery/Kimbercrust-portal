@@ -215,47 +215,41 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     })
 
-    // ── Ageing summary — unpaid invoices bucketed by due_date age ──────────────
-    const now = new Date()
-    const aging = { current: 0, days30: 0, days60: 0, older: 0 }
+   // ── Ageing summary — only invoices within statement period ──
+const now = new Date()
+const aging = { current: 0, days30: 0, days60: 0, older: 0 }
 
-    // Fetch ALL unpaid/partial invoices for this customer regardless of period
-    const { data: allUnpaid } = await supabase
-      .from('ar_transactions')
-      .select('amount, amount_paid, due_date, created_at')
-      .eq('customer_id', customerId)
-      .eq('type', 'invoice')
-      .lt('amount_paid', supabase.rpc) // fallback below
+let ageQuery = supabase
+  .from('ar_transactions')
+  .select('amount, amount_paid, due_date, created_at')
+  .eq('customer_id', customerId)
+  .eq('type', 'invoice')
+  .lte('created_at', endDate + 'T23:59:59')
 
-    // Simpler: fetch all invoices and filter in JS
-    const { data: allInvoices } = await supabase
-      .from('ar_transactions')
-      .select('amount, amount_paid, due_date, created_at')
-      .eq('customer_id', customerId)
-      .eq('type', 'invoice')
+if (startDate) ageQuery = ageQuery.gte('created_at', startDate)
 
-    for (const inv of allInvoices ?? []) {
-      const outstanding = Number(inv.amount) - Number(inv.amount_paid ?? 0)
-      if (outstanding <= 0.01) continue
+const { data: allInvoices } = await ageQuery
 
-      // Use due_date if available, otherwise created_at + 30 days
-      const refDate = inv.due_date
-        ? new Date(inv.due_date)
-        : new Date(new Date(inv.created_at).getTime() + 30 * 86400000)
+for (const inv of allInvoices ?? []) {
+  const outstanding = Number(inv.amount) - Number(inv.amount_paid ?? 0)
+  if (outstanding <= 0.01) continue
 
-      const daysAgo = Math.floor((now.getTime() - refDate.getTime()) / 86400000)
+  const refDate = inv.due_date
+    ? new Date(inv.due_date)
+    : new Date(new Date(inv.created_at).getTime() + 30 * 86400000)
 
-      if (daysAgo <= 14)      aging.current += outstanding
-      else if (daysAgo <= 30) aging.days30  += outstanding
-      else if (daysAgo <= 60) aging.days60  += outstanding
-      else                    aging.older   += outstanding
-    }
+  const daysAgo = Math.floor((now.getTime() - refDate.getTime()) / 86400000)
 
-    // Round aging buckets
-    aging.current = Math.round(aging.current * 100) / 100
-    aging.days30  = Math.round(aging.days30  * 100) / 100
-    aging.days60  = Math.round(aging.days60  * 100) / 100
-    aging.older   = Math.round(aging.older   * 100) / 100
+  if (daysAgo <= 14)      aging.current += outstanding
+  else if (daysAgo <= 30) aging.days30  += outstanding
+  else if (daysAgo <= 60) aging.days60  += outstanding
+  else                    aging.older   += outstanding
+}
+
+aging.current = Math.round(aging.current * 100) / 100
+aging.days30  = Math.round(aging.days30  * 100) / 100
+aging.days60  = Math.round(aging.days60  * 100) / 100
+aging.older   = Math.round(aging.older   * 100) / 100
 
     const pdfBuffer = await generateStatementPDF({
       bakeryName:  process.env.BAKERY_NAME  ?? 'Kimbercrust Bakery',
