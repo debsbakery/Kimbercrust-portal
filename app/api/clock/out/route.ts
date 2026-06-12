@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
 // Break only applies to section 1 AND gross hours >= 5
 const grossMinsPreview = Math.round((paidTime.getTime() - paidStart.getTime()) / 60000)
 const section = rosterEntry?.section ?? 1
-const staffBreak = Number(rosterEntry?.break_minutes ?? staff.break_minutes ?? 30)
+const staffBreak = Number(rosterEntry?.break_minutes ?? staff.break_minutes ?? 0)
 const effectiveBreakMinutes = (section === 1 && grossMinsPreview >= 300) ? staffBreak : 0
   let distanceM: number | null = null
   let gpsValid = false
