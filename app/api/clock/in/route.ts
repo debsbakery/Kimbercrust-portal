@@ -182,7 +182,7 @@ const autoClockOut = new Date(`${clockInDate}T21:00:00+08:00`)
     await supabase.from('roster_entries').update({ status: 'present' }).eq('id', rosterEntry.id)
   }
 
-  const dayOfWeek = new Date(today + 'T00:00:00').getDay()
+const dayOfWeek = new Date(today + 'T00:00:00+08:00').getDay()
   const dayType = rosterEntry?.day_type
     ?? (dayOfWeek === 0 ? 'sunday' : dayOfWeek === 6 ? 'saturday' : 'normal')
 
