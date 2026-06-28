@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
+import { Pencil, X, Check } from 'lucide-react'
 
 type ClockEvent = {
   id: string
@@ -39,13 +40,32 @@ type Shift = {
   clock_out: ClockEvent | null
 }
 
-function toPerth(iso: string | null) {
+function toBrisbane(iso: string | null) {
   if (!iso) return '—'
   return new Date(iso).toLocaleString('en-AU', {
-    timeZone: 'Australia/Perth',
+    timeZone: 'Australia/Brisbane',
     weekday: 'short', day: '2-digit', month: 'short',
     hour: '2-digit', minute: '2-digit',
   })
+}
+
+// Convert ISO to HH:MM for time input (Brisbane)
+function toTimeInput(iso: string | null): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleTimeString('en-AU', {
+    timeZone: 'Australia/Brisbane',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  })
+}
+
+// Combine work_date + HH:MM time input into ISO string (Brisbane → UTC)
+function toISO(date: string, time: string): string {
+  // Parse as Brisbane time
+  const [h, m] = time.split(':').map(Number)
+  const d = new Date(`${date}T00:00:00+10:00`)
+  d.setHours(d.getHours() + h)
+  d.setMinutes(d.getMinutes() + m)
+  return d.toISOString()
 }
 
 function GpsDetail({ event, label }: { event: ClockEvent | null; label: string }) {
@@ -56,8 +76,8 @@ function GpsDetail({ event, label }: { event: ClockEvent | null; label: string }
   return (
     <div className={`rounded-lg p-3 text-xs space-y-1 ${bg}`}>
       <div className="font-semibold text-gray-700">{label}</div>
-      <div>Raw: {toPerth(event.raw_time)}</div>
-      <div>Paid: {toPerth(event.paid_time)}</div>
+      <div>Raw: {toBrisbane(event.raw_time)}</div>
+      <div>Paid: {toBrisbane(event.paid_time)}</div>
       <div>Snap: <span className="font-mono">{event.snap_reason}</span></div>
       {event.gps_lat && (
         <div>📍 {event.gps_lat}, {event.gps_lng}
@@ -84,11 +104,19 @@ export default function DayDetailPage() {
   const [overrideHrs, setOverrideHrs]       = useState('')
   const [overrideQtr, setOverrideQtr]       = useState('0')
   const [overrideReason, setOverrideReason] = useState('')
-  const [managerNote, setManagerNote]       = useState('')
   const [saving, setSaving]                 = useState(false)
   const [msg, setMsg]                       = useState<string | null>(null)
   const [myUserId, setMyUserId]             = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete]   = useState(false)
+
+  // ── Edit state ──
+  const [showEdit, setShowEdit]         = useState(false)
+  const [editIn, setEditIn]             = useState('')
+  const [editOut, setEditOut]           = useState('')
+  const [editBreak, setEditBreak]       = useState('')
+  const [editNote, setEditNote]         = useState('')
+  const [editSaving, setEditSaving]     = useState(false)
+  const [editError, setEditError]       = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/auth/my-role')
@@ -127,7 +155,48 @@ export default function DayDetailPage() {
     setOverrideQtr('0')
     setOverrideReason('')
     setConfirmDelete(false)
-    setManagerNote(shift.manager_note ?? '')
+    setShowEdit(false)
+    setEditError(null)
+  }
+
+  function openEdit() {
+    if (!selected) return
+    setEditIn(toTimeInput(selected.effective_start))
+    setEditOut(toTimeInput(selected.effective_end))
+    setEditBreak(String(selected.break_minutes ?? 0))
+    setEditNote(selected.manager_note ?? '')
+    setEditError(null)
+    setShowEdit(true)
+  }
+
+  async function saveEdit() {
+    if (!selected || !myUserId) return
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      const body: Record<string, any> = {
+        edited_by_id:  myUserId,
+        break_minutes: Number(editBreak),
+        manager_note:  editNote || null,
+      }
+      if (editIn)  body.effective_start = toISO(date, editIn)
+      if (editOut) body.effective_end   = toISO(date, editOut)
+
+      const res = await fetch(`/api/admin/shifts/${selected.id}/override`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setShowEdit(false)
+      setMsg('✅ Shift updated')
+      await fetchShifts()
+    } catch (e: any) {
+      setEditError(e.message)
+    } finally {
+      setEditSaving(false)
+    }
   }
 
   const approve = async () => {
@@ -203,7 +272,7 @@ export default function DayDetailPage() {
         <button onClick={() => router.push('/admin/hours')}
           className="text-gray-500 hover:text-gray-700 text-sm">← Back</button>
         <h1 className="text-xl font-bold text-gray-900">
-          Shifts — {date} (Perth)
+          Shifts — {date} (Brisbane)
         </h1>
       </div>
 
@@ -223,7 +292,7 @@ export default function DayDetailPage() {
                 }`}>
                 <div className="font-semibold text-gray-900">{shift.staff.name}</div>
                 <div className="text-xs text-gray-500 mt-0.5">
-                  {toPerth(shift.effective_start)} → {toPerth(shift.effective_end)}
+                  {toBrisbane(shift.effective_start)} → {toBrisbane(shift.effective_end)}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded">
@@ -249,15 +318,106 @@ export default function DayDetailPage() {
           {/* Detail panel */}
           {selected && (
             <div className="md:col-span-3 bg-white rounded-xl border border-gray-200 p-5 space-y-5">
-              <div>
-                <h2 className="font-bold text-gray-900 text-lg">{selected.staff.name}</h2>
-                <div className="text-xs text-gray-500 capitalize">{selected.staff.employment_type}</div>
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="font-bold text-gray-900 text-lg">{selected.staff.name}</h2>
+                  <div className="text-xs text-gray-500 capitalize">{selected.staff.employment_type}</div>
+                </div>
+                <button
+                  onClick={openEdit}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Edit
+                </button>
               </div>
 
               {msg && (
                 <div className={`text-sm px-3 py-2 rounded ${
                   msg.startsWith('✅') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                 }`}>{msg}</div>
+              )}
+
+              {/* ── Edit panel ── */}
+              {showEdit && (
+                <div className="border border-indigo-200 rounded-xl bg-indigo-50 p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-indigo-800">Edit Shift</span>
+                    <button onClick={() => setShowEdit(false)}>
+                      <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Clock In</label>
+                      <input
+                        type="time"
+                        value={editIn}
+                        onChange={e => setEditIn(e.target.value)}
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Clock Out</label>
+                      <input
+                        type="time"
+                        value={editOut}
+                        onChange={e => setEditOut(e.target.value)}
+                        className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Break Minutes</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="120"
+                      value={editBreak}
+                      onChange={e => setEditBreak(e.target.value)}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Manager Note</label>
+                    <input
+                      type="text"
+                      value={editNote}
+                      onChange={e => setEditNote(e.target.value)}
+                      placeholder="Optional note"
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+
+                  {selected.status === 'approved' && (
+                    <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                      ⚠️ This shift is approved — saving will reset it to pending for re-approval.
+                    </p>
+                  )}
+
+                  {editError && (
+                    <p className="text-sm text-red-600">{editError}</p>
+                  )}
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={saveEdit}
+                      disabled={editSaving}
+                      className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                    >
+                      <Check className="h-4 w-4" />
+                      {editSaving ? 'Saving…' : 'Save Changes'}
+                    </button>
+                    <button
+                      onClick={() => setShowEdit(false)}
+                      className="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
               )}
 
               {/* Pay summary */}
@@ -279,11 +439,11 @@ export default function DayDetailPage() {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <div className="text-xs text-gray-500">Effective Start</div>
-                  <div className="font-medium">{toPerth(selected.effective_start)}</div>
+                  <div className="font-medium">{toBrisbane(selected.effective_start)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Effective End</div>
-                  <div className="font-medium">{toPerth(selected.effective_end)}</div>
+                  <div className="font-medium">{toBrisbane(selected.effective_end)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Break</div>
@@ -302,7 +462,7 @@ export default function DayDetailPage() {
               </div>
 
               {/* Manager note */}
-              {selected.manager_note && (
+              {selected.manager_note && !showEdit && (
                 <div className="text-xs bg-blue-50 text-blue-700 rounded p-3">
                   📝 {selected.manager_note}
                 </div>
@@ -380,8 +540,33 @@ export default function DayDetailPage() {
               )}
 
               {selected.status === 'approved' && (
-                <div className="text-sm text-green-700 bg-green-50 rounded-lg p-3">
-                  ✅ Approved at {toPerth(selected.approved_at)}
+                <div className="space-y-3">
+                  <div className="text-sm text-green-700 bg-green-50 rounded-lg p-3">
+                    ✅ Approved at {toBrisbane(selected.approved_at)}
+                  </div>
+                  {/* Still allow edit on approved shifts */}
+                  <div className="border-t pt-3">
+                    {!confirmDelete ? (
+                      <button onClick={() => setConfirmDelete(true)}
+                        className="w-full border border-red-300 text-red-600 py-2 rounded-lg text-sm font-medium hover:bg-red-50">
+                        🗑 Delete Shift
+                      </button>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs text-red-600 font-medium">Are you sure? This cannot be undone.</p>
+                        <div className="flex gap-2">
+                          <button onClick={deleteShift} disabled={saving}
+                            className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+                            Yes, Delete
+                          </button>
+                          <button onClick={() => setConfirmDelete(false)}
+                            className="flex-1 border rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 py-2">
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
