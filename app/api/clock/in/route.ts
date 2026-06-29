@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
 
   const twentyFourHoursAgo = new Date(nowUtc.getTime() - 86400000)
 
-  // ✅ Fix — added raw_time to select
   const { data: existingIn } = await supabase
     .from('clock_events')
     .select('id, raw_time, paid_time')
@@ -53,50 +52,46 @@ export async function POST(request: NextRequest) {
       .select('id')
       .eq('staff_id', staff.id)
       .eq('event_type', 'clock_out')
-      .gte('raw_time', existingIn.raw_time)  // ✅ was paid_time
+      .gte('raw_time', existingIn.raw_time)
       .maybeSingle()
 
     if (!existingOut) {
-  // If the open clock-in was from a previous day, auto-close it at midnight
-  // and allow today's clock-in to proceed
-const clockInDate = new Date(existingIn.raw_time).toLocaleDateString('en-CA', { timeZone: 'Australia/Perth' })
-  if (clockInDate < today) {
-    // Auto clock-out at end of that day (midnight Brisbane)
-const autoClockOut = new Date(`${clockInDate}T21:00:00+08:00`) 
-   await supabase.from('clock_events').insert({
-      staff_id:    staff.id,
-      event_type:  'clock_out',
-      raw_time:    autoClockOut.toISOString(),
-      paid_time:   autoClockOut.toISOString(),
-      snap_reason: 'auto_closed_forgot_to_clock_out',
-      gps_valid:   false,
-      trust_score: 0,
-      flags:       ['auto_closed'],
-    })
-    // Update open shift effective_end
-    await supabase.from('shifts')
-      .update({
-        effective_end: autoClockOut.toISOString(),
-        status: 'pending',
-        manager_note: 'Auto-closed: staff forgot to clock out',
-      })
-      .eq('staff_id', staff.id)
-      .eq('work_date', clockInDate)
-      .is('effective_end', null)
-    // Allow clock-in to continue
-  } else {
-    return NextResponse.json({ error: `${staff.name} is already clocked in`, already_in: true }, { status: 409 })
-  }
-}
+      const clockInDate = new Date(existingIn.raw_time).toLocaleDateString('en-CA', { timeZone: 'Australia/Perth' })
+      if (clockInDate < today) {
+        const autoClockOut = new Date(`${clockInDate}T21:00:00+08:00`)
+        await supabase.from('clock_events').insert({
+          staff_id:    staff.id,
+          event_type:  'clock_out',
+          raw_time:    autoClockOut.toISOString(),
+          paid_time:   autoClockOut.toISOString(),
+          snap_reason: 'auto_closed_forgot_to_clock_out',
+          gps_valid:   false,
+          trust_score: 0,
+          flags:       ['auto_closed'],
+        })
+        await supabase.from('shifts')
+          .update({
+            effective_end: autoClockOut.toISOString(),
+            status:        'pending',
+            manager_note:  'Auto-closed: staff forgot to clock out',
+          })
+          .eq('staff_id', staff.id)
+          .eq('work_date', clockInDate)
+          .is('effective_end', null)
+      } else {
+        return NextResponse.json({ error: `${staff.name} is already clocked in`, already_in: true }, { status: 409 })
+      }
+    }
   }
 
+  // FIX: include completed entries as last resort so staff with
+  // prematurely-completed roster entries still get their scheduled times
   const { data: rosterEntries } = await supabase
     .from('roster_entries')
     .select('*')
     .eq('staff_id', staff.id)
     .eq('work_date', today)
     .neq('status', 'rostered_off')
-    .neq('status', 'completed')
     .order('section', { ascending: true })
 
   const { data: todayShifts } = await supabase
@@ -106,14 +101,21 @@ const autoClockOut = new Date(`${clockInDate}T21:00:00+08:00`)
     .eq('work_date', today)
 
   const usedSections = (todayShifts ?? []).map((s: any) => s.section)
-  const rosterEntry = rosterEntries?.find(e => !usedSections.includes(e.section)) ?? null
+
+  // Prefer present → scheduled → completed (last resort)
+  const rosterEntry = rosterEntries
+    ?.filter(e => !usedSections.includes(e.section))
+    ?.sort((a, b) => {
+      const priority: Record<string, number> = { present: 0, scheduled: 1, completed: 2 }
+      return (priority[a.status] ?? 9) - (priority[b.status] ?? 9)
+    })[0] ?? null
 
   const scheduledStart = rosterEntry?.scheduled_start
     ? new Date(`${today}T${rosterEntry.scheduled_start.slice(0, 5)}:00+08:00`)
     : null
 
   const { paidTime, snapReason } = computeClockIn({
-    rawTime: nowUtc,
+    rawTime:        nowUtc,
     scheduledStart,
     employmentType: staff.employment_type,
   })
@@ -122,7 +124,10 @@ const autoClockOut = new Date(`${clockInDate}T21:00:00+08:00`)
   let gpsValid = false
 
   if (lat && lng && location?.latitude && location?.longitude) {
-    distanceM = Math.round(haversineDistanceM(Number(lat), Number(lng), Number(location.latitude), Number(location.longitude)))
+    distanceM = Math.round(haversineDistanceM(
+      Number(lat), Number(lng),
+      Number(location.latitude), Number(location.longitude)
+    ))
     gpsValid = distanceM <= Number(location.radius_metres ?? 200)
   }
 
@@ -136,7 +141,7 @@ const autoClockOut = new Date(`${clockInDate}T21:00:00+08:00`)
       await supabase
         .from('staff')
         .update({
-          known_device: device_fingerprint,
+          known_device:        device_fingerprint,
           known_device_set_at: nowUtc.toISOString()
         })
         .eq('id', staff.id)
@@ -147,7 +152,7 @@ const autoClockOut = new Date(`${clockInDate}T21:00:00+08:00`)
 
   const { score: trustScore, flags: gpsFlags } = computeTrustScore({
     gpsValid, distanceM,
-    radiusM: Number(location?.radius_metres ?? 200),
+    radiusM:       Number(location?.radius_metres ?? 200),
     ipMatchesSite: true,
   })
 
@@ -182,7 +187,7 @@ const autoClockOut = new Date(`${clockInDate}T21:00:00+08:00`)
     await supabase.from('roster_entries').update({ status: 'present' }).eq('id', rosterEntry.id)
   }
 
-const dayOfWeek = new Date(today + 'T00:00:00+08:00').getDay()
+  const dayOfWeek = new Date(today + 'T00:00:00+08:00').getDay()
   const dayType = rosterEntry?.day_type
     ?? (dayOfWeek === 0 ? 'sunday' : dayOfWeek === 6 ? 'saturday' : 'normal')
 
@@ -218,7 +223,6 @@ const dayOfWeek = new Date(today + 'T00:00:00+08:00').getDay()
     console.error('[clock-in] shift create error:', shiftErr.message)
   }
 
-  // ✅ Fix — format nowUtc directly, no double-offset via nowLocal
   const rawTimeStr = nowUtc.toLocaleTimeString('en-AU', {
     timeZone: 'Australia/Perth', hour: 'numeric', minute: '2-digit', hour12: true,
   })
