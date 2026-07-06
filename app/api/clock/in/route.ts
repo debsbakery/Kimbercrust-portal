@@ -17,13 +17,14 @@ export async function POST(request: NextRequest) {
 
   const { data: qr } = await supabase
     .from('staff_qr_codes')
-.select('id, location_id, clock_locations(id, name, latitude, longitude, radius_metres)')
+    .select('id, location_id, clock_locations(id, name, latitude, longitude, radius_metres)')
     .eq('token', token)
     .eq('active', true)
     .maybeSingle()
 
   if (!qr) return NextResponse.json({ error: 'Invalid QR code' }, { status: 401 })
-const location = (qr as any).clock_locations
+  const location = (qr as any).clock_locations
+
   const { data: staff } = await supabase
     .from('staff')
     .select('id, name, employment_type, active, break_minutes, primary_department, known_device')

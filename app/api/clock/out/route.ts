@@ -23,13 +23,13 @@ export async function POST(request: NextRequest) {
 
   const { data: qr } = await supabase
     .from('staff_qr_codes')
-    .select('id, location_id, staff_locations(id, name, latitude, longitude, radius_metres)')
+    .select('id, location_id, clock_locations(id, name, latitude, longitude, radius_metres)')
     .eq('token', token)
     .eq('active', true)
     .maybeSingle()
 
   if (!qr) return NextResponse.json({ error: 'Invalid QR code' }, { status: 401 })
-  const location = (qr as any).staff_locations
+  const location = (qr as any).clock_locations
 
   const { data: staff } = await supabase
     .from('staff')
@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
 
   let rosterEntry: any = null
 
-  // First try the roster_entry_id stored on the clock-in event
   if (clockInEvent.roster_entry_id) {
     const { data } = await supabase
       .from('roster_entries')
@@ -91,7 +90,6 @@ export async function POST(request: NextRequest) {
     rosterEntry = data
   }
 
-  // Fallback — search today AND yesterday to catch split shifts clocking out after midnight
   if (!rosterEntry) {
     const { data: entries } = await supabase
       .from('roster_entries')
@@ -104,10 +102,8 @@ export async function POST(request: NextRequest) {
     rosterEntry = entries?.find(e => e.status === 'present') ?? entries?.[0] ?? null
   }
 
-  // Use roster work_date for scheduledEnd if available, else today
   const rosterDate = rosterEntry?.work_date ?? today
 
-  // FIX: Perth is +08:00 not +10:00
   const scheduledEnd = rosterEntry?.scheduled_end
     ? new Date(`${rosterDate}T${rosterEntry.scheduled_end.slice(0, 5)}:00+08:00`)
     : null
@@ -121,7 +117,6 @@ export async function POST(request: NextRequest) {
     paidStart,
   })
 
-  // Break only applies to section 1 AND gross hours >= 5
   const grossMinsPreview = Math.round((paidTime.getTime() - paidStart.getTime()) / 60000)
   const section = rosterEntry?.section ?? 1
   const staffBreak = Number(rosterEntry?.break_minutes ?? staff.break_minutes ?? 0)
@@ -148,7 +143,7 @@ export async function POST(request: NextRequest) {
       await supabase
         .from('staff')
         .update({
-          known_device: device_fingerprint,
+          known_device:        device_fingerprint,
           known_device_set_at: nowUtc.toISOString()
         })
         .eq('id', staff.id)
@@ -159,7 +154,7 @@ export async function POST(request: NextRequest) {
 
   const { score: trustScore, flags: gpsFlags } = computeTrustScore({
     gpsValid, distanceM,
-    radiusM: Number(location?.radius_metres ?? 200),
+    radiusM:       Number(location?.radius_metres ?? 200),
     ipMatchesSite: true,
   })
 
