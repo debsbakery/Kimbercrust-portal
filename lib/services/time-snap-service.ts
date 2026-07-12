@@ -5,8 +5,7 @@ export const CLOCK_IN_GRACE_MIN = 4   // clock in ≤4 min after a 15-min mark �
 export const CLOCK_OUT_GRACE_MIN = 2  // clock out ≤2 min before a 15-min mark → paid to that mark
 
 // ⚠️ Per-portal: Debs/Stods = Australia/Brisbane, Norbake/Kimbercrust = Australia/Perth
-const PORTAL_TZ = 'Australia/Brisbane'
-
+const PORTAL_TZ = 'Australia/Perth'
 export function snapMinutes(mins: number, direction: 'up' | 'down'): number {
   if (direction === 'up')   return Math.ceil(mins  / SNAP_INTERVAL_MIN) * SNAP_INTERVAL_MIN
   if (direction === 'down') return Math.floor(mins / SNAP_INTERVAL_MIN) * SNAP_INTERVAL_MIN
@@ -109,17 +108,18 @@ export function computeClockOut(params: {
     return { paidTime: rawTime, snapReason: 'salary_presence_only' }
   }
 
-    // Set-hours staff ('set_hours', legacy 'fixed'): schedule bounds pay both ends.
-  // Scheduled end is a CAP, never a floor. Leave early → normal snap below.
-  if ((employmentType === 'set_hours' || employmentType === 'fixed') && scheduledEnd) {
+   // Fixed-start staff: scheduled end is a CAP, not a floor.
+  // Stay past scheduled end (or leave within clock-out grace of it) → paid to scheduled end.
+  // Leave early → normal snap rules apply (never paid for time not worked).
+  if ((employmentType === 'fixed_start' || employmentType === 'fixed') && scheduledEnd) {
     const graceMs = CLOCK_OUT_GRACE_MIN * 60000
     if (rawTime.getTime() >= scheduledEnd.getTime() - graceMs) {
       return {
         paidTime:   scheduledEnd,
-        snapReason: `set_hours_capped_at_scheduled_end_${fmtT(scheduledEnd)}`,
+        snapReason: `fixed_staff_paid_to_scheduled_end_${fmtT(scheduledEnd)}`,
       }
     }
-    // Early departure — fall through to normal snap
+    // Early departure — fall through to normal snap below
   }
 
   const paidTime = snapClockOutTime(rawTime)
