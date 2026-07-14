@@ -111,8 +111,8 @@ export function computeClockOut(params: {
    // Fixed-start staff: scheduled end is a CAP, not a floor.
   // Stay past scheduled end (or leave within clock-out grace of it) → paid to scheduled end.
   // Leave early → normal snap rules apply (never paid for time not worked).
-  if ((employmentType === 'fixed_start' || employmentType === 'fixed') && scheduledEnd) {
-    const graceMs = CLOCK_OUT_GRACE_MIN * 60000
+  if ((employmentType === 'set_hours' || employmentType === 'fixed') && scheduledEnd) {
+  const graceMs = CLOCK_OUT_GRACE_MIN * 60000
     if (rawTime.getTime() >= scheduledEnd.getTime() - graceMs) {
       return {
         paidTime:   scheduledEnd,
