@@ -75,7 +75,7 @@ const DEPT_COLOURS: Record<string, { bg: string; barBg: string }> = {
   production: { bg: 'bg-amber-500', barBg: '#f59e0b' },
   shop:       { bg: 'bg-blue-500',  barBg: '#3b82f6' },
   delivery:   { bg: 'bg-green-500', barBg: '#22c55e' },
-  pizza:      { bg: 'bg-gray-500',  barBg: '#6b7280' },
+  admin:      { bg: 'bg-gray-500',  barBg: '#6b7280' },
   management: { bg: 'bg-purple-500', barBg: '#a855f7' },
 }
 
@@ -119,7 +119,7 @@ export default function RosterGrid({ staff, entries, shifts, weekStart, weekDate
 const router = useRouter()
   const [localEntries, setLocalEntries] = useState<RosterEntry[]>(entries)
   const [activeDay, setActiveDay] = useState<number>(() => {
-    const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Perth' })).toISOString().split('T')[0]
+const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Brisbane' })
     const idx = weekDates.indexOf(today)
     return idx >= 0 ? idx : 1
   })
@@ -137,7 +137,7 @@ const router = useRouter()
   const [editForm, setEditForm] = useState<any>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
   const currentDate = weekDates[activeDay]
-const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Perth' })
+const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Brisbane' })
   const weekLabel = (() => {
     const s = new Date(weekStart + 'T00:00:00')
     const e = new Date(weekDates[6] + 'T00:00:00')
@@ -153,9 +153,9 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/P
   }
   function actualTimeToSlot(timestamp: string): number {
     const d = new Date(timestamp)
-    // Get Perth time using Intl formatter — reliable across all environments
+    // Get brisbane time using Intl formatter — reliable across all environments
     const formatter = new Intl.DateTimeFormat('en-AU', {
-      timeZone: 'Australia/Perth',
+      timeZone: 'Australia/Brisbane',
       hour: 'numeric',
       minute: 'numeric',
       hour12: false,
@@ -328,7 +328,8 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/P
   }
 
   function openEditModal(sm: StaffMember, entry: RosterEntry | null) {
-    const dow = new Date(currentDate + 'T00:00:00').getDay()
+const [ry, rm, rd] = currentDate.split('-').map(Number)
+const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
     setEditEntry({ entry, staffId: sm.id, date: currentDate })
     setEditForm({ scheduled_start: entry?.scheduled_start ?? '06:00', scheduled_end: entry?.scheduled_end ?? '14:00', department: entry?.department ?? sm.primary_department, day_type: entry?.day_type ?? (dow === 0 ? 'sunday' : dow === 6 ? 'saturday' : 'normal'), public_holiday_name: entry?.public_holiday_name ?? '', manager_note: entry?.manager_note ?? '' })
   }
@@ -499,7 +500,7 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/P
             {staff.map((s, idx) => {
               const staffEntries = getEntries(s.id, currentDate)
               const off = isRosteredOff(s.id, currentDate)
-              const dept = DEPT_COLOURS[s.primary_department] ?? DEPT_COLOURS.pizza
+              const dept = DEPT_COLOURS[s.primary_department] ?? DEPT_COLOURS.admin
               const showDrag = dragPreview && dragPreview.staffId === s.id
               return (
                 <div key={s.id} className={`border-b relative group ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
@@ -519,7 +520,7 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/P
 
                   {/* Current time line */}
                   {currentDate === todayStr && (() => {
-                    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Perth' }))
+                    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Brisbane' }))
                     const ns = timeToSlot(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`)
                     return ns > 0 && ns < TOTAL_SLOTS ? (
                       <div className="absolute top-0 bottom-0 z-10 pointer-events-none" style={{ left: ns * SLOT_WIDTH - 1 }}>
@@ -533,7 +534,7 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/P
                   {!off && !showDrag && staffEntries.map(entry => {
                     const bar = getBarForEntry(entry)
                     if (!bar) return null
-                    const eDept = DEPT_COLOURS[entry.department ?? s.primary_department] ?? DEPT_COLOURS.pizza
+                    const eDept = DEPT_COLOURS[entry.department ?? s.primary_department] ?? DEPT_COLOURS.admin
                     return (
                       <div key={entry.id} data-bar="true"
                         className="absolute top-1.5 bottom-1.5 rounded-lg shadow-sm flex items-center cursor-move
@@ -583,7 +584,7 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/P
                           backgroundColor: barColor,
                           opacity: 0.9,
                         }}
-                        title={`Actual: ${shift.effective_start ? new Date(shift.effective_start).toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: '2-digit', minute: '2-digit' }) : '?'} – ${shift.effective_end ? new Date(shift.effective_end).toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: '2-digit', minute: '2-digit' }) : 'still in'}${isLate ? ` (${shift.arrived_late_min}min late)` : ''}`}
+                        title={`Actual: ${shift.effective_start ? new Date(shift.effective_start).toLocaleTimeString('en-AU', { timeZone: 'Australia/Brisbane', hour: '2-digit', minute: '2-digit' }) : '?'} – ${shift.effective_end ? new Date(shift.effective_end).toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: '2-digit', minute: '2-digit' }) : 'still in'}${isLate ? ` (${shift.arrived_late_min}min late)` : ''}`}
                       />
                     )
                   })}
@@ -814,7 +815,7 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/P
                   <option value="production">🍞 Production</option>
                   <option value="shop">🏪 Shop</option>
                   <option value="delivery">🚚 Delivery</option>
-<option value="pizza">🍕 Pizza</option>
+                  <option value="admin">📋 Admin</option>
                   <option value="management">👔 Management</option>
                 </select>
               </div>
