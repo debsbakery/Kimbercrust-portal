@@ -15,12 +15,12 @@ export async function GET(
 
   const today = new Date().toISOString().split('T')[0]
 
-  const { data, error } = await supabase
-    .from('customer_pricing')
-    .select('product_id, contract_price')
-    .eq('customer_id', id)
-    .or(`effective_from.is.null,effective_from.lte.${today}`)
-    .or(`effective_to.is.null,effective_to.gte.${today}`)
+ const { data, error } = await supabase
+  .from('customer_pricing')
+  .select('product_id, contract_price')
+  .eq('customer_id', id)
+  .or(`effective_from.is.null,effective_from.lte.${today}`)
+  .or(`effective_to.is.null,effective_to.gte.${today}`)
 
   if (error) {
     console.error('Pricing fetch error:', error)

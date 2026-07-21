@@ -303,7 +303,6 @@ export default function EditOrderPage() {
             .from('customer_pricing')
             .select('product_id, contract_price')
             .eq('customer_id', order.customer_id)
-            .eq('active', true)
             .or(`effective_from.is.null,effective_from.lte.${today}`)
             .or(`effective_to.is.null,effective_to.gte.${today}`)
 
@@ -418,7 +417,6 @@ export default function EditOrderPage() {
         .from('customer_pricing')
         .select('product_id, contract_price')
         .eq('customer_id', id)
-        .eq('active', true)
         .or(`effective_from.is.null,effective_from.lte.${today}`)
         .or(`effective_to.is.null,effective_to.gte.${today}`)
 
