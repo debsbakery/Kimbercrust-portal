@@ -79,6 +79,7 @@ const DEPT_COLOURS: Record<string, { bg: string; barBg: string }> = {
   delivery:   { bg: 'bg-green-500', barBg: '#22c55e' },
   admin:      { bg: 'bg-gray-500',  barBg: '#6b7280' },
   management: { bg: 'bg-purple-500', barBg: '#a855f7' },
+  pizza:      { bg: 'bg-red-500',   barBg: '#ef4444' },
 }
 
 function timeToSlot(time: string): number {
@@ -813,11 +814,12 @@ export default function RosterGrid({ staff, entries, shifts, weekStart, weekDate
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">Department</label>
                 <select value={editForm.department} onChange={e => setEditForm((p: any) => ({ ...p, department: e.target.value }))} className={inp}>
-                  <option value="production">🍞 Production</option>
-                  <option value="shop">🏪 Shop</option>
-                  <option value="delivery">🚚 Delivery</option>
-                  <option value="admin">📋 Admin</option>
-                  <option value="management">👔 Management</option>
+               <option value="production">🍞 Production</option>
+<option value="shop">🏪 Shop</option>
+<option value="delivery">🚚 Delivery</option>
+<option value="admin">📋 Admin</option>
+<option value="management">👔 Management</option>
+<option value="pizza">🍕 Pizza</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
