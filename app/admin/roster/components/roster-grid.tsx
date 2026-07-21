@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
@@ -57,6 +56,9 @@ interface Props {
   prevWeek: string
   nextWeek: string
 }
+
+const TZ = 'Australia/Perth'
+
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const HOUR_START = 4
 const HOUR_END = 22
@@ -81,8 +83,8 @@ const DEPT_COLOURS: Record<string, { bg: string; barBg: string }> = {
 
 function timeToSlot(time: string): number {
   const [h, m] = time.split(':').map(Number)
-    return Math.max(0, Math.min(TOTAL_SLOTS, ((h * 60 + m) - HOUR_START * 60) / 15))
-  }
+  return Math.max(0, Math.min(TOTAL_SLOTS, ((h * 60 + m) - HOUR_START * 60) / 15))
+}
 
 function slotToTime(slot: number): string {
   const totalMinutes = (HOUR_START * 60) + (slot * 15)
@@ -116,10 +118,10 @@ function fmtTimeShort(t: string): string {
 }
 
 export default function RosterGrid({ staff, entries, shifts, weekStart, weekDates, prevWeek, nextWeek }: Props) {
-const router = useRouter()
+  const router = useRouter()
   const [localEntries, setLocalEntries] = useState<RosterEntry[]>(entries)
   const [activeDay, setActiveDay] = useState<number>(() => {
-const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Brisbane' })
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: TZ })
     const idx = weekDates.indexOf(today)
     return idx >= 0 ? idx : 1
   })
@@ -127,7 +129,7 @@ const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Bris
   const [copyResult, setCopyResult] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [showActuals, setShowActuals] = useState(false)
-   const [showPrint, setShowPrint] = useState(false)
+  const [showPrint, setShowPrint] = useState(false)
   const [dragState, setDragState] = useState<{
     type: 'create' | 'move' | 'resize-left' | 'resize-right'
     staffId: string; startSlot: number; currentSlot: number
@@ -137,7 +139,8 @@ const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Bris
   const [editForm, setEditForm] = useState<any>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
   const currentDate = weekDates[activeDay]
-const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/Brisbane' })
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: TZ })
+
   const weekLabel = (() => {
     const s = new Date(weekStart + 'T00:00:00')
     const e = new Date(weekDates[6] + 'T00:00:00')
@@ -147,15 +150,16 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/B
   function getEntries(staffId: string, date: string): RosterEntry[] {
     return localEntries.filter(e => e.staff_id === staffId && e.work_date === date && e.status !== 'rostered_off').sort((a, b) => (a.section ?? 1) - (b.section ?? 1))
   }
-   function getActualShifts(staffId: string, date: string): ActualShift[] {
+
+  function getActualShifts(staffId: string, date: string): ActualShift[] {
     return shifts.filter(s => s.staff_id === staffId && s.work_date === date && s.effective_start)
       .sort((a, b) => (a.section ?? 1) - (b.section ?? 1))
   }
+
   function actualTimeToSlot(timestamp: string): number {
     const d = new Date(timestamp)
-    // Get brisbane time using Intl formatter — reliable across all environments
     const formatter = new Intl.DateTimeFormat('en-AU', {
-      timeZone: 'Australia/Brisbane',
+      timeZone: TZ,
       hour: 'numeric',
       minute: 'numeric',
       hour12: false,
@@ -165,23 +169,29 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/B
     const m = parseInt(parts.find(p => p.type === 'minute')?.value ?? '0', 10)
     return Math.max(0, Math.min(TOTAL_SLOTS, ((h * 60 + m) - HOUR_START * 60) / 15))
   }
+
   function isRosteredOff(staffId: string, date: string): boolean {
     return localEntries.some(e => e.staff_id === staffId && e.work_date === date && e.status === 'rostered_off')
   }
+
   function staffDayHours(staffId: string, date: string): number {
     return getEntries(staffId, date).reduce((sum, e) => sum + estimatedHours(e), 0)
   }
+
   function staffWeekHours(staffId: string): number {
     return weekDates.reduce((sum, d) => sum + staffDayHours(staffId, d), 0)
   }
+
   function staffWeekCost(s: StaffMember): number {
     if (s.employment_type === 'salary') {
       return weekDates.filter(d => getEntries(s.id, d).length > 0).length > 0 ? Number(s.salary_weekly ?? 0) : 0
     }
     return Math.round(staffWeekHours(s.id) * Number(s.true_hourly_cost ?? 0) * 100) / 100
   }
+
   const totalWeeklyCost = staff.reduce((sum, s) => sum + staffWeekCost(s), 0)
   const totalWeeklyHours = staff.reduce((sum, s) => sum + staffWeekHours(s.id), 0)
+
   function staffActualWeekHours(staffId: string): number {
     return weekDates.reduce((sum, d) => {
       const dayShifts = shifts.filter(s => s.staff_id === staffId && s.work_date === d && s.paid_hours)
@@ -202,6 +212,7 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/B
 
   const totalActualHours = staff.reduce((sum, s) => sum + staffActualWeekHours(s.id), 0)
   const totalActualCost = staff.reduce((sum, s) => sum + staffActualWeekCost(s), 0)
+
   async function handleCopyLastWeek() {
     if (!confirm(`Copy last week's roster to ${weekLabel}?\nExisting entries will be overwritten.`)) return
     setCopying(true); setCopyResult(null)
@@ -213,6 +224,7 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/B
     } catch (e: any) { setCopyResult(`Error: ${e.message}`) }
     finally { setCopying(false) }
   }
+
   async function handleApplyTemplate() {
     if (!confirm(`Apply staff templates to ${weekLabel}?\n\nThis will overwrite existing entries with template times.`)) return
     setCopying(true)
@@ -236,6 +248,7 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/B
       setCopying(false)
     }
   }
+
   const saveEntry = useCallback(async (staffId: string, date: string, startTime: string, endTime: string, existingId?: string) => {
     setSaving(true)
     try {
@@ -287,7 +300,6 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/B
       const { type, staffId, startSlot, currentSlot, entryId, originalStart, originalEnd } = dragState
       setDragState(null)
 
-      // If it was a "move" but didn't actually move — treat as click → open edit
       if (type === 'move' && startSlot === currentSlot && entryId) {
         const staffMember = staff.find(s => s.id === staffId)
         const entry = localEntries.find(e => e.id === entryId)
@@ -328,10 +340,17 @@ const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Australia/B
   }
 
   function openEditModal(sm: StaffMember, entry: RosterEntry | null) {
-const [ry, rm, rd] = currentDate.split('-').map(Number)
-const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
+    const [ry, rm, rd] = currentDate.split('-').map(Number)
+    const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
     setEditEntry({ entry, staffId: sm.id, date: currentDate })
-    setEditForm({ scheduled_start: entry?.scheduled_start ?? '06:00', scheduled_end: entry?.scheduled_end ?? '14:00', department: entry?.department ?? sm.primary_department, day_type: entry?.day_type ?? (dow === 0 ? 'sunday' : dow === 6 ? 'saturday' : 'normal'), public_holiday_name: entry?.public_holiday_name ?? '', manager_note: entry?.manager_note ?? '' })
+    setEditForm({
+      scheduled_start:    entry?.scheduled_start    ?? '06:00',
+      scheduled_end:      entry?.scheduled_end      ?? '14:00',
+      department:         entry?.department         ?? sm.primary_department,
+      day_type:           entry?.day_type           ?? (dow === 0 ? 'sunday' : dow === 6 ? 'saturday' : 'normal'),
+      public_holiday_name: entry?.public_holiday_name ?? '',
+      manager_note:       entry?.manager_note       ?? '',
+    })
   }
 
   async function handleSaveModal() {
@@ -363,24 +382,19 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
   const dragPreview = getDragPreview()
   const inp = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500'
 
-    return (
+  return (
     <div className="fixed inset-0 flex flex-col bg-stone-50 z-40">
 
-      {/* ── Header Row 1: Title + Navigation ── */}
+      {/* ── Header Row 1 ── */}
       <div className="flex items-center gap-3 px-3 py-1.5 bg-white border-b flex-shrink-0 shadow-sm">
         <a href="/admin" className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
           <ChevronLeft className="h-4 w-4 text-gray-600" />
         </a>
         <div className="flex items-center gap-2">
           <span className="text-lg font-bold text-gray-900">📅 Roster</span>
-          <span className="text-xs text-gray-400 hidden sm:inline">
-            {weekLabel}
-          </span>
+          <span className="text-xs text-gray-400 hidden sm:inline">{weekLabel}</span>
         </div>
-
         <div className="flex-1" />
-
-        {/* Week navigation */}
         <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-0.5">
           <a href={`/admin/roster?week=${prevWeek}`} className="p-1.5 rounded-md hover:bg-white hover:shadow-sm transition-all">
             <ChevronLeft className="h-3.5 w-3.5 text-gray-500" />
@@ -390,7 +404,6 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
             <ChevronRight className="h-3.5 w-3.5 text-gray-500" />
           </a>
         </div>
-
         <button onClick={handleCopyLastWeek} disabled={copying}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-700 text-white rounded-lg text-xs font-medium hover:bg-amber-800 disabled:opacity-50 transition-colors shadow-sm">
           <Copy className="h-3 w-3" />
@@ -403,7 +416,7 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
         <a href="/admin/staff" className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
           <Users className="h-3 w-3" />Staff
         </a>
-               <button onClick={() => setShowPrint(true)}
+        <button onClick={() => setShowPrint(true)}
           className="px-3 py-1.5 border rounded-lg text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors">
           🖨️ Print
         </button>
@@ -416,22 +429,19 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
         {saving && <div className="w-4 h-4 border-2 border-amber-600 border-t-transparent rounded-full animate-spin" />}
       </div>
 
-      {/* ── Header Row 2: Day Tabs + Stats ── */}
+      {/* ── Header Row 2: Day Tabs ── */}
       <div className="flex items-center gap-1 px-3 py-1.5 bg-white border-b flex-shrink-0">
         {weekDates.map((date, i) => {
-          const isToday = date === todayStr
+          const isToday  = date === todayStr
           const isActive = i === activeDay
-          const dayDate = new Date(date + 'T00:00:00')
+          const dayDate  = new Date(date + 'T00:00:00')
           return (
             <button key={date} onClick={() => setActiveDay(i)}
               className={`flex-1 py-1.5 rounded-lg text-center transition-all ${
-                isActive
-                  ? 'bg-amber-700 text-white shadow-md'
-                  : isToday
-                    ? 'bg-amber-50 text-amber-800 ring-2 ring-amber-300'
-                    : 'text-gray-500 hover:bg-gray-50'
+                isActive  ? 'bg-amber-700 text-white shadow-md'
+                : isToday ? 'bg-amber-50 text-amber-800 ring-2 ring-amber-300'
+                : 'text-gray-500 hover:bg-gray-50'
               }`}>
-
               <div className="text-sm font-bold">{DAY_LABELS[i]}</div>
               <div className={`text-xs ${isActive ? 'text-amber-200' : 'text-gray-400'}`}>
                 {dayDate.getDate()}
@@ -441,14 +451,12 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
         })}
         <div className="w-px h-6 bg-gray-200 mx-1" />
         <div className="text-center px-2">
-      
-                <div className="text-xs text-gray-400">Week</div>
+          <div className="text-xs text-gray-400">Week</div>
           <div className="text-sm font-bold text-gray-900">{totalWeeklyHours.toFixed(1)}h</div>
           <div className="text-xs text-amber-600 font-medium">${totalWeeklyCost.toFixed(0)}</div>
         </div>
       </div>
 
-      {/* Copy result */}
       {copyResult && (
         <div className={`px-3 py-1.5 text-xs flex-shrink-0 flex items-center justify-between ${
           copyResult.includes('Copied') ? 'bg-green-50 text-green-700 border-b border-green-200' : 'bg-red-50 text-red-700 border-b border-red-200'
@@ -499,7 +507,7 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
             {/* Staff rows */}
             {staff.map((s, idx) => {
               const staffEntries = getEntries(s.id, currentDate)
-              const off = isRosteredOff(s.id, currentDate)
+              const off  = isRosteredOff(s.id, currentDate)
               const dept = DEPT_COLOURS[s.primary_department] ?? DEPT_COLOURS.admin
               const showDrag = dragPreview && dragPreview.staffId === s.id
               return (
@@ -520,7 +528,7 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
 
                   {/* Current time line */}
                   {currentDate === todayStr && (() => {
-                    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Australia/Brisbane' }))
+                    const now = new Date(new Date().toLocaleString('en-US', { timeZone: TZ }))
                     const ns = timeToSlot(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`)
                     return ns > 0 && ns < TOTAL_SLOTS ? (
                       <div className="absolute top-0 bottom-0 z-10 pointer-events-none" style={{ left: ns * SLOT_WIDTH - 1 }}>
@@ -542,10 +550,8 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
                         style={{ left: bar.left, width: bar.width, backgroundColor: eDept.barBg }}
                         onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, s.id, 'move', entry.id, timeToSlot(entry.scheduled_start!), timeToSlot(entry.scheduled_end!)) }}
                         onDoubleClick={(e) => { e.stopPropagation(); openEditModal(s, entry) }}>
-
                         <div className="absolute left-0 top-0 bottom-0 w-2.5 cursor-w-resize hover:bg-white/30 rounded-l-lg transition-colors"
                           onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, s.id, 'resize-left', entry.id, timeToSlot(entry.scheduled_start!), timeToSlot(entry.scheduled_end!)) }} />
-
                         <div className="flex-1 px-2 flex items-center gap-1.5 min-w-0 pointer-events-none">
                           <span className="text-[11px] font-bold text-white truncate drop-shadow-sm">
                             {fmtTimeShort(entry.scheduled_start!)}–{fmtTimeShort(entry.scheduled_end!)}
@@ -557,20 +563,18 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
                             <span className="text-[10px] text-white/60 capitalize">({entry.department})</span>
                           )}
                         </div>
-
                         <div className="absolute right-0 top-0 bottom-0 w-2.5 cursor-e-resize hover:bg-white/30 rounded-r-lg transition-colors"
                           onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, s.id, 'resize-right', entry.id, timeToSlot(entry.scheduled_start!), timeToSlot(entry.scheduled_end!)) }} />
                       </div>
                     )
                   })}
 
-                  {/* Drag preview */}
-                                    {/* Actual clock bars */}
+                  {/* Actual clock bars */}
                   {showActuals && !off && getActualShifts(s.id, currentDate).map(shift => {
                     if (!shift.effective_start) return null
                     const startSlot = actualTimeToSlot(shift.effective_start)
-                    const endSlot = shift.effective_end ? actualTimeToSlot(shift.effective_end) : startSlot + 2
-                    const left = startSlot * SLOT_WIDTH
+                    const endSlot   = shift.effective_end ? actualTimeToSlot(shift.effective_end) : startSlot + 2
+                    const left  = startSlot * SLOT_WIDTH
                     const width = Math.max((endSlot - startSlot) * SLOT_WIDTH, SLOT_WIDTH / 2)
                     const isLate = (shift.arrived_late_min ?? 0) > 5
                     const isOpen = !shift.effective_end
@@ -578,16 +582,17 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
                     return (
                       <div key={`actual-${shift.id}`}
                         className="absolute rounded-sm pointer-events-none"
-                        style={{
-                          left, width, height: 6,
-                          bottom: 2,
-                          backgroundColor: barColor,
-                          opacity: 0.9,
-                        }}
-                        title={`Actual: ${shift.effective_start ? new Date(shift.effective_start).toLocaleTimeString('en-AU', { timeZone: 'Australia/Brisbane', hour: '2-digit', minute: '2-digit' }) : '?'} – ${shift.effective_end ? new Date(shift.effective_end).toLocaleTimeString('en-AU', { timeZone: 'Australia/Perth', hour: '2-digit', minute: '2-digit' }) : 'still in'}${isLate ? ` (${shift.arrived_late_min}min late)` : ''}`}
+                        style={{ left, width, height: 6, bottom: 2, backgroundColor: barColor, opacity: 0.9 }}
+                        title={`Actual: ${shift.effective_start
+                          ? new Date(shift.effective_start).toLocaleTimeString('en-AU', { timeZone: TZ, hour: '2-digit', minute: '2-digit' })
+                          : '?'} – ${shift.effective_end
+                          ? new Date(shift.effective_end).toLocaleTimeString('en-AU', { timeZone: TZ, hour: '2-digit', minute: '2-digit' })
+                          : 'still in'}${isLate ? ` (${shift.arrived_late_min}min late)` : ''}`}
                       />
                     )
                   })}
+
+                  {/* Drag preview */}
                   {showDrag && (
                     <div className="absolute top-1.5 bottom-1.5 rounded-lg border-2 border-dashed pointer-events-none z-10"
                       style={{ left: dragPreview.left, width: dragPreview.width, backgroundColor: `${dept.barBg}20`, borderColor: dept.barBg }}>
@@ -622,7 +627,7 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
           <div className="h-8 border-b bg-gray-50 flex items-center justify-center">
             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Week</span>
           </div>
-                {staff.map((s, idx) => (
+          {staff.map((s, idx) => (
             <div key={s.id} className={`border-b flex flex-col items-center justify-center ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
               style={{ height: ROW_HEIGHT }}>
               <span className="text-xs font-bold text-gray-900">{staffWeekHours(s.id).toFixed(1)}h</span>
@@ -630,17 +635,17 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
             </div>
           ))}
         </div>
-      
-              {/* Actual totals */}
+
+        {/* Actual totals */}
         <div className="flex-shrink-0 bg-white border-l overflow-hidden" style={{ width: ACTUAL_COL_WIDTH }}>
           <div className="h-8 border-b bg-green-50 flex items-center justify-center">
             <span className="text-[10px] font-semibold text-green-600 uppercase tracking-wider">Actual</span>
           </div>
           {staff.map((s, idx) => {
-            const hrs = staffActualWeekHours(s.id)
-            const cost = staffActualWeekCost(s)
+            const hrs      = staffActualWeekHours(s.id)
+            const cost     = staffActualWeekCost(s)
             const schedHrs = staffWeekHours(s.id)
-            const diff = hrs - schedHrs
+            const diff     = hrs - schedHrs
             return (
               <div key={s.id} className={`border-b flex flex-col items-center justify-center ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                 style={{ height: ROW_HEIGHT }}>
@@ -657,7 +662,7 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
               </div>
             )
           })}
-                  </div>
+        </div>
       </div>
 
       {/* ── Footer Legend ── */}
@@ -670,7 +675,7 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
             </span>
           ))}
         </div>
-               {showActuals && (
+        {showActuals && (
           <div className="flex items-center gap-3 mx-4">
             <span className="text-[10px] text-gray-400">|</span>
             <span className="flex items-center gap-1"><span className="w-4 h-1.5 rounded-sm bg-green-500" />On time</span>
@@ -683,7 +688,8 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
           💡 Drag to create · Grab bar to move · Drag edges to resize · Double-click to edit details
         </div>
       </div>
-            {/* ── Print View ── */}
+
+      {/* ── Print View ── */}
       {showPrint && (
         <div className="fixed inset-0 z-50 bg-white overflow-auto print:static">
           <div className="p-6 max-w-6xl mx-auto">
@@ -698,12 +704,10 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
                 </button>
               </div>
             </div>
-
             <div className="text-center mb-6">
               <h1 className="text-xl font-bold">Staff Roster</h1>
               <p className="text-sm text-gray-500">{weekLabel}</p>
             </div>
-
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-gray-100">
@@ -731,7 +735,7 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
                     </td>
                     {weekDates.map(date => {
                       const ents = getEntries(s.id, date)
-                      const off = isRosteredOff(s.id, date)
+                      const off  = isRosteredOff(s.id, date)
                       return (
                         <td key={date} className="py-1.5 px-1 border text-center text-xs align-top">
                           {off ? (
@@ -779,7 +783,6 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
               </tbody>
             </table>
           </div>
-
           <style jsx>{`
             @media print {
               .no-print { display: none !important; }
@@ -789,7 +792,6 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
           `}</style>
         </div>
       )}
-
 
       {/* ── Edit Modal ── */}
       {editEntry && editForm && (
@@ -807,7 +809,6 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
                 <X className="h-5 w-5 text-gray-400" />
               </button>
             </div>
-
             <div className="p-5 space-y-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1.5">Department</label>
@@ -850,7 +851,6 @@ const dow = new Date(Date.UTC(ry, rm - 1, rd)).getUTCDay()
                 <input type="text" value={editForm.manager_note} onChange={e => setEditForm((p: any) => ({ ...p, manager_note: e.target.value }))} className={inp} placeholder="Optional note…" />
               </div>
             </div>
-
             <div className="p-5 border-t bg-gray-50 rounded-b-2xl flex gap-2">
               <button onClick={handleSaveModal} disabled={saving}
                 className="flex-1 py-2.5 bg-amber-700 text-white rounded-lg text-sm font-medium hover:bg-amber-800 disabled:opacity-50 transition-colors shadow-sm">
