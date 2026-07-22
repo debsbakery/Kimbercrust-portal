@@ -163,22 +163,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         rawDesc.toLowerCase().startsWith('credit invoice') ||
         !rawDesc.match(/#\s*\d+/)
 
-      let finalDescription: string
-      if (invoiceNum) {
-        const invStr = `Invoice #${String(invoiceNum).padStart(6, '0')}`
-        const suffix = rawDesc.toLowerCase().includes('edited')
-          ? ' (edited)'
-          : isCredit ? ' (credit)' : ''
-       
-        const baseDesc = isGeneric ? invStr + suffix + custPart : rawDesc
-        // Append PO number if available
-        const poSuffix = tx.invoice_id && poMap[tx.invoice_id]
-          ? ` | PO: ${poMap[tx.invoice_id]}`
-          : ''
-        finalDescription = baseDesc + poSuffix
-      } else {
-        finalDescription = rawDesc || (isCredit ? 'Credit' : 'Invoice')
-      }
+      // REPLACE:
+let finalDescription: string
+if (invoiceNum) {
+  const invStr = `Invoice #${String(invoiceNum).padStart(6, '0')}`
+  const suffix = rawDesc.toLowerCase().includes('edited')
+    ? ' (edited)'
+    : isCredit ? ' (credit)' : ''
+  const poSuffix = tx.invoice_id && poMap[tx.invoice_id]
+    ? ` | PO: ${poMap[tx.invoice_id]}`
+    : ''
+  finalDescription = invStr + suffix + poSuffix
+} else {
+  finalDescription = rawDesc || (isCredit ? 'Credit' : 'Invoice')
+}
 
       rawLines.push({
         date:        tx.created_at,
