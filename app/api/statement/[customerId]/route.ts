@@ -169,9 +169,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         const suffix = rawDesc.toLowerCase().includes('edited')
           ? ' (edited)'
           : isCredit ? ' (credit)' : ''
-        const custPart = rawDesc.includes(' - ')
-          ? ' - ' + rawDesc.split(' - ').slice(1).join(' - ')
-          : ''
+       
         const baseDesc = isGeneric ? invStr + suffix + custPart : rawDesc
         // Append PO number if available
         const poSuffix = tx.invoice_id && poMap[tx.invoice_id]
