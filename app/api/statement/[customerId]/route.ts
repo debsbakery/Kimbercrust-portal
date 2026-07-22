@@ -56,12 +56,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (pmtError) throw new Error(pmtError.message)
     const payments = pmtRaw ?? []
 
-    // ✅ Fix — invoice_id is order_id, look up by order_id not id
+    // invoice_id is order_id — look up invoice numbers and PO numbers
     const invoiceIds = transactions
       .filter(t => t.invoice_id)
       .map(t => t.invoice_id as string)
 
     let invoiceMap: Record<string, string> = {}
+    let poMap: Record<string, string> = {}
+
     if (invoiceIds.length > 0) {
       // Try invoice_numbers table by order_id first
       const { data: invNums } = await supabase
@@ -72,16 +74,27 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         if (inv.order_id) invoiceMap[inv.order_id] = String(inv.invoice_number)
       }
 
-      // Fallback: orders.invoice_number
+      // Fallback: orders.invoice_number — also fetch PO numbers in same query
       const missing = invoiceIds.filter(id => !invoiceMap[id])
       if (missing.length > 0) {
         const { data: ordersWithInv } = await supabase
           .from('orders')
-          .select('id, invoice_number')
+          .select('id, invoice_number, purchase_order_number')
           .in('id', missing)
         for (const o of ordersWithInv ?? []) {
           if (o.invoice_number) invoiceMap[o.id] = String(o.invoice_number)
+          if (o.purchase_order_number) poMap[o.id] = String(o.purchase_order_number)
         }
+      }
+
+      // Also fetch PO numbers for ALL invoice IDs (including ones found in invoice_numbers table)
+      const { data: ordersWithPO } = await supabase
+        .from('orders')
+        .select('id, purchase_order_number')
+        .in('id', invoiceIds)
+        .not('purchase_order_number', 'is', null)
+      for (const o of ordersWithPO ?? []) {
+        if (o.purchase_order_number) poMap[o.id] = String(o.purchase_order_number)
       }
     }
 
@@ -159,7 +172,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         const custPart = rawDesc.includes(' - ')
           ? ' - ' + rawDesc.split(' - ').slice(1).join(' - ')
           : ''
-        finalDescription = isGeneric ? invStr + suffix + custPart : rawDesc
+        const baseDesc = isGeneric ? invStr + suffix + custPart : rawDesc
+        // Append PO number if available
+        const poSuffix = tx.invoice_id && poMap[tx.invoice_id]
+          ? ` | PO: ${poMap[tx.invoice_id]}`
+          : ''
+        finalDescription = baseDesc + poSuffix
       } else {
         finalDescription = rawDesc || (isCredit ? 'Credit' : 'Invoice')
       }
@@ -215,41 +233,41 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     })
 
-   // ── Ageing summary — only invoices within statement period ──
-const now = new Date()
-const aging = { current: 0, days30: 0, days60: 0, older: 0 }
+    // ── Ageing summary ──
+    const now = new Date()
+    const aging = { current: 0, days30: 0, days60: 0, older: 0 }
 
-let ageQuery = supabase
-  .from('ar_transactions')
-  .select('amount, amount_paid, due_date, created_at')
-  .eq('customer_id', customerId)
-  .eq('type', 'invoice')
-  .lte('created_at', endDate + 'T23:59:59')
+    let ageQuery = supabase
+      .from('ar_transactions')
+      .select('amount, amount_paid, due_date, created_at')
+      .eq('customer_id', customerId)
+      .eq('type', 'invoice')
+      .lte('created_at', endDate + 'T23:59:59')
 
-if (startDate) ageQuery = ageQuery.gte('created_at', startDate)
+    if (startDate) ageQuery = ageQuery.gte('created_at', startDate)
 
-const { data: allInvoices } = await ageQuery
+    const { data: allInvoices } = await ageQuery
 
-for (const inv of allInvoices ?? []) {
-  const outstanding = Number(inv.amount) - Number(inv.amount_paid ?? 0)
-  if (outstanding <= 0.01) continue
+    for (const inv of allInvoices ?? []) {
+      const outstanding = Number(inv.amount) - Number(inv.amount_paid ?? 0)
+      if (outstanding <= 0.01) continue
 
-  const refDate = inv.due_date
-    ? new Date(inv.due_date)
-    : new Date(new Date(inv.created_at).getTime() + 30 * 86400000)
+      const refDate = inv.due_date
+        ? new Date(inv.due_date)
+        : new Date(new Date(inv.created_at).getTime() + 30 * 86400000)
 
-  const daysAgo = Math.floor((now.getTime() - refDate.getTime()) / 86400000)
+      const daysAgo = Math.floor((now.getTime() - refDate.getTime()) / 86400000)
 
-  if (daysAgo <= 14)      aging.current += outstanding
-  else if (daysAgo <= 30) aging.days30  += outstanding
-  else if (daysAgo <= 60) aging.days60  += outstanding
-  else                    aging.older   += outstanding
-}
+      if (daysAgo <= 14)      aging.current += outstanding
+      else if (daysAgo <= 30) aging.days30  += outstanding
+      else if (daysAgo <= 60) aging.days60  += outstanding
+      else                    aging.older   += outstanding
+    }
 
-aging.current = Math.round(aging.current * 100) / 100
-aging.days30  = Math.round(aging.days30  * 100) / 100
-aging.days60  = Math.round(aging.days60  * 100) / 100
-aging.older   = Math.round(aging.older   * 100) / 100
+    aging.current = Math.round(aging.current * 100) / 100
+    aging.days30  = Math.round(aging.days30  * 100) / 100
+    aging.days60  = Math.round(aging.days60  * 100) / 100
+    aging.older   = Math.round(aging.older   * 100) / 100
 
     const pdfBuffer = await generateStatementPDF({
       bakeryName:  process.env.BAKERY_NAME  ?? 'Kimbercrust Bakery',

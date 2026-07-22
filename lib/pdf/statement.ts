@@ -14,10 +14,10 @@ interface StatementLine {
 }
 
 interface AgingSummary {
-  current:  number  // 0-14 days
-  days30:   number  // 15-30 days
-  days60:   number  // 31-60 days
-  older:    number  // 60+ days
+  current:  number
+  days30:   number
+  days60:   number
+  older:    number
 }
 
 interface StatementData {
@@ -203,7 +203,7 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
   let rowIndex = 0
 
   for (const line of lines) {
-    if (y < 180) {  // leave more room for aging summary on last page
+    if (y < 180) {
       page = pdfDoc.addPage([595, 842])
       addPageHeader(page, false)
       y = page.getSize().height - 100
@@ -216,12 +216,16 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
       drawRect(50, y - 4, RIGHT_MARGIN - 50, 16, [0.97, 0.97, 0.97])
     }
 
-    const desc = line.description.length > 30
-      ? line.description.substring(0, 28) + '..'
+    // Truncate at 45 chars to accommodate PO number
+    const desc = line.description.length > 45
+      ? line.description.substring(0, 43) + '..'
       : line.description
 
+    // Use smaller font if description is long
+    const descSize = desc.length > 30 ? 7 : 8
+
     drawText(formatDate(line.date), COL.date, y, { size: 8 })
-    drawText(desc,                  COL.desc, y, { size: 8 })
+    drawText(desc,                  COL.desc, y, { size: descSize })
 
     if (line.transaction_type === 'invoice') {
       drawStatus(line.paid_status, COL.status, y)
@@ -284,18 +288,16 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
     { size: 11, bold: true, color: closingBalance > 0 ? RED : GREEN }
   )
 
-  // ── Ageing Summary ──────────────────────────────────────────────────────────
+  // ── Ageing Summary ──
   if (aging && closingBalance > 0.01) {
     y -= 35
 
-    // Section header
     drawRect(50, y - 4, RIGHT_MARGIN - 50, 18, [0.1, 0.1, 0.1])
     page.drawText('AGEING SUMMARY', {
       x: 55, y: y + 2, size: 8, font: fontBold, color: rgb(1, 1, 1),
     })
     y -= 20
 
-    // Column positions for aging
     const ageCols = {
       label:   50,
       current: 200,
@@ -304,7 +306,6 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
       total:   500,
     }
 
-    // Sub-headers
     drawRect(50, y - 4, RIGHT_MARGIN - 50, 14, [0.92, 0.92, 0.92])
     page.drawText('0–14 days (Current)', { x: ageCols.current, y: y,     size: 7, font: fontBold, color: rgb(...DARK) })
     page.drawText('15–30 days',          { x: ageCols.d30,     y: y,     size: 7, font: fontBold, color: rgb(...DARK) })
@@ -312,7 +313,6 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
     page.drawText('60+ days',            { x: ageCols.total,   y: y,     size: 7, font: fontBold, color: rgb(...RED) })
     y -= 20
 
-    // Values row
     drawRect(50, y - 4, RIGHT_MARGIN - 50, 18, [0.97, 0.97, 0.97])
 
     const agingTotal = aging.current + aging.days30 + aging.days60 + aging.older
@@ -326,7 +326,6 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
     drawLine(50, y, RIGHT_MARGIN, y)
     y -= 14
 
-    // Total row
     drawText('Total Outstanding:', ageCols.label, y, { size: 8, bold: true })
     page.drawText(formatCurrency(agingTotal), {
       x: ageCols.total, y, size: 10, font: fontBold,
@@ -335,7 +334,7 @@ export async function generateStatementPDF(data: StatementData): Promise<Buffer>
     y -= 10
   }
 
-  // ── Footer ──────────────────────────────────────────────────────────────────
+  // ── Footer ──
   y -= 20
   drawLine(50, y, RIGHT_MARGIN, y)
   y -= 15
