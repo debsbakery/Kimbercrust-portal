@@ -233,15 +233,13 @@ if (invoiceNum) {
     const now = new Date()
     const aging = { current: 0, days30: 0, days60: 0, older: 0 }
 
-    let ageQuery = supabase
-      .from('ar_transactions')
-      .select('amount, amount_paid, due_date, created_at')
-      .eq('customer_id', customerId)
-      .eq('type', 'invoice')
-      .lte('created_at', endDate + 'T23:59:59')
-
-    if (startDate) ageQuery = ageQuery.gte('created_at', startDate)
-
+ // Ageing covers ALL outstanding invoices up to endDate — not filtered by startDate
+const ageQuery = supabase
+  .from('ar_transactions')
+  .select('amount, amount_paid, due_date, created_at')
+  .eq('customer_id', customerId)
+  .eq('type', 'invoice')
+  .lte('created_at', endDate + 'T23:59:59')
     const { data: allInvoices } = await ageQuery
 
     for (const inv of allInvoices ?? []) {
