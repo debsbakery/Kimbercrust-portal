@@ -4,7 +4,7 @@ import RegularsPanel from './regulars-panel'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
-  Plus, Trash2, FileText, DollarSign, ArrowLeft,
+  Plus, Trash2, FileText, ArrowLeft,
   MinusCircle, Search, ChevronDown, X
 } from 'lucide-react'
 
@@ -214,15 +214,15 @@ function SearchableSelect({
 export default function CreateOrderPage() {
   const supabase = createClient()
 
-  const [customers,        setCustomers]       = useState<Customer[]>([])
-  const [products,         setProducts]        = useState<Product[]>([])
-  const [lineItems,        setLineItems]       = useState<LineItem[]>([])
-  const [loading,          setLoading]         = useState(false)
-  const [error,            setError]           = useState<string | null>(null)
+  const [customers,        setCustomers]        = useState<Customer[]>([])
+  const [products,         setProducts]         = useState<Product[]>([])
+  const [lineItems,        setLineItems]        = useState<LineItem[]>([])
+  const [loading,          setLoading]          = useState(false)
+  const [error,            setError]            = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
-  const [contractPricing,  setContractPricing] = useState<Record<string, number>>({})
-  const contractPricingRef = useRef<Record<string, number>>({})  // ← ADD THIS
-  const [formData,         setFormData]        = useState({
+  const [contractPricing,  setContractPricing]  = useState<Record<string, number>>({})
+  const contractPricingRef                       = useRef<Record<string, number>>({})
+  const [formData,         setFormData]         = useState({
     customerId:          '',
     deliveryDate:        new Date().toISOString().split('T')[0],
     purchaseOrderNumber: '',
@@ -276,6 +276,7 @@ export default function CreateOrderPage() {
     const c = customers.find(c => c.id === id) || null
     setSelectedCustomer(c)
     setFormData(f => ({ ...f, customerId: id }))
+    setLineItems([])
 
     if (id) {
       const { data } = await supabase
@@ -283,27 +284,23 @@ export default function CreateOrderPage() {
         .select('product_id, contract_price')
         .eq('customer_id', id)
 
-      if (data) {
-  const map: Record<string, number> = {}
-  data.forEach((row: any) => { map[row.product_id] = row.contract_price })
-  setContractPricing(map)
-  contractPricingRef.current = map
-} else {
-  setContractPricing({})
-  contractPricingRef.current = {}
-}
+      if (data && data.length > 0) {
+        const map: Record<string, number> = {}
+        data.forEach((row: any) => { map[row.product_id] = Number(row.contract_price) })
+        setContractPricing(map)
+        contractPricingRef.current = map
+      } else {
+        setContractPricing({})
+        contractPricingRef.current = {}
+      }
     } else {
       setContractPricing({})
+      contractPricingRef.current = {}
     }
-
-    // Clear lines when customer changes — regulars panel replaces them
-    setLineItems([])
   }
 
   // ── Handler: receive lines from RegularsPanel ──────────────────────────────
-  // Merges incoming lines into existing lineItems
-  // If product already exists → adds quantities together
-  // If product is new → appends as new row
+
   function handleAddRegularLines(
     incomingLines: Array<{
       product_id:     string
@@ -316,20 +313,14 @@ export default function CreateOrderPage() {
   ) {
     setLineItems(prev => {
       const updated = [...prev]
-
       for (const newLine of incomingLines) {
-        const existingIdx = updated.findIndex(
-          item => item.productId === newLine.product_id
-        )
-
+        const existingIdx = updated.findIndex(item => item.productId === newLine.product_id)
         if (existingIdx >= 0) {
-          // Product already on order — add quantities
           updated[existingIdx] = {
             ...updated[existingIdx],
             quantity: updated[existingIdx].quantity + newLine.quantity,
           }
         } else {
-          // New product — build a full LineItem and append
           updated.push({
             id:            Math.random().toString(36).slice(2),
             productId:     newLine.product_id,
@@ -342,11 +333,10 @@ export default function CreateOrderPage() {
             creditPercent: 100,
             creditType:    'product_credit',
             isCustom:      false,
-            hasContract:   contractPricing[newLine.product_id] !== undefined,
+            hasContract:   contractPricingRef.current[newLine.product_id] !== undefined,
           })
         }
       }
-
       return updated
     })
   }
@@ -368,8 +358,8 @@ export default function CreateOrderPage() {
     }])
   }
 
-const updateLineItem = useCallback((id: string, field: string, value: any) => {
-  setLineItems(prev => prev.map(item => {
+  const updateLineItem = useCallback((id: string, field: string, value: any) => {
+    setLineItems(prev => prev.map(item => {
       if (item.id !== id) return item
       if (field === 'productId') {
         if (!value) return {
@@ -381,9 +371,9 @@ const updateLineItem = useCallback((id: string, field: string, value: any) => {
         if (!p) return item
         const is900         = p.code === '900' || p.product_code === 900
         const stdPrice      = p.unit_price || p.price || 0
-      const contractPrice = contractPricingRef.current[p.id]
-const resolvedPrice = is900 ? 0 : (contractPrice ?? stdPrice)
-const hasContract   = !is900 && contractPrice !== undefined
+        const contractPrice = contractPricingRef.current[p.id]
+        const resolvedPrice = is900 ? 0 : (contractPrice ?? stdPrice)
+        const hasContract   = !is900 && contractPrice !== undefined
         return {
           ...item,
           productId:     p.id,
@@ -397,7 +387,7 @@ const hasContract   = !is900 && contractPrice !== undefined
       }
       return { ...item, [field]: value }
     }))
-}, [contractPricing, products])
+  }, [products])
 
   function removeLineItem(id: string) {
     setLineItems(prev => prev.filter(item => item.id !== id))
@@ -433,6 +423,7 @@ const hasContract   = !is900 && contractPrice !== undefined
     setLineItems([])
     setSelectedCustomer(null)
     setContractPricing({})
+    contractPricingRef.current = {}
     setError(null)
   }
 
@@ -459,7 +450,6 @@ const hasContract   = !is900 && contractPrice !== undefined
         ...lineItems.filter(i => i.productCode !== '900'),
       ]
 
-      // Create order
       const { data: newOrder, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -481,7 +471,6 @@ const hasContract   = !is900 && contractPrice !== undefined
 
       if (orderError) throw new Error(`Order creation failed: ${orderError.message}`)
 
-      // Create order items
       const { error: itemsError } = await supabase
         .from('order_items')
         .insert(sortedItems.map(item => {
@@ -505,7 +494,6 @@ const hasContract   = !is900 && contractPrice !== undefined
         throw new Error(`Order items failed: ${itemsError.message}`)
       }
 
-      // Create credit memo if credit lines exist
       if (hasCredits) {
         try {
           const creditLines    = lineItems.filter(i => i.isCredit)
@@ -679,7 +667,7 @@ const hasContract   = !is900 && contractPrice !== undefined
           </div>
         </div>
 
-        {/* ── ⭐ REGULARS PANEL — appears after customer selected ── */}
+        {/* ── ⭐ REGULARS PANEL ── */}
         {selectedCustomer && (
           <RegularsPanel
             key={selectedCustomer.id}
@@ -721,7 +709,6 @@ const hasContract   = !is900 && contractPrice !== undefined
           ) : (
             <div className="space-y-2">
 
-              {/* Column headers */}
               <div className="grid grid-cols-12 gap-2 text-xs font-medium text-gray-500 px-1 pb-1 border-b">
                 <span className="col-span-1">Type</span>
                 <span className="col-span-4">Product</span>
@@ -733,7 +720,6 @@ const hasContract   = !is900 && contractPrice !== undefined
                 <span className="col-span-1"></span>
               </div>
 
-              {/* Rows */}
               {lineItems.map(item => (
                 <div
                   key={item.id}
@@ -742,7 +728,6 @@ const hasContract   = !is900 && contractPrice !== undefined
                     item.isCredit ? 'bg-orange-50 border border-orange-100' : 'bg-gray-50',
                   ].join(' ')}
                 >
-                  {/* Type badge */}
                   <div className="col-span-1 pt-2">
                     <span className={[
                       'text-xs px-1.5 py-0.5 rounded font-medium',
@@ -752,7 +737,6 @@ const hasContract   = !is900 && contractPrice !== undefined
                     </span>
                   </div>
 
-                  {/* Product select + GST toggle */}
                   <div className="col-span-4">
                     <SearchableSelect
                       options={productOptions}
@@ -787,7 +771,6 @@ const hasContract   = !is900 && contractPrice !== undefined
                     )}
                   </div>
 
-                  {/* Quantity */}
                   <div className="col-span-1">
                     <input
                       type="number"
@@ -799,7 +782,6 @@ const hasContract   = !is900 && contractPrice !== undefined
                     />
                   </div>
 
-                  {/* Unit price */}
                   <div className="col-span-2">
                     <input
                       type="number"
@@ -814,7 +796,6 @@ const hasContract   = !is900 && contractPrice !== undefined
                     )}
                   </div>
 
-                  {/* Credit percent */}
                   <div className="col-span-1">
                     {item.isCredit ? (
                       <select
@@ -831,7 +812,6 @@ const hasContract   = !is900 && contractPrice !== undefined
                     )}
                   </div>
 
-                  {/* Stale checkbox */}
                   <div className="col-span-1 flex justify-center pt-2">
                     {item.isCredit ? (
                       <input
@@ -845,7 +825,6 @@ const hasContract   = !is900 && contractPrice !== undefined
                     )}
                   </div>
 
-                  {/* Line total */}
                   <div className={[
                     'col-span-1 text-sm font-medium text-right pt-2',
                     item.isCredit ? 'text-orange-600' : 'text-gray-800',
@@ -860,7 +839,6 @@ const hasContract   = !is900 && contractPrice !== undefined
                     )}
                   </div>
 
-                  {/* Remove */}
                   <div className="col-span-1 flex justify-center pt-1.5">
                     <button
                       type="button"
@@ -873,7 +851,6 @@ const hasContract   = !is900 && contractPrice !== undefined
                 </div>
               ))}
 
-              {/* Totals */}
               <div className="border-t-2 pt-4 mt-2 space-y-1 text-right">
                 <div className="text-sm text-gray-600">
                   Subtotal: <span className="font-medium ml-2">{fmt(subtotal)}</span>
