@@ -221,6 +221,7 @@ export default function CreateOrderPage() {
   const [error,            setError]           = useState<string | null>(null)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [contractPricing,  setContractPricing] = useState<Record<string, number>>({})
+  const contractPricingRef = useRef<Record<string, number>>({})  // ← ADD THIS
   const [formData,         setFormData]        = useState({
     customerId:          '',
     deliveryDate:        new Date().toISOString().split('T')[0],
@@ -283,12 +284,14 @@ export default function CreateOrderPage() {
         .eq('customer_id', id)
 
       if (data) {
-        const map: Record<string, number> = {}
-        data.forEach((row: any) => { map[row.product_id] = row.contract_price })
-        setContractPricing(map)
-      } else {
-        setContractPricing({})
-      }
+  const map: Record<string, number> = {}
+  data.forEach((row: any) => { map[row.product_id] = row.contract_price })
+  setContractPricing(map)
+  contractPricingRef.current = map
+} else {
+  setContractPricing({})
+  contractPricingRef.current = {}
+}
     } else {
       setContractPricing({})
     }
@@ -378,9 +381,9 @@ const updateLineItem = useCallback((id: string, field: string, value: any) => {
         if (!p) return item
         const is900         = p.code === '900' || p.product_code === 900
         const stdPrice      = p.unit_price || p.price || 0
-        const contractPrice = contractPricing[p.id]
-        const resolvedPrice = is900 ? 0 : (contractPrice ?? stdPrice)
-        const hasContract   = !is900 && contractPrice !== undefined
+      const contractPrice = contractPricingRef.current[p.id]
+const resolvedPrice = is900 ? 0 : (contractPrice ?? stdPrice)
+const hasContract   = !is900 && contractPrice !== undefined
         return {
           ...item,
           productId:     p.id,
