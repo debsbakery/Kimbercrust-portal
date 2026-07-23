@@ -618,6 +618,11 @@ export default function CreateOrderPage() {
                   )}
                 </p>
               )}
+               {selectedCustomer && (
+        <p className="text-xs text-red-500 mt-1">
+          DEBUG keys: {Object.keys(contractPricing).join(', ') || 'EMPTY'}
+        </p>
+      )}
             </div>
 
             <div>
