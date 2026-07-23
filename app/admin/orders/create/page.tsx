@@ -251,24 +251,23 @@ export default function CreateOrderPage() {
     label:    c.business_name || c.email,
     sublabel: `Balance: ${fmt(c.balance || 0)}`,
   }))
-
-  const productOptions: SelectOption[] = products.map(p => {
-    const code     = p.code || p.product_number || p.product_code?.toString() || ''
-    const is900    = p.code === '900' || p.product_code === 900
-    const contract = contractPricing[p.id]
-    const stdPrice = p.unit_price || p.price || 0
-    const priceLabel = is900
-      ? 'Enter custom description + amount'
-      : contract !== undefined
-        ? `Contract: ${fmt(contract)} | Std: ${fmt(stdPrice)} | ${p.gst_applicable ? 'GST' : 'No GST'}`
-        : `${fmt(stdPrice)} | ${p.gst_applicable ? 'GST' : 'No GST'}`
-    return {
-      value:    p.id,
-      label:    is900 ? 'Manual Adjustment' : p.name,
-      badge:    String(code),
-      sublabel: priceLabel,
-    }
-  })
+const productOptions: SelectOption[] = products.map(p => {
+  const code     = p.code || p.product_number || p.product_code?.toString() || ''
+  const is900    = p.code === '900' || p.product_code === 900
+  const contract = contractPricing[p.id]
+  const stdPrice = p.unit_price || p.price || 0
+  const priceLabel = is900
+    ? 'Enter custom description + amount'
+    : contract !== undefined
+      ? `Contract: ${fmt(contract)} | Std: ${fmt(stdPrice)} | ${p.gst_applicable ? 'GST' : 'No GST'}`
+      : `${fmt(stdPrice)} | ${p.gst_applicable ? 'GST' : 'No GST'}`
+  return {
+    value:    p.id,
+    label:    is900 ? 'Manual Adjustment' : p.name,
+    badge:    String(code),
+    sublabel: priceLabel,
+  }
+})
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -367,13 +366,13 @@ export default function CreateOrderPage() {
           productId: '', productName: '', productCode: '',
           unitPrice: 0, gstApplicable: true, isCustom: false, hasContract: false,
         }
-        const p = products.find(p => p.id === value)
-        if (!p) return item
-        const is900         = p.code === '900' || p.product_code === 900
-        const stdPrice      = p.unit_price || p.price || 0
-        const contractPrice = contractPricingRef.current[p.id]
-        const resolvedPrice = is900 ? 0 : (contractPrice ?? stdPrice)
-        const hasContract   = !is900 && contractPrice !== undefined
+      const p = products.find(p => p.id === value)
+if (!p) return item
+const is900         = p.code === '900' || p.product_code === 900
+const stdPrice      = p.unit_price || p.price || 0
+const contractPrice = contractPricingRef.current[p.id] ?? contractPricing[p.id]
+const resolvedPrice = is900 ? 0 : (contractPrice ?? stdPrice)
+const hasContract   = !is900 && contractPrice !== undefined
         return {
           ...item,
           productId:     p.id,
