@@ -617,11 +617,8 @@ const hasContract   = !is900 && contractPrice !== undefined
                   )}
                 </p>
               )}
-               {selectedCustomer && (
-        <p className="text-xs text-red-500 mt-1">
-          DEBUG keys: {Object.keys(contractPricing).join(', ') || 'EMPTY'}
-        </p>
-      )}
+            
+      
             </div>
 
             <div>
