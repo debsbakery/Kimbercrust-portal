@@ -357,8 +357,8 @@ const productOptions: SelectOption[] = products.map(p => {
     }])
   }
 
-  const updateLineItem = useCallback((id: string, field: string, value: any) => {
-    setLineItems(prev => prev.map(item => {
+const updateLineItem = useCallback((id: string, field: string, value: any, currentContracts?: Record<string, number>) => {
+  setLineItems(prev => prev.map(item => {
       if (item.id !== id) return item
       if (field === 'productId') {
         if (!value) return {
@@ -370,7 +370,7 @@ const productOptions: SelectOption[] = products.map(p => {
 if (!p) return item
 const is900         = p.code === '900' || p.product_code === 900
 const stdPrice      = p.unit_price || p.price || 0
-const contractPrice = contractPricingRef.current[p.id] ?? contractPricing[p.id]
+const contractPrice = (currentContracts ?? contractPricingRef.current ?? contractPricing)[p.id]
 const resolvedPrice = is900 ? 0 : (contractPrice ?? stdPrice)
 const hasContract   = !is900 && contractPrice !== undefined
         return {
@@ -745,7 +745,7 @@ const hasContract   = !is900 && contractPrice !== undefined
                     <SearchableSelect
                       options={productOptions}
                       value={item.productId}
-                      onChange={val => updateLineItem(item.id, 'productId', val)}
+onChange={val => updateLineItem(item.id, 'productId', val, contractPricing)}
                       placeholder="Select product..."
                     />
                     {item.isCustom && (
