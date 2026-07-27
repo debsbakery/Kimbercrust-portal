@@ -1,12 +1,16 @@
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
-  return NextResponse.json({
-    debs_url:     process.env.DEBS_SUPABASE_URL     ? 'SET' : 'MISSING',
-    debs_key:     process.env.DEBS_SUPABASE_KEY     ? 'SET' : 'MISSING',
-    norbake_url:  process.env.NORBAKE_SUPABASE_URL  ? 'SET' : 'MISSING',
-    norbake_key:  process.env.NORBAKE_SUPABASE_KEY  ? 'SET' : 'MISSING',
-    stods_url:    process.env.STODS_SUPABASE_URL    ? 'SET' : 'MISSING',
-    stods_key:    process.env.STODS_SUPABASE_KEY    ? 'SET' : 'MISSING',
-  })
+  const supabase = createClient(
+    process.env.DEBS_SUPABASE_URL!,
+    process.env.DEBS_SUPABASE_KEY!
+  )
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, delivery_date')
+    .gte('delivery_date', '2026-01-01')
+    .limit(3)
+
+  return NextResponse.json({ data, error })
 }
