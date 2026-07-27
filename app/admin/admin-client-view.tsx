@@ -390,10 +390,15 @@ body:    JSON.stringify({ skip_days: skippedDays, week_offset: selectedWeek }), 
                 <Thermometer className="h-4 w-4" />Temp & Cash
               </a>
               <a href="/admin/reports/summary"
-                className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
-                style={{ backgroundColor: '#7c3aed' }}>
-                <BarChart3 className="h-4 w-4" />Business Summary
-              </a>
+  className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
+  style={{ backgroundColor: '#7c3aed' }}>
+  <BarChart3 className="h-4 w-4" />Business Summary
+</a>
+<a href="/admin/reports/cross-portal"
+  className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
+  style={{ backgroundColor: '#0f4c81' }}>
+  <BarChart3 className="h-4 w-4" />All Portals
+</a>
               <a href="/admin/search"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#1d4ed8' }}>
