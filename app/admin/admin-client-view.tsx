@@ -4,7 +4,7 @@ import { useState } from 'react'
 import {
   Clock, Users, QrCode, CalendarDays, BarChart3, Package, RefreshCw, Truck,
   DollarSign, FileText, Thermometer, ShoppingCart, ChefHat, Receipt,
-  Copy, Play, ClipboardList, Search, Printer, Store, X,
+  Copy, Play, ClipboardList,AlertTriangle, Search, Printer, Store, X,
 } from 'lucide-react'
 
 import OrdersView from './orders-view'
@@ -324,6 +324,11 @@ body:    JSON.stringify({ skip_days: skippedDays, week_offset: selectedWeek }), 
                 style={{ backgroundColor: '#dc2626' }}>
                 <BarChart3 className="h-4 w-4" />Stales
               </a>
+              <a href="/admin/recalls"
+  className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
+  style={{ backgroundColor: '#b91c1c' }}>
+  <AlertTriangle className="h-4 w-4" />Recalls
+</a>
               <a href="/admin/reports/accountant"
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-md hover:opacity-90 shadow-md text-sm font-medium"
                 style={{ backgroundColor: '#2563eb' }}>
