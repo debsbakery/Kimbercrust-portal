@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     const { data: openShift } = await supabase
       .from('shifts')
-      .select('*, staff:staff_id(employment_type, break_minutes, primary_department, base_hourly_rate, saturday_rate, sunday_rate, sunday_rate, public_holiday_rate, public_holiday_multiplier, overtime_threshold_hours, overtime_multiplier, double_time_threshold_hours, double_time_multiplier, salary_weekly, salary_hours_per_week, super_rate_percent, true_hourly_cost)')
+      .select('*, staff:staff_id(employment_type, break_minutes, primary_department, base_hourly_rate, saturday_rate, sunday_rate, public_holiday_rate, public_holiday_multiplier, overtime_threshold_hours, overtime_multiplier, double_time_threshold_hours, double_time_multiplier, salary_weekly, salary_hours_per_week, super_rate_percent, true_hourly_cost)')
       .eq('id', shift_id)
       .maybeSingle()
 
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     const staffBreakMins = Number(openShift.staff?.break_minutes ?? 0)
     const breakMins = (openShift.section === 1 && grossMins >= 300) ? staffBreakMins : 0
 
-    // ? Use calculateShift so pay fields (gross_pay, applicable_rate, saturday/sunday pay) are correct
+    // ? Calendar-first day_type — only trust roster for public_holiday
     const dow = new Date(openShift.work_date + 'T00:00:00Z').getUTCDay()
     const calendarDayType = dow === 0 ? 'sunday' : dow === 6 ? 'saturday' : 'normal'
     const dayType = openShift.day_type === 'public_holiday' ? 'public_holiday' : calendarDayType
@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
     const paidMins  = calc?.paidMinutes  ?? Math.max(0, grossMins - breakMins)
     const paidHours = calc?.paidHours    ?? Math.round(paidMins / 60 * 100) / 100
 
-    // ? Insert clock_out event FIRST so we can link its id to the shift
     const { data: clockOutEvent } = await supabase
       .from('clock_events')
       .insert({
@@ -89,7 +88,6 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
-    // ? Update shift with full pay fields recalculated
     const { error: updateErr } = await supabase
       .from('shifts')
       .update({
@@ -116,7 +114,6 @@ export async function POST(request: NextRequest) {
 
     if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 })
 
-    // ? Mark roster entry completed so staff can't clock in again for this section
     if (openShift.roster_entry_id) {
       await supabase
         .from('roster_entries')
@@ -162,13 +159,15 @@ export async function POST(request: NextRequest) {
     .maybeSingle()
 
   const dept = department ?? rosterEntry?.department ?? staff.primary_department
+
+  // ? Calendar-first day_type — only trust roster for public_holiday (matches clock-out route)
   const dayOfWeek = new Date(work_date + 'T00:00:00Z').getUTCDay()
   const calendarDayType = dayOfWeek === 0 ? 'sunday' : dayOfWeek === 6 ? 'saturday' : 'normal'
   const dayType = rosterEntry?.day_type === 'public_holiday' ? 'public_holiday' : calendarDayType
 
   // -- Helper: find next available section --
-  async function resolveSection(skipRosterSection = false): Promise<number> {
-    if (!skipRosterSection && rosterEntry?.section != null) return rosterEntry.section
+  async function resolveSection(): Promise<number> {
+    if (rosterEntry?.section != null) return rosterEntry.section
     const { data: existing } = await supabase
       .from('shifts')
       .select('section')
