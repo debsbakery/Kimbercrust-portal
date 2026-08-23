@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
   const nowUtc   = new Date()
   const today    = nowUtc.toLocaleDateString('en-CA', { timeZone: PORTAL_TZ })
 
-  // Yesterday (portal-local) â€” needed for split shifts clocking out after midnight
+  // Yesterday (portal-local) — needed for split shifts clocking out after midnight
   const yesterdayDate = new Date(nowUtc)
   yesterdayDate.setDate(yesterdayDate.getDate() - 1)
   const yesterday = yesterdayDate.toLocaleDateString('en-CA', { timeZone: PORTAL_TZ })
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     rosterEntry = data
   }
 
-  // Fallback â€” search today AND yesterday to catch split shifts clocking out after midnight
+  // Fallback — search today AND yesterday to catch split shifts clocking out after midnight
   if (!rosterEntry) {
     const { data: entries } = await supabase
       .from('roster_entries')
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
   // Use roster work_date for scheduledEnd if available, else today
   const rosterDate = rosterEntry?.work_date ?? today
 
-  // âœ… Day type: ALWAYS derived from calendar date (server-TZ-proof).
+  // ? Day type: ALWAYS derived from calendar date (server-TZ-proof).
   // Roster day_type only trusted for public_holiday.
   const dow = new Date(rosterDate + 'T00:00:00Z').getUTCDay()
   const calendarDayType = dow === 0 ? 'sunday' : dow === 6 ? 'saturday' : 'normal'
@@ -196,6 +196,22 @@ export async function POST(request: NextRequest) {
 
   if (evtErr) return NextResponse.json({ error: evtErr.message }, { status: 500 })
 
+  // ? Determine the correct section for this shift.
+  // Look up existing shifts for this staff/date to avoid overwriting a different shift.
+  // If rosterEntry has a section, use it. Otherwise find the next available section.
+  async function resolveSection(staffId: string, workDate: string, rosterSection: number | null): Promise<number> {
+    if (rosterSection != null) return rosterSection
+    const { data: existing } = await supabase
+      .from('shifts')
+      .select('section')
+      .eq('staff_id', staffId)
+      .eq('work_date', workDate)
+    const used = (existing ?? []).map((s: any) => s.section)
+    let s = 1
+    while (used.includes(s)) s++
+    return s
+  }
+
   let calc: ReturnType<typeof calculateShift> | null = null
 
   if (rosterEntry) {
@@ -204,7 +220,7 @@ export async function POST(request: NextRequest) {
       effectiveEnd:             paidTime,
       breakMinutes:             effectiveBreakMinutes,
       employmentType:           staff.employment_type,
-      dayType:                  dayType,   // âœ… calendar-derived
+      dayType:                  dayType,
       baseHourlyRate:           rosterEntry.base_hourly_rate,
       saturdayRate:             rosterEntry.saturday_rate,
       sundayRate:               rosterEntry.sunday_rate,
@@ -219,17 +235,17 @@ export async function POST(request: NextRequest) {
       superRatePercent:         rosterEntry.super_rate_percent,
       trueHourlyCost:           rosterEntry.true_hourly_cost,
     })
-  }
 
-  if (calc && rosterEntry) {
+    const resolvedSection = await resolveSection(staff.id, rosterEntry.work_date ?? today, rosterEntry.section ?? null)
+
     const { error: shiftErr } = await supabase.from('shifts').upsert({
       staff_id:             staff.id,
       roster_entry_id:      rosterEntry.id,
       work_date:            rosterEntry.work_date ?? today,
-      section:              rosterEntry.section ?? 1,
+      section:              resolvedSection,
       department:           rosterEntry.department ?? staff.primary_department,
       employment_type:      staff.employment_type,
-      day_type:             dayType,   // âœ… calendar-derived
+      day_type:             dayType,
       clock_in_id:          clockInEvent.id,
       clock_out_id:         outEvent.id,
       effective_start:      paidStart.toISOString(),
@@ -261,17 +277,21 @@ export async function POST(request: NextRequest) {
     await supabase.from('roster_entries').update({ status: 'completed' }).eq('id', rosterEntry.id)
 
   } else {
+    // Fallback — no roster entry found
     const grossMins = Math.round((paidTime.getTime() - paidStart.getTime()) / 60000)
     const breakMins = effectiveBreakMinutes
     const paidMins  = Math.max(0, grossMins - breakMins)
 
+    // ? Resolve section — don't hardcode 1, find next available
+    const resolvedSection = await resolveSection(staff.id, today, null)
+
     const { error: fallbackErr } = await supabase.from('shifts').upsert({
       staff_id:        staff.id,
       work_date:       today,
-      section:         1,
+      section:         resolvedSection,
       department:      staff.primary_department ?? 'production',
       employment_type: staff.employment_type,
-      day_type:        dayType,   // âœ… was hardcoded 'normal' â€” Edoardo's Saturday bug
+      day_type:        dayType,
       clock_in_id:     clockInEvent.id,
       clock_out_id:    outEvent.id,
       effective_start: paidStart.toISOString(),
