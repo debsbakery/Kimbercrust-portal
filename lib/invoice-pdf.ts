@@ -171,7 +171,9 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
   }
 
   const customerAddress = order.customer_address || 'Address on file'
-  doc.text(customerAddress, margin, yPos)
+  const addressLines = doc.splitTextToSize(customerAddress, 100)
+  doc.text(addressLines, margin, yPos)
+  yPos += 5 * (addressLines.length - 1)
   yPos += 5
 
   if ((order as any).customer_phone) {
@@ -301,7 +303,7 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
 
   if (bakery.bankName || bakery.bankBSB || bakery.bankAccount) {
     doc.setFillColor(240, 253, 244)
-    doc.rect(margin, bankY, 170, 32, 'F')
+    doc.rect(margin, bankY, 170, 38, 'F')
 
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
@@ -326,11 +328,13 @@ export async function generateInvoicePDF(data: InvoiceData): Promise<jsPDF> {
       bankLineY += 5
     }
     doc.text('Reference: ' + invoiceNum, margin + 5, bankLineY)
+    bankLineY += 5
+    doc.text('Please email remittance advice to: admin@kimbercrust.com', margin + 5, bankLineY)
   }
 
   // Payment Terms
   const termsY = (bakery.bankName || bakery.bankBSB || bakery.bankAccount)
-    ? bankY + 42
+    ? bankY + 48
     : finalY + 30
 
   doc.setFontSize(8)
