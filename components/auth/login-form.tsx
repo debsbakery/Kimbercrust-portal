@@ -84,7 +84,7 @@ export function LoginForm() {
             className="h-40 w-auto mx-auto mb-4"
           />
           <h2 className="text-2xl font-bold mb-1">
-            <span style={{ color: '#8B0000' }}>Deb's</span>{" "}
+            <span style={{ color: '#8B0000' }}>Kimbercrust</span>{" "}
             <span style={{ color: '#2c2c2c' }}>Bakery</span>
           </h2>
           <p className="text-gray-600 mt-2">
