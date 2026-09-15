@@ -200,6 +200,14 @@ export async function POST(request: NextRequest) {
   // Look up existing shifts for this staff/date to avoid overwriting a different shift.
   // If rosterEntry has a section, use it. Otherwise find the next available section.
   async function resolveSection(staffId: string, workDate: string, rosterSection: number | null): Promise<number> {
+    const { data: openShift } = await supabase
+      .from('shifts')
+      .select('section')
+      .eq('staff_id', staffId)
+      .eq('clock_in_id', clockInEvent.id)
+      .maybeSingle()
+    if (openShift?.section != null) return openShift.section
+
     if (rosterSection != null) return rosterSection
     const { data: existing } = await supabase
       .from('shifts')
