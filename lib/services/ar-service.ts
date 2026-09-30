@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { differenceInDays } from 'date-fns'
 
 export class ARService {
@@ -7,7 +7,7 @@ export class ARService {
    * Calculate aging buckets for a customer
    */
   async calculateAging(customerId: string) {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     
     const buckets = {
       current: 0,
@@ -70,7 +70,7 @@ export class ARService {
    * Get aging report for all customers
    */
   async getAgingReport() {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     
     const { data, error } = await supabase
       .from('customers')
@@ -112,7 +112,7 @@ export class ARService {
    * Get customers with overdue balances
    */
   async getOverdueCustomers() {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     const today = new Date().toISOString().split('T')[0]
     
     const { data, error } = await supabase
@@ -149,7 +149,7 @@ export class ARService {
    * Record a payment
    */
   async recordPayment(customerId: string, amount: number, description: string) {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     
     // Get current customer
     const { data: customer, error: fetchError } = await supabase
@@ -191,7 +191,7 @@ export class ARService {
    * Determine reminder level based on overdue days
    */
   async determineReminderLevel(customer: any): Promise<number> {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     
     if (!customer.overdue_invoices || customer.overdue_invoices.length === 0) {
       return 0

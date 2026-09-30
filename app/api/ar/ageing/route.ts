@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { ARService } from '@/lib/services/ar-service'
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET() {
   try {
@@ -46,7 +46,7 @@ export async function POST() {
     console.log('🔄 Starting aging update...')
     
     const service = new ARService()
-    const supabase = await createClient()
+    const supabase = createAdminClient()
     
     const { data: customers } = await supabase
       .from('customers')
