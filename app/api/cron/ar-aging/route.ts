@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? 'https://orders.kimbercrust.com'
     const response = await fetch(`${siteUrl}/api/ar/aging/update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.CRON_SECRET}`,
+      },
     })
 
     const result = await response.json()

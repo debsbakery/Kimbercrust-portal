@@ -1,11 +1,15 @@
-﻿export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic'
 
 // app/api/ar/record-payment/route.ts
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdminOrCron } from '@/lib/auth-guard'
 import { createClient } from '@/lib/supabase/server'
 
 
 export async function POST(request: NextRequest) {
+  const denied = await requireAdminOrCron(request)
+  if (denied) return denied
+
   const supabase = await createClient()
   try {
     const { customer_id, amount, description, apply_to_invoice_id } = await request.json()

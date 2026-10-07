@@ -29,7 +29,8 @@ export function startARScheduler() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'User-Agent': 'AR-Scheduler/1.0'
+          'User-Agent': 'AR-Scheduler/1.0',
+          Authorization: `Bearer ${process.env.CRON_SECRET}`
         }
       });
       
@@ -61,7 +62,8 @@ export function startARScheduler() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'User-Agent': 'AR-Scheduler/1.0'
+          'User-Agent': 'AR-Scheduler/1.0',
+          Authorization: `Bearer ${process.env.CRON_SECRET}`
         }
       });
       
@@ -89,7 +91,8 @@ export function startARScheduler() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'User-Agent': 'AR-Scheduler/1.0'
+          'User-Agent': 'AR-Scheduler/1.0',
+          Authorization: `Bearer ${process.env.CRON_SECRET}`
         }
       });
       
@@ -117,7 +120,8 @@ export function startARScheduler() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'User-Agent': 'AR-Scheduler/1.0'
+          'User-Agent': 'AR-Scheduler/1.0',
+          Authorization: `Bearer ${process.env.CRON_SECRET}`
         }
       });
       

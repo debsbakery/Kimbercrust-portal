@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdminOrCron } from '@/lib/auth-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { buildOpenStatement } from '@/lib/statement/build-open-statement'
 import { generateOpenInvoicesPDF } from '@/lib/pdf/open-invoices'
@@ -106,6 +107,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireAdminOrCron(request)
+  if (denied) return denied
+
   try {
     const body = await request.json().catch(() => ({}))
     return NextResponse.json(await run(body.customerIds))

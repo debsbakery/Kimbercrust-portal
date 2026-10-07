@@ -1,9 +1,13 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
+import { requireAdminOrCron } from '@/lib/auth-guard'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-export async function POST() {
+export async function POST(request: Request) {
+  const denied = await requireAdminOrCron(request)
+  if (denied) return denied
+
   try {
     console.log('📊 Updating AR aging report...')
 
